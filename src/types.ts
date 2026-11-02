@@ -42,6 +42,7 @@ export interface Product {
   sku: string;
   warehouseLocation: string;
   image: string;
+  gallery?: string[];
   shortDesc: string;
   description: string;
   features: string[];

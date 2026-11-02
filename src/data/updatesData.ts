@@ -88,7 +88,7 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
     badge: 'NEW HARDWARE LAUNCH',
     badgeColor: 'amber',
     date: 'September 2026',
-    image: '/src/assets/images/programmable_drone_kit_1792018816391.jpg',
+    image: 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=800&q=80',
     description: 'Equipped with open-source ArduPilot avionics, 4K low-latency FPV telemetry, optical flow hovering, and obstacle sensing. Built specifically for high school and senior secondary students diving into aerial robotics and computer vision.',
     highlights: [
       'Carbon-fiber crash-resilient modular quadcopter airframe',
@@ -128,7 +128,7 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
     badge: 'NEW NEP 2020 COURSE',
     badgeColor: 'blue',
     date: 'September 2026',
-    image: 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+    image: 'https://images.unsplash.com/photo-1506947411487-a56738267384?auto=format&fit=crop&w=800&q=80',
     description: 'A structured 6-week curriculum with virtual aerodynamic simulations, interactive wiring diagrams, step-by-step ArduPilot tuning, and automated student certification.',
     highlights: [
       'Interactive Flight Simulator integrated directly in browser',
@@ -258,7 +258,7 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
     badge: 'NEW CURRICULUM MODULE',
     badgeColor: 'blue',
     date: 'July 2026',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+    image: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80',
     description: 'Train machine learning classification models on your computer and deploy them directly onto tiny microcontrollers. Students build intelligent smart waste sorters, gesture-controlled lights, and voice-activated lab alarms.',
     highlights: [
       'Interactive visual Edge Impulse machine learning workflow',

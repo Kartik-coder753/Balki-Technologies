@@ -13,7 +13,7 @@ export const INITIAL_RENTALS: RentalEquipment[] = [
     securityDeposit: 8000,
     totalUnits: 8,
     availableUnits: 6,
-    image: '/src/assets/images/printer_prototyping_kit_1792018815179.jpg',
+    image: 'https://images.unsplash.com/photo-1581092162384-8987c1d64718?auto=format&fit=crop&w=800&q=80',
     condition: 'Calibrated',
     specs: [
       'Max Speed: 500 mm/s high-acceleration printing',
@@ -39,7 +39,7 @@ export const INITIAL_RENTALS: RentalEquipment[] = [
     securityDeposit: 12000,
     totalUnits: 5,
     availableUnits: 3,
-    image: '/src/assets/images/programmable_drone_kit_1792018816391.jpg',
+    image: 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
     condition: 'Brand New',
     specs: [
       'Open-source ArduPilot / PX4 flight avionics system',
@@ -65,7 +65,7 @@ export const INITIAL_RENTALS: RentalEquipment[] = [
     securityDeposit: 4000,
     totalUnits: 12,
     availableUnits: 9,
-    image: 'https://images.unsplash.com/photo-1581092334651-ddf26d9a09d0?auto=format&fit=crop&w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=800&q=80',
     condition: 'Calibrated',
     specs: [
       'Bandwidth: 100MHz real-time with 1GSa/s sampling rate',
@@ -91,7 +91,7 @@ export const INITIAL_RENTALS: RentalEquipment[] = [
     securityDeposit: 15000,
     totalUnits: 4,
     availableUnits: 2,
-    image: '/src/assets/images/robotics_automation_kit_1792018814223.jpg',
+    image: 'https://images.unsplash.com/photo-1535378620166-273708d44e4c?auto=format&fit=crop&w=800&q=80',
     condition: 'Excellent',
     specs: [
       '17 High-torque bus serial metal gear servos with feedback',
@@ -117,7 +117,7 @@ export const INITIAL_RENTALS: RentalEquipment[] = [
     securityDeposit: 10000,
     totalUnits: 6,
     availableUnits: 4,
-    image: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1504917599217-d4dc5ebe6122?auto=format&fit=crop&w=800&q=80',
     condition: 'Calibrated',
     specs: [
       'Working Area: 300 x 180 x 45 mm',
@@ -143,7 +143,7 @@ export const INITIAL_RENTALS: RentalEquipment[] = [
     securityDeposit: 6000,
     totalUnits: 7,
     availableUnits: 5,
-    image: 'https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?auto=format&fit=crop&w=800&q=80',
     condition: 'Brand New',
     specs: [
       'Thermal Resolution: 160 x 120 (19,200 temperature measurement pixels)',

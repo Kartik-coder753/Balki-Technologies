@@ -30,8 +30,20 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   onBuyNow
 }) => {
   const [quantity, setQuantity] = useState(1);
+  const [activeImage, setActiveImage] = useState<string>(product?.image || '');
+
+  React.useEffect(() => {
+    if (product) {
+      setActiveImage(product.image);
+      setQuantity(1);
+    }
+  }, [product]);
 
   if (!product) return null;
+
+  const galleryList = product.gallery && product.gallery.length > 0
+    ? (product.gallery.includes(product.image) ? product.gallery : [product.image, ...product.gallery])
+    : [product.image];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
@@ -59,15 +71,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* Image & Badges */}
             <div className="space-y-4">
-              <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+              <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
                 <img
-                  src={product.image}
+                  src={activeImage || product.image}
                   alt={product.name}
                   referrerPolicy="no-referrer"
                   onError={(e) => {
                     e.currentTarget.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80';
                   }}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover transition-all duration-300"
                 />
                 {product.atlCertified && (
                   <div className="absolute top-3 left-3 bg-amber-500 text-white text-[11px] font-bold px-2.5 py-1 rounded-md shadow-sm">
@@ -75,6 +87,33 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Gallery Thumbnails */}
+              {galleryList.length > 1 && (
+                <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+                  {galleryList.map((imgUrl, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setActiveImage(imgUrl)}
+                      className={`relative w-14 h-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${
+                        (activeImage || product.image) === imgUrl 
+                          ? 'border-amber-500 ring-2 ring-amber-500/20 shadow-xs' 
+                          : 'border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-400'
+                      }`}
+                    >
+                      <img
+                        src={imgUrl}
+                        alt={`${product.name} angle ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=150&q=80';
+                        }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {/* Trust Indicators */}
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-100">

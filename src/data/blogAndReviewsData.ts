@@ -132,10 +132,10 @@ export const initialCaseStudyBlogs: CaseStudyBlog[] = [
     productsUsed: [
       {
         id: 'prod-1',
-        name: 'Pro-Range Bluetooth CAR Control Using Arduino UNO',
-        sku: 'BALKI-EXP-01-BTCAR',
-        category: 'robotics-mechanics',
-        image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=600&q=80',
+        name: 'Smart Touchless Ultrasonic Dustbin STEM Kit',
+        sku: 'BALKI-EXP-01-DUSTBIN',
+        category: 'biology-anatomy',
+        image: '/products/smart_dustbin_flatlay.jpg',
         price: 1699
       },
       {
@@ -143,7 +143,7 @@ export const initialCaseStudyBlogs: CaseStudyBlog[] = [
         name: 'Pro-Range Obstacle Avoiding Robot using Arduino UNO Kit',
         sku: 'BALKI-EXP-03-OBSTACLE',
         category: 'robotics-mechanics',
-        image: 'https://images.unsplash.com/photo-1618042164219-62c820f10723?auto=format&fit=crop&w=600&q=80',
+        image: 'https://images.unsplash.com/photo-1589254065878-42c9da997008?auto=format&fit=crop&w=600&q=80',
         price: 1549
       }
     ],
@@ -200,18 +200,18 @@ Standard loose electronics frequently suffer from broken jumper cables, burnt IC
     productsUsed: [
       {
         id: 'prod-8',
-        name: 'Pro-Range Robotic Arm with Web Control Kit',
+        name: '4-DOF Articulated Robotic Arm Web Control Kit',
         sku: 'BALKI-EXP-08-ROBARM',
         category: 'robotics-mechanics',
-        image: 'https://images.unsplash.com/photo-1617788138017-80ad40651399?auto=format&fit=crop&w=600&q=80',
+        image: '/products/robotic_arm_mobile_control.jpg',
         price: 2399
       },
       {
         id: 'prod-9',
-        name: 'TESTIN ELECTRONICS Smart AIR Quality Monitoring System',
+        name: 'Balki Environmental Smart Air Quality & Gas Monitoring System',
         sku: 'BALKI-EXP-09-ENVIROAIR',
         category: 'sensors',
-        image: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
+        image: '/products/environmental_station_lcd.jpg',
         price: 1799
       }
     ],
@@ -262,7 +262,7 @@ Traditional industrial robot cells require ₹4,00,000 to ₹10,00,000 for preli
         name: 'SRROBOTICS Single Axis Solar Tracking System Hand Made 100% Working Project',
         sku: 'BALKI-EXP-11-SOLARTRK',
         category: 'physics-lab',
-        image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=600&q=80',
+        image: '/products/solar_tracker_overhead.jpg',
         price: 1599
       },
       {
@@ -270,7 +270,7 @@ Traditional industrial robot cells require ₹4,00,000 to ₹10,00,000 for preli
         name: 'smart irrigation soil moisture sensor arduino water pump kit',
         sku: 'BALKI-EXP-12-SMARTIRR',
         category: 'biology-anatomy',
-        image: 'https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=600&q=80',
+        image: '/products/smart_irrigation_flatlay.webp',
         price: 999
       }
     ],

@@ -82,14 +82,17 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
 
   const categories = useMemo((): { id: ProductCategory; label: string }[] => [
     { id: 'all', label: `All Catalog (${products.length})` },
-    { id: 'atl-packages', label: `ATL Turnkey Packages (${products.filter(p => p.category === 'atl-packages').length})` },
+    { id: 'atl-packages', label: `ATL Turnkey Lab Packages (${products.filter(p => p.category === 'atl-packages').length})` },
     { id: 'microcontrollers', label: `Microcontrollers & IoT (${products.filter(p => p.category === 'microcontrollers').length})` },
-    { id: 'sensors', label: `Sensors & Automation (${products.filter(p => p.category === 'sensors').length})` },
+    { id: 'sensors', label: `Sensors & Measurement (${products.filter(p => p.category === 'sensors').length})` },
     { id: 'robotics-mechanics', label: `Robotics & Actuators (${products.filter(p => p.category === 'robotics-mechanics').length})` },
     { id: 'drone-3d', label: `3D Printing & Drones (${products.filter(p => p.category === 'drone-3d').length})` },
-    { id: 'physics-lab', label: `Physics & Power Supplies (${products.filter(p => p.category === 'physics-lab').length})` },
-    { id: 'biology-anatomy', label: `Biotech & Agritech (${products.filter(p => p.category === 'biology-anatomy').length})` },
-    { id: 'grade-kits', label: 'Grade-Progressive Kits (Classes 3-12)' },
+    { id: 'physics-lab', label: `Physics & Solar Systems (${products.filter(p => p.category === 'physics-lab').length})` },
+    { id: 'biology-anatomy', label: `Biotech & Smart Agri (${products.filter(p => p.category === 'biology-anatomy').length})` },
+    { id: 'grade-kits', label: `Grade-Progressive Kits (${products.filter(p => p.category === 'grade-kits').length})` },
+    { id: 'chemistry-lab', label: `Chemistry Lab (${products.filter(p => p.category === 'chemistry-lab').length})` },
+    { id: 'microscopes-optics', label: `Microscopes & Optics (${products.filter(p => p.category === 'microscopes-optics').length})` },
+    { id: 'mathematics-lab', label: `Math & Geometry (${products.filter(p => p.category === 'mathematics-lab').length})` },
   ], [products]);
 
   const grades: GradeLevel[] = [
@@ -106,9 +109,7 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
       .filter((product) => {
         // Category filter
         if (selectedCategory !== 'all') {
-          if (selectedCategory === 'grade-kits') {
-            // All 13 items are grade-progressive kits
-          } else if (product.category !== selectedCategory) {
+          if (product.category !== selectedCategory) {
             return false;
           }
         }

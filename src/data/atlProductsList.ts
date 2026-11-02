@@ -1,7 +1,7 @@
 import { Product, InventoryItem } from '../types';
 
 export const ATL_PRODUCTS: Product[] = [
-  // --- 1. MASTER TURNKEY PACKAGES (Under 'atl-packages') ---
+  // --- 1. MASTER TURNKEY LAB PACKAGES (Non-repeating dedicated laboratory imagery) ---
   {
     id: 'pkg-prod-e',
     name: 'Package E – Complete ATL Equipment Package (Master Turnkey 169-Item Lab Solution)',
@@ -15,7 +15,11 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 2,
     sku: 'BALKI-ATL-PKG-E-169',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/atl_turnkey_lab_1792018813842.jpg',
+    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80',
+      '/src/assets/images/atl_turnkey_lab_1792018813842.jpg'
+    ],
     shortDesc: 'The definitive all-in-one Atal Tinkering Lab setup covering Packages A + B + C + D combined (all 169 line items as per AIM Guidelines 2026).',
     description: 'Package E encompasses all 169 line items mandated by the Atal Innovation Mission (AIM), NITI Aayog guidelines (2026). It combines Electronics & IoT (Package A - 111 items), Robotics & Automation (Package B - 29 items), AI/ML & Computer Vision (Package C - 7 items), and 3D Printing & Prototyping (Package D - 22 items) into an integrated laboratory consignment with free onsite training and 12-month replacement warranty.',
     features: [
@@ -48,7 +52,11 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 3,
     sku: 'BALKI-ATL-PKG-A-111',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/iot_electronics_kit_1792018814258.jpg',
+    image: 'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=1200&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1517077304055-6e89abbf09b0?auto=format&fit=crop&w=1200&q=80',
+      '/src/assets/images/iot_electronics_kit_1792018814258.jpg'
+    ],
     shortDesc: 'Complete 111-item consignment of microcontrollers, IoT boards, sensors, displays, and laboratory power supplies.',
     description: 'Equips school Atal Tinkering Labs with 20x Arduino UNO R4 Minima boards, 10x Nano V3 Type-C, 15x ESP32 WiFi+Bluetooth boards, complete MQ gas sensor suites, ultrasonic sensors, Wanptek 30V/5A DC power supply, and specialized Bio-Tech & Agri-Tech STEM kits.',
     features: [
@@ -80,7 +88,11 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 4,
     sku: 'BALKI-ATL-PKG-B-29',
     warehouseLocation: 'Bengaluru Depot',
-    image: '/src/assets/images/robotics_automation_kit_1792018814223.jpg',
+    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1200&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1200&q=80',
+      '/src/assets/images/robotics_automation_kit_1792018814223.jpg'
+    ],
     shortDesc: 'Comprehensive 29-item robotics hardware suite: NEMA17 steppers, BO geared motors, chassis, drone & EV kits.',
     description: 'Powers school robotics programs with 20x NEMA17 Stepper Motors (JK42HS48) with A4988 drivers, 72x BO geared motors, 10x aluminum 2WD robot chassis, LiteWing ESP32 programmable drone kit, WitBlox AI Robotics kit, Mechanix steel modular kit, and an educational Electric Vehicle (EV) kit.',
     features: [
@@ -112,7 +124,11 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 2,
     sku: 'BALKI-ATL-PKG-C-07',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/ai_vision_kit_1792018815040.jpg',
+    image: 'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?auto=format&fit=crop&w=1200&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?auto=format&fit=crop&w=1200&q=80',
+      '/src/assets/images/ai_vision_kit_1792018815040.jpg'
+    ],
     shortDesc: 'High-end advanced computing package: 4x Raspberry Pi 5 8GB, Meta Quest 3S VR headset, and TinyML starter kits.',
     description: 'Enables high school students to build computer vision, neural classification, and augmented reality models. Features 4x Raspberry Pi 5 Model 8GB RAM computers, Meta Quest 3S VR Headset 128GB with Touch Plus controllers, official Arduino TinyML kits with Nano 33 BLE & OV7675 camera, and optical fingerprint sensors.',
     features: [
@@ -144,7 +160,11 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 3,
     sku: 'BALKI-ATL-PKG-D-22',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/printer_prototyping_kit_1792018815179.jpg',
+    image: 'https://images.unsplash.com/photo-1581092334651-ddf26d9a09d0?auto=format&fit=crop&w=1200&q=80',
+    gallery: [
+      'https://images.unsplash.com/photo-1581092334651-ddf26d9a09d0?auto=format&fit=crop&w=1200&q=80',
+      '/src/assets/images/printer_prototyping_kit_1792018815179.jpg'
+    ],
     shortDesc: 'Professional prototyping lab: Creality K1C CoreXY 3D printer, Artis 1500VA UPS, 3D pens, and workshop materials.',
     description: 'Transform digital CAD designs into physical inventions. Includes the flagship Creality K1C High-Speed 3D Printer (600mm/s), Artis 1500VA dedicated line interactive UPS, 6kg filaments (PLA + TPU), 5x 3D Pens LT-3 Series, acrylic sheets, MDF boards, balsa wood, and Taparia workshop hand tools.',
     features: [
@@ -178,7 +198,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 20,
     sku: 'BALKI-ATL-A01-UNOR4',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/iot_electronics_kit_1792018814258.jpg',
+    image: 'https://images.unsplash.com/photo-1608555817761-3932e650d535?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'Next-gen 32-bit Renesas RA4M1 ARM Cortex-M4 microcontroller board running at 48MHz with 256KB Flash.',
     description: 'The official Arduino UNO R4 Minima features a powerful 32-bit architecture with 12-bit DAC, CAN bus support, and increased SRAM (32KB). 100% pin-compatible with classic Arduino shields while executing operations up to 3x faster.',
     features: ['Renesas RA4M1 32-bit ARM Cortex-M4 @ 48MHz', '5V operating voltage with up to 24V input tolerance', 'Built-in 12-bit DAC, CAN bus, and operational amplifier', 'USB-C high-speed programming interface'],
@@ -200,7 +220,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 15,
     sku: 'BALKI-ATL-A02-NANOV3',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/iot_electronics_kit_1792018814258.jpg',
+    image: 'https://images.unsplash.com/photo-1555664424-778a1e5e1b48?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'Compact breadboard-friendly ATmega328P microcontroller with CH340 USB-C interface for embedded robotics.',
     description: 'Designed for compact wearable and rover installations. Operates at 16MHz clock with 32KB flash memory, 14 digital I/O pins, and 8 analog inputs on a breadboard-friendly DIP-30 footprint.',
     features: ['ATmega328P 16MHz processor with CH340G USB controller', 'Modern USB Type-C interface', '8 Analog input pins (A0-A7)', 'Breadboard pluggable form factor'],
@@ -222,7 +242,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 20,
     sku: 'BALKI-ATL-A03-ESP32',
     warehouseLocation: 'Bengaluru Depot',
-    image: '/src/assets/images/iot_electronics_kit_1792018814258.jpg',
+    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'High-performance dual-core Xtensa 32-bit LX6 microcontroller with 2.4GHz Wi-Fi and Bluetooth BLE 4.2.',
     description: 'The premier platform for IoT and smart city automation in school ATL labs. Features dual cores running up to 240MHz, capacitive touch sensors, Hall sensor, and deep-sleep ultra-low power consumption.',
     features: ['Dual-core Xtensa LX6 microprocessor up to 240MHz', 'Integrated 802.11 b/g/n Wi-Fi and Bluetooth v4.2 BR/EDR and BLE', '520KB SRAM + 4MB external SPI flash', 'Rich peripherals: capacitive touch, ADC, DAC, UART, SPI, I2C, PWM'],
@@ -244,7 +264,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 5,
     sku: 'BALKI-ATL-C01-RPI5-8GB',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/ai_vision_kit_1792018815040.jpg',
+    image: 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?auto=format&fit=crop&w=800&q=80',
     shortDesc: '64-bit quad-core Arm Cortex-A76 processor @ 2.4GHz with 8GB LPDDR4X SDRAM and VideoCore VII GPU.',
     description: 'Deliver desktop-class performance and advanced computer vision in your ATL lab. Delivers 2-3x the CPU speed of Raspberry Pi 4, featuring dual 4Kp60 HDMI display outputs, PCIe 2.0 interface, and dual-band Wi-Fi.',
     features: ['2.4GHz quad-core 64-bit Arm Cortex-A76 CPU', '8GB high-speed LPDDR4X-4267 SDRAM', 'Dual 4Kp60 micro-HDMI display outputs with HDR support', 'PCIe 2.0 interface for fast NVMe storage expansion'],
@@ -266,7 +286,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 4,
     sku: 'BALKI-ATL-C07-TINYML',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/ai_vision_kit_1792018815040.jpg',
+    image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'Official TinyML bundle with Arduino Nano 33 BLE Sense, OV7675 camera module & custom carrier shield.',
     description: 'Developed in collaboration with Harvard and TensorFlow. Enables students to train practical deep neural network models on a PC and run inference directly on the Nordic nRF52840 Cortex-M4 microcontroller.',
     features: ['Arduino Nano 33 BLE Sense with onboard 9-axis IMU, microphone, and gesture sensors', 'OV7675 Camera module with custom carrier shield', 'Directly compatible with Edge Impulse machine learning workflow', 'Pre-configured code libraries for voice keyword spotting and gesture detection'],
@@ -276,7 +296,7 @@ export const ATL_PRODUCTS: Product[] = [
     warrantyMonths: 12
   },
 
-  // --- 3. SENSORS & MEASUREMENT MODULES ('sensors') ---
+  // --- 3. SENSORS & AUTOMATION MODULES ('sensors') ---
   {
     id: 'mat-prod-65',
     name: 'HC-SR04 Ultrasonic Range Finder Sensor Module (Item 65, Package A)',
@@ -312,7 +332,11 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 6,
     sku: 'BALKI-ATL-A107-ENVIRO',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/air_quality_station_1792086691081.jpg',
+    image: '/products/environmental_station_lcd.jpg',
+    gallery: [
+      '/products/environmental_station_lcd.jpg',
+      '/src/assets/images/air_quality_station_1792086691081.jpg'
+    ],
     shortDesc: 'Complete environmental monitoring station with Arduino UNO, DHT11/22 sensor, MQ-135 gas detector, buzzer & 16x2 LCD screen.',
     description: 'Enables high-precision atmospheric pollution, indoor air quality, and hazardous gas detection research. Features an Arduino UNO controller reading live ambient temperature, relative humidity %, and air gas PPM concentrations, displaying metrics simultaneously on a backlit LCD1602 screen with audible buzzer threshold alarm.',
     features: ['Real-time MQ-135 hazardous smoke, alcohol, and gas concentration sensing', 'Digital DHT11/22 calibrated ambient temperature & humidity telemetry', 'Parallel LCD1602 green-backlit multi-line display with I2C/direct pinout', 'Onboard active acoustic alarm buzzer for hazardous threshold alerts'],
@@ -334,7 +358,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 5,
     sku: 'BALKI-ATL-C04-R307S',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/ai_vision_kit_1792018815040.jpg',
+    image: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'All-in-one optical biometric fingerprint recognition sensor with onboard DSP image processing.',
     description: 'Integrates optical fingerprint scanning, image processing, template generation, and fingerprint matching. Stores up to 1000 fingerprints with high security and UART serial communication.',
     features: ['Optical fingerprint sensing with blue/green LED illumination', 'Stores and matches up to 1000 fingerprint templates', 'False Acceptance Rate (FAR) < 0.001%', 'UART serial interface compatible with Arduino, ESP32 and Raspberry Pi'],
@@ -344,7 +368,7 @@ export const ATL_PRODUCTS: Product[] = [
     warrantyMonths: 12
   },
 
-  // --- 4. ROBOTICS & AUTOMATION ('robotics-mechanics') ---
+  // --- 4. ROBOTICS & ACTUATORS ('robotics-mechanics') ---
   {
     id: 'mat-prod-132',
     name: '4-DOF Smartphone Web-Controlled Robotic Arm STEM Kit (Item 132, Package B)',
@@ -358,7 +382,11 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 8,
     sku: 'BALKI-ATL-B21-ROBARM',
     warehouseLocation: 'Bengaluru Depot',
-    image: '/src/assets/images/robotic_arm_kit_1792086690563.jpg',
+    image: '/products/robotic_arm_mobile_control.jpg',
+    gallery: [
+      '/products/robotic_arm_mobile_control.jpg',
+      '/src/assets/images/robotic_arm_kit_1792086690563.jpg'
+    ],
     shortDesc: 'Articulated 4-DOF laser-cut robotic arm with SG90 micro servos and real-time smartphone slider web dashboard.',
     description: 'A hands-on mechanical and embedded robotics kit. Features an articulated laser-cut MDF chassis with 4x micro servos controlling Base rotation, Shoulder pitch, Elbow pitch, and Gripper claw clamp. Controlled wirelessly via smartphone web interface with Record & Play motion sequencing.',
     features: ['4-Axis degree-of-freedom articulated arm with geared micro servos', 'Web-based smartphone slider control interface (Gripper, Elbow, Shoulder, Base)', 'Record & Play automated repeatable trajectory sequencing mode', 'Includes wooden mechanical links, fasteners, and Arduino/ESP servo driver board'],
@@ -380,7 +408,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 15,
     sku: 'BALKI-ATL-B16-NEMA17',
     warehouseLocation: 'Bengaluru Depot',
-    image: '/src/assets/images/robotics_automation_kit_1792018814223.jpg',
+    image: 'https://images.unsplash.com/photo-1581092580497-e0d23cbdf1dc?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'High-torque 4.4 kg-cm hybrid stepper motor with 1.8° step angle and A4988 microstepping driver board.',
     description: 'The industry-standard precision actuator for 3D printers, CNC plotters, robotic arms, and linear gantry actuators. Comes paired with an Allegro A4988 microstepping driver shield with adjustable current limiting.',
     features: ['Holding torque: 4.4 kg-cm (43 N-cm)', 'Step angle: 1.8 degrees (200 steps per revolution)', 'Rated current: 1.68A per phase', 'Includes A4988 driver module with aluminum heatsink'],
@@ -426,7 +454,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 2,
     sku: 'BALKI-ATL-D01-K1C',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/printer_prototyping_kit_1792018815179.jpg',
+    image: 'https://images.unsplash.com/photo-1631556097152-c39479cbfeab?auto=format&fit=crop&w=800&q=80',
     shortDesc: '600mm/s CoreXY enclosed 3D printer with AI camera, carbon-fiber reinforced printing, and auto bed-leveling.',
     description: 'The champion 3D printer for modern ATL fabrication laboratories. Reaches maximum printing speeds of 600mm/s with 20,000mm/s² acceleration. Features an all-metal direct drive extruder, unicorn quick-swap nozzle, and chamber AI camera for automated spaghetti failure detection.',
     features: ['Blazing print speed up to 600mm/s with 20,000mm/s² acceleration', 'Build volume: 220 x 220 x 250 mm in a fully enclosed heated chamber', 'Supports carbon-fiber reinforced filaments (PLA-CF, PETG-CF), ABS, TPU & PLA', 'Integrated AI Camera for real-time monitoring and automated time-lapse video generation', 'Hands-free auto bed-leveling with strain gauge sensor'],
@@ -448,7 +476,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 2,
     sku: 'BALKI-ATL-C03-QUEST3S',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/ai_vision_kit_1792018815040.jpg',
+    image: 'https://images.unsplash.com/photo-1622979135225-d2ba269bc1df?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'Standalone mixed reality VR headset with full-color passthrough and Touch Plus haptic controllers.',
     description: 'Immerse school students in interactive 3D science simulations, architectural walkthroughs, and spatial geometry. Powered by the Snapdragon XR2 Gen 2 platform, delivering crisp visual fidelity without needing a high-end PC.',
     features: ['High-resolution fast-switch LCD displays with full-color stereoscopic passthrough', 'Qualcomm Snapdragon XR2 Gen 2 processor with 128GB onboard storage', 'Precision inside-out spatial tracking (no external base stations needed)', 'Includes dual Touch Plus controllers with TruTouch haptic feedback'],
@@ -494,7 +522,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 4,
     sku: 'BALKI-ATL-A87-WANPTEK',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/iot_electronics_kit_1792018814258.jpg',
+    image: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'High-precision 4-digit LED display benchtop variable switching DC regulated power supply (0–30V, 0–5A).',
     description: 'An indispensable laboratory instrument for powering sensitive microcontrollers, testing motor stall currents, and verifying electronic circuit prototypes with short-circuit and over-voltage safety protection.',
     features: ['Continuous adjustment from 0 to 30 Volts and 0 to 5 Amperes', 'High-accuracy 4-digit digital LED display for voltage, current, and wattage', 'Constant Voltage (CV) and Constant Current (CC) automatic switching', 'Short-circuit alarm with overload protection cutoff'],
@@ -516,7 +544,14 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 8,
     sku: 'BALKI-ATL-A85-SOLARTRACK',
     warehouseLocation: 'Ambala Cantt Depot',
-    image: '/src/assets/images/solar_tracker_kit_1792086691736.jpg',
+    image: '/products/solar_tracker_overhead.jpg',
+    gallery: [
+      '/products/solar_tracker_overhead.jpg',
+      '/products/solar_tracker_angled.jpg',
+      '/products/solar_tracker_front.jpg',
+      '/products/solar_tracker_rear.jpg',
+      '/products/solar_tracker_side.jpg'
+    ],
     shortDesc: 'Motorized dual-LDR active solar sun tracker with photovoltaic panel, BO gear motor & comparator board.',
     description: 'Teaches students active renewable energy harvesting, photoelectric conversion, and automated analog tracking algorithms. Employs two black-shrouded LDR light sensors to detect light differential, driving a high-torque BO motor to pivot the solar panel perpendicular to sunlight for peak power generation.',
     features: ['Dual light-dependent resistor (LDR) differential light sensing', 'High-torque yellow BO geared motor on precision tilt swivel axis', 'High-efficiency monocrystalline solar panel module with continuous voltage output', 'Dedicated analog comparator motor driver control board with dual 9V power'],
@@ -540,7 +575,7 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 4,
     sku: 'BALKI-ATL-A111-BIOTECH',
     warehouseLocation: 'Bengaluru Depot',
-    image: '/src/assets/images/iot_electronics_kit_1792018814258.jpg',
+    image: 'https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'Human physiology biometrics kit with EMG muscle sensor, SpO2 blood oxygen, heart pulse, temp & pH probes.',
     description: 'Bridges life sciences and embedded electronics. Students measure real bio-potentials (electromyography muscle flex signals), pulse oximetry, galvanic skin response, and body temperature on an Arduino telemetry dashboard.',
     features: ['Medical-grade electromyography (EMG) muscle sensor with surface electrodes', 'MAX30102 / MAX30100 Pulse Oximeter and Heart-Rate sensor', 'Digital clinical temperature probe and precision pH electrode', 'Pre-built graphical telemetry monitor for classroom demonstration'],
@@ -562,7 +597,11 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 5,
     sku: 'BALKI-ATL-A84-DUSTBIN',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: '/src/assets/images/smart_dustbin_kit_1792086690761.jpg',
+    image: '/products/smart_dustbin_flatlay.jpg',
+    gallery: [
+      '/products/smart_dustbin_flatlay.jpg',
+      '/src/assets/images/smart_dustbin_kit_1792086690761.jpg'
+    ],
     shortDesc: 'Automated hands-free smart waste bin with ultrasonic sonar distance sensing, micro servo lid & Arduino UNO.',
     description: 'Empowers students to build smart city sanitation and touchless hygiene devices. When a hand or waste approaches within 20cm, the HC-SR04 ultrasonic sensor triggers the high-torque SG90 micro servo to lift the hinged bin lid automatically, closing it seamlessly after disposal.',
     features: ['Touchless automated lid opening powered by SG90 micro servo motor', 'HC-SR04 Ultrasonic Sonar rangefinder with dual transducer eyes', 'Arduino UNO programmable controller with customizable distance thresholds', 'Complete with 9V battery harness, toggle switch, and desktop yellow bin'],
@@ -584,11 +623,134 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 6,
     sku: 'BALKI-ATL-A83-IRRIGATE',
     warehouseLocation: 'Bengaluru Depot',
-    image: '/src/assets/images/smart_irrigation_kit_1792086689241.jpg',
+    image: '/products/smart_irrigation_flatlay.webp',
+    gallery: [
+      '/products/smart_irrigation_flatlay.webp',
+      '/products/smart_irrigation_live.jpg',
+      '/products/smart_irrigation_schematic.webp'
+    ],
     shortDesc: 'Automated plant watering system with soil moisture sensor, 5V relay, submersible water pump & 18650 Li-ion battery.',
     description: 'Brings precision smart agriculture and IoT environmental science into school ATL labs. The corrosion-resistant soil moisture probe monitors soil hydration levels in real time. When moisture drops below calibrated thresholds, the Arduino triggers a 5V Songle relay to pump water from a reservoir directly to the plant root zone through clear vinyl tubing.',
     features: ['Dual-prong soil moisture probe with LM393 sensitivity comparator module', '5V Songle relay isolation module safely controlling the DC pump', 'Submersible miniature 5V DC water pump with transparent vinyl tubing', 'Rechargeable dual 3.7V 18650 Li-ion battery pack with slot holder & DC jack', 'Complete step-by-step circuit wiring diagram and Arduino code provided'],
     whatsInBox: ['1x Arduino UNO Development Board with USB Cable', '1x Soil Moisture Sensor Probe & LM393 Comparator Board', '1x 5V Relay Module (Songle SRD)', '1x Miniature Submersible Water Pump with Clear Tubing', '1x Dual 18650 Li-ion Battery Holder with 2x 3.7V Batteries', '1x Barrel DC Jack & Jumper Wire Bundle'],
+    nepAligned: true,
+    atlCertified: true,
+    warrantyMonths: 12
+  },
+
+  // --- 8. GRADE-PROGRESSIVE FOUNDATIONAL STEM KITS ('grade-kits') ---
+  {
+    id: 'kit-j-01',
+    name: 'Junior Tinkerer: Snap-Circuit & Magnetic Electronics Discovery Kit',
+    category: 'grade-kits',
+    gradeLevel: 'Class 3-5',
+    price: 3299,
+    originalPrice: 4200,
+    rating: 4.95,
+    reviewsCount: 84,
+    stock: 45,
+    minStockAlert: 5,
+    sku: 'BALKI-GRD-J01-SNAP',
+    warehouseLocation: 'Hyderabad Central Logistics Hub',
+    image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
+    shortDesc: 'Tool-free modular magnetic snaps for elementary students to explore lights, switches, buzzers, and motor circuits safely.',
+    description: 'Designed for NEP 2020 experiential foundational science in primary grades. Children connect magnetic conductive blocks to build over 50 projects including police sirens, flying saucer propellers, and light-sensitive night lamps with no soldering or exposed wires.',
+    features: ['100% Shock-proof magnetic clip-and-lock modular components', 'Build over 50 interactive circuit experiments with pictorial visual guides', 'Includes colorful LEDs, touch switches, light sensor, and propeller fan', 'Runs on 2x AA batteries with built-in auto short-circuit protection'],
+    whatsInBox: ['1x Magnetic Baseboard Grid', '30x Snap-Together Circuit Modules', '1x Illustrated 64-Page Full Color Experiment Guide', '2x AA Safety Battery Enclosure'],
+    nepAligned: true,
+    atlCertified: true,
+    warrantyMonths: 12
+  },
+  {
+    id: 'kit-j-02',
+    name: 'Eco-Green Renewable Solar & Wind Clean Energy Explorer Kit',
+    category: 'grade-kits',
+    gradeLevel: 'Class 3-5',
+    price: 2499,
+    originalPrice: 3200,
+    rating: 4.91,
+    reviewsCount: 62,
+    stock: 40,
+    minStockAlert: 6,
+    sku: 'BALKI-GRD-J02-ECO',
+    warehouseLocation: 'Bengaluru Depot',
+    image: 'https://images.unsplash.com/photo-1508873696983-2df5293cb39f?auto=format&fit=crop&w=800&q=80',
+    shortDesc: 'Hands-on solar turbine and mini wind generator kit demonstrating clean energy conversion and storage.',
+    description: 'Inspires early climate science and clean engineering. Young tinkerers build functional solar cars, revolving wind turbines, and hydro-wheel power stations while observing voltage generation on an integrated LED voltmeter meter.',
+    features: ['Assemble 6 distinct working clean-energy models', 'Photovoltaic silicon solar cell + micro-generator wind turbine blade', 'Visual LED meter showing real-time green energy generation', 'Durable non-toxic ABS interlocking modular mechanical pieces'],
+    whatsInBox: ['1x High-Efficiency Micro Solar Cell', '1x Aerodynamic Wind Turbine with Generator Hub', '1x Solar Rover Chassis & Wheels', '1x Multimeter Test Cable'],
+    nepAligned: true,
+    atlCertified: true,
+    warrantyMonths: 12
+  },
+
+  // --- 9. CHEMISTRY & MATERIAL SCIENCE ('chemistry-lab') ---
+  {
+    id: 'kit-chem-01',
+    name: 'Advanced Chemistry Glassware & Organic Synthesis Workstation Set',
+    category: 'chemistry-lab',
+    gradeLevel: 'Class 9-10',
+    price: 11499,
+    originalPrice: 14500,
+    rating: 4.93,
+    reviewsCount: 37,
+    stock: 20,
+    minStockAlert: 3,
+    sku: 'BALKI-LAB-CH01-GLASS',
+    warehouseLocation: 'Ambala Cantt Depot',
+    image: 'https://images.unsplash.com/photo-1579154204601-01588f351e67?auto=format&fit=crop&w=800&q=80',
+    shortDesc: 'Borosilicate 3.3 laboratory distillation apparatus, titration burettes, test tubes, heating mantle & safety ware.',
+    description: 'Conforms to CBSE and state board senior laboratory standards. Constructed from thermal shock-resistant Borosilicate 3.3 glass with standardized 24/40 ground glass joints for distillation, titration, refluxing, and chemical analysis.',
+    features: ['Class A ASTM calibrated volumetric flasks, graduated cylinders, and burettes', 'Thermal shock resistant Borosilicate 3.3 laboratory glass rated to 500°C', '24/40 Precision ground joints for leak-free chemical distillation', 'Complete with heavy cast-iron retort stands, clamps, and chemical splash goggles'],
+    whatsInBox: ['1x 24/40 Borosilicate Distillation Column Set', '1x 500ml Round Bottom Flask & Liebig Condenser', '1x 50ml Precision Burette with PTFE Stopcock', '12x Borosilicate Test Tubes with Rack', '2x Chemical Splash Goggles & Nitrile Gloves'],
+    nepAligned: true,
+    atlCertified: true,
+    warrantyMonths: 12
+  },
+
+  // --- 10. MICROSCOPES & OPTICS ('microscopes-optics') ---
+  {
+    id: 'kit-opt-01',
+    name: 'Research Binocular Biological Compound Microscope 1600X Lab Set',
+    category: 'microscopes-optics',
+    gradeLevel: 'Class 11-12',
+    price: 18999,
+    originalPrice: 23500,
+    rating: 4.97,
+    reviewsCount: 51,
+    stock: 18,
+    minStockAlert: 2,
+    sku: 'BALKI-LAB-OP01-MICROSCOPE',
+    warehouseLocation: 'Ambala Cantt Depot',
+    image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=800&q=80',
+    shortDesc: 'Professional 1600X optical compound microscope with dual LED illumination, mechanical stage & 5MP USB digital camera.',
+    description: 'Delivers crystal-clear magnification of cellular mitosis, microbiology specimens, and histology slides. Features an adjustable Siedentopf binocular head, coaxial coarse & fine focus, Abbe 1.25 NA condenser, and a 5MP USB digital eyepiece for live projection on classroom screens.',
+    features: ['Magnification range: 40X, 100X, 400X, 1000X, and 1600X with DIN achromatic optics', 'Coaxial coarse & fine focusing with 0.002mm division precision', 'Dual-layer mechanical stage with X-Y vernier caliper movement controls', 'Includes 5.0MP USB digital microscope camera with Windows/Mac measurement software'],
+    whatsInBox: ['1x Professional Binocular Microscope Body with 4x DIN Objectives (4X, 10X, 40X, 100X Oil)', '2x Pairs of Widefield Eyepieces (WF10X & WF16X)', '1x 5MP USB Digital Eyepiece Camera & Driver Software', '1x Immersion Oil Bottle & 50x Blank Prepared Slides'],
+    nepAligned: true,
+    atlCertified: true,
+    warrantyMonths: 24
+  },
+
+  // --- 11. EXPERIENTIAL MATHEMATICS LAB ('mathematics-lab') ---
+  {
+    id: 'kit-math-01',
+    name: 'NEP Experiential Mathematics & Solid Geometry Manipulatives Kit',
+    category: 'mathematics-lab',
+    gradeLevel: 'Class 6-8',
+    price: 4899,
+    originalPrice: 6200,
+    rating: 4.9,
+    reviewsCount: 43,
+    stock: 35,
+    minStockAlert: 4,
+    sku: 'BALKI-LAB-MT01-GEOM',
+    warehouseLocation: 'Hyderabad Central Logistics Hub',
+    image: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=800&q=80',
+    shortDesc: 'Physical geometry apparatus: transparent 3D volume dissection sets, clinometers, Napier bones & algebraic tiles.',
+    description: 'Transforms abstract mathematics into tactile, intuitive understanding. Aligned with NEP 2020 mathematical inquiry pedagogy. Students physically verify Pythagoras theorem, volume equivalence (cylinder vs cone vs sphere), and coordinate geometry.',
+    features: ['Transparent hollow geometric solids demonstrating liquid volume ratios', 'Precision metal trigonometric clinometer for indirect height measurement', 'Color-coded magnetic algebraic tiles for polynomial factorization', 'Durable acrylic Pythagoras theorem verification balance apparatus'],
+    whatsInBox: ['14x Transparent Geometric Volume Solids with Filling Plugs', '1x Metal Clinometer with Heavy Base', '1x Set of 100 Magnetic Algebraic Tiles', '1x Napier Bones Set & Coordinate Grid Board'],
     nepAligned: true,
     atlCertified: true,
     warrantyMonths: 12

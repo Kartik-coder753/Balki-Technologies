@@ -46,7 +46,7 @@ const scientificGuides: CaseStudyBlog[] = [
         name: 'SRROBOTICS Single Axis Solar Tracking System Hand Made 100% Working Project',
         sku: 'BALKI-EXP-11-SOLARTRK',
         category: 'physics-lab',
-        image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=600&q=80',
+        image: '/products/solar_tracker_overhead.jpg',
         price: 1599
       }
     ],
@@ -93,7 +93,7 @@ When students calculate the refractive index of glass prisms or verify the lens 
         name: 'smart irrigation soil moisture sensor arduino water pump kit',
         sku: 'BALKI-EXP-12-SMARTIRR',
         category: 'biology-anatomy',
-        image: 'https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=600&q=80',
+        image: '/products/smart_irrigation_flatlay.webp',
         price: 999
       },
       {
@@ -101,7 +101,7 @@ When students calculate the refractive index of glass prisms or verify the lens 
         name: 'TESTIN ELECTRONICS Smart AIR Quality Monitoring System',
         sku: 'BALKI-EXP-09-ENVIROAIR',
         category: 'sensors',
-        image: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=600&q=80',
+        image: '/products/environmental_station_lcd.jpg',
         price: 1799
       }
     ],
