@@ -1,0 +1,6 @@
+{
+  "name": "BALKI TECHNOLOGIES",
+  "description": "India's premier STEM education ecosystem, grade-progressive ATL robotics kits, interactive courses, lab equipment rentals, and inventory management.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
