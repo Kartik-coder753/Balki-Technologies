@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   Cpu, 
   ShoppingCart, 
+  ShoppingBag,
   BookOpen, 
   Clock, 
   Package, 
@@ -259,18 +260,19 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
+    <>
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-2xs transition-all">
       
       {/* 1. Top Bar: Contact Hotline, Accreditation & Fast Actions */}
-      <div className="bg-slate-900 text-slate-300 text-[11px] py-1.5 px-4 sm:px-6 lg:px-8 border-b border-slate-800">
+      <div className="bg-slate-900 text-slate-300 text-[10px] sm:text-[11px] py-1 sm:py-1.5 px-3 sm:px-6 lg:px-8 border-b border-slate-800">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-3 sm:gap-6 truncate">
             <a 
               href="tel:+919071199139" 
-              className="flex items-center gap-1.5 hover:text-amber-400 transition-colors font-medium text-slate-200"
+              className="flex items-center gap-1.5 hover:text-amber-400 transition-colors font-medium text-slate-200 shrink-0"
             >
               <Phone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-              <span>Hotline: +91-9071199139</span>
+              <span>+91-9071199139</span>
             </a>
             <a 
               href="mailto:balki.technologies@gmail.com" 
@@ -279,13 +281,13 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Mail className="w-3.5 h-3.5 text-amber-400 shrink-0" />
               <span>balki.technologies@gmail.com</span>
             </a>
-            <span className="hidden lg:inline-flex items-center gap-1.5 text-amber-300 font-semibold">
-              <Sparkles className="w-3 h-3 text-amber-400" />
+            <span className="hidden lg:inline-flex items-center gap-1.5 text-amber-300 font-semibold truncate">
+              <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
               <span>Official ATL & NEP 2020 Lab Hardware Partner • Pan-India Free Delivery</span>
             </span>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4 text-[11px]">
+          <div className="flex items-center gap-2 sm:gap-4 text-[10px] sm:text-[11px] shrink-0">
             <button
               onClick={openB2BModal}
               className="hover:text-amber-400 transition-colors flex items-center gap-1 font-semibold text-amber-400 cursor-pointer"
@@ -301,15 +303,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Download className="w-3 h-3 text-slate-400" />
               <span className="hidden sm:inline">ATL</span>
-              <span>Syllabus (PDF)</span>
+              <span>Syllabus</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* 2. Main Branding & Search Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-20 sm:h-22 gap-3 sm:gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-15 sm:h-20 lg:h-22 gap-2 sm:gap-6">
           
           {/* Company Logo - Prominent display fitting the header space */}
           <div 
@@ -317,12 +319,12 @@ export const Navbar: React.FC<NavbarProps> = ({
               setActiveTab('home');
               window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
-            className="flex items-center py-2 shrink-0 cursor-pointer group select-none"
+            className="flex items-center py-1 sm:py-2 shrink-0 cursor-pointer group select-none"
           >
             <BalkiLogo 
               type="full" 
               variant="light" 
-              className="h-12 sm:h-14 md:h-15 w-auto max-w-[220px] sm:max-w-[280px] md:max-w-[340px] transition-transform duration-200 group-hover:scale-[1.02]" 
+              className="h-8 sm:h-12 md:h-14 w-auto max-w-[155px] sm:max-w-[240px] md:max-w-[320px] transition-transform duration-200 group-hover:scale-[1.02]" 
             />
           </div>
 
@@ -499,13 +501,13 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Action Buttons: Request Quote, Dashboard, Cart, Mobile Menu */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5">
+          <div className="flex items-center gap-1 sm:gap-2.5">
             
             {/* Mobile Search Button Toggle */}
             <button
               id="btn-mobile-search-toggle"
               onClick={() => setIsMobileSearchActive(!isMobileSearchActive)}
-              className="md:hidden p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer"
+              className="md:hidden min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer flex items-center justify-center"
               aria-label="Toggle Mobile Search"
             >
               <Search className="w-4 h-4 text-slate-700" />
@@ -526,11 +528,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="btn-nav-track-order"
                 onClick={onOpenTracking}
-                className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 transition-all cursor-pointer shadow-2xs"
+                className="hidden sm:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 transition-all cursor-pointer shadow-2xs"
                 title="Track Live Consignment"
               >
                 <Truck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                <span className="hidden sm:inline">Track Order</span>
+                <span>Track Order</span>
               </button>
             )}
 
@@ -538,7 +540,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-client-dashboard"
               onClick={() => setActiveTab('dashboard')}
-              className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'dashboard'
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
@@ -546,7 +548,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               title="Client Profile, Credentials & Purchase History"
             >
               <User className="w-3.5 h-3.5 text-amber-600" />
-              <span className="hidden sm:inline font-bold">
+              <span className="font-bold">
                 {userProfile?.displayName ? userProfile.displayName.split(' ')[0] : 'My Account'}
               </span>
               <span className="hidden md:inline px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-900 font-bold">
@@ -559,11 +561,11 @@ export const Navbar: React.FC<NavbarProps> = ({
               <button
                 id="btn-nav-logout"
                 onClick={() => logout()}
-                className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer"
+                className="hidden xl:inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer"
                 title="Sign Out"
               >
                 <LogOut className="w-3.5 h-3.5 shrink-0" />
-                <span className="hidden xl:inline">Sign Out</span>
+                <span>Sign Out</span>
               </button>
             )}
 
@@ -571,7 +573,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <button
               id="btn-open-cart"
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 transition-all cursor-pointer"
+              className="relative min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 transition-all cursor-pointer flex items-center justify-center"
               aria-label="View Shopping Cart"
             >
               <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700" />
@@ -585,7 +587,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Mobile Menu Hamburger */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer"
+              className="lg:hidden min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer flex items-center justify-center"
               aria-label="Toggle Navigation Menu"
             >
               {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -1478,5 +1480,94 @@ export const Navbar: React.FC<NavbarProps> = ({
       )}
 
     </header>
+
+    {/* Native-Feeling Mobile Bottom Navigation Bar (Fixed for quick thumb reach) */}
+    <nav 
+      className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] lg:hidden"
+      style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      aria-label="Mobile Bottom Navigation"
+    >
+      <div className="grid grid-cols-5 h-15 items-center px-1">
+        {/* Home Tab */}
+        <button
+          onClick={() => {
+            setActiveTab('home');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center h-full transition-colors cursor-pointer ${
+            activeTab === 'home' ? 'text-amber-600 font-bold' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Home className={`w-5 h-5 ${activeTab === 'home' ? 'stroke-[2.5]' : 'stroke-2'}`} />
+          <span className="text-[10px] tracking-tight mt-0.5">Home</span>
+        </button>
+
+        {/* Store / Catalog Tab */}
+        <button
+          onClick={() => {
+            setActiveTab('store');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center h-full transition-colors cursor-pointer ${
+            activeTab === 'store' ? 'text-amber-600 font-bold' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <ShoppingBag className={`w-5 h-5 ${activeTab === 'store' ? 'stroke-[2.5]' : 'stroke-2'}`} />
+          <span className="text-[10px] tracking-tight mt-0.5">Catalog</span>
+        </button>
+
+        {/* RoboCup Hackathon Special Tab */}
+        <button
+          onClick={() => {
+            setActiveTab('hackathon');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`relative flex flex-col items-center justify-center h-full transition-colors cursor-pointer ${
+            activeTab === 'hackathon' ? 'text-cyan-600 font-black' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <div className={`p-1 rounded-full ${activeTab === 'hackathon' ? 'bg-cyan-100 text-cyan-700' : 'text-slate-600'}`}>
+            <Trophy className="w-4 h-4 text-amber-500" />
+          </div>
+          <span className="text-[10px] tracking-tight mt-0.5 font-bold">RoboCup</span>
+          <span className="absolute top-1 right-2.5 w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+        </button>
+
+        {/* Cart Drawer Trigger */}
+        <button
+          onClick={() => setIsCartOpen(true)}
+          className="relative flex flex-col items-center justify-center h-full text-slate-500 hover:text-slate-900 transition-colors cursor-pointer"
+        >
+          <div className="relative">
+            <ShoppingCart className="w-5 h-5 stroke-2" />
+            {totalCartCount > 0 && (
+              <span className="absolute -top-1.5 -right-2.5 px-1 min-w-[16px] h-4 bg-amber-600 text-white text-[9px] font-black rounded-full flex items-center justify-center">
+                {totalCartCount}
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] tracking-tight mt-0.5">Cart</span>
+        </button>
+
+        {/* Client Dashboard / Profile */}
+        <button
+          onClick={() => {
+            setActiveTab('dashboard');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center h-full transition-colors cursor-pointer ${
+            activeTab === 'dashboard' ? 'text-amber-600 font-bold' : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+            activeTab === 'dashboard' ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-700'
+          }`}>
+            {(userProfile?.displayName || currentUser?.email || 'U').charAt(0).toUpperCase()}
+          </div>
+          <span className="text-[10px] tracking-tight mt-0.5 truncate max-w-[50px]">Account</span>
+        </button>
+      </div>
+    </nav>
+    </>
   );
 };

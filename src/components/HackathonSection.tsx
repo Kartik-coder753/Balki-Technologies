@@ -687,7 +687,7 @@ export const HackathonSection: React.FC<HackathonSectionProps> = ({
                     alt={exp.title}
                     referrerPolicy="no-referrer"
                     onError={(e) => {
-                      e.currentTarget.src = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80';
+                      e.currentTarget.src = '/assets/aistudio/1_08ee71b2.webp';
                     }}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
@@ -1324,12 +1324,12 @@ export const HackathonSection: React.FC<HackathonSectionProps> = ({
 
       {/* 10. MODAL: DETAILED EXPERIMENT VIEW */}
       {selectedExperiment && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-y-auto border border-slate-200 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
             {/* Close button */}
             <button
               onClick={() => setSelectedExperiment(null)}
-              className="absolute top-4 right-4 z-10 w-9 h-9 rounded-full bg-slate-900/80 text-white hover:bg-slate-900 flex items-center justify-center cursor-pointer transition-colors"
+              className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10 w-9 h-9 rounded-full bg-slate-900/80 text-white hover:bg-slate-900 flex items-center justify-center cursor-pointer transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -1341,21 +1341,21 @@ export const HackathonSection: React.FC<HackathonSectionProps> = ({
                 alt={selectedExperiment.title}
                 referrerPolicy="no-referrer"
                 onError={(e) => {
-                  e.currentTarget.src = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1200&q=80';
+                  e.currentTarget.src = '/assets/aistudio/1_08ee71b2.webp';
                 }}
                 className="w-full h-full object-contain"
               />
-              <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
-                <span className="px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-cyan-300 font-bold text-xs border border-cyan-500/40">
+              <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex items-center justify-between pointer-events-none">
+                <span className="px-2.5 sm:px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-cyan-300 font-bold text-[10px] sm:text-xs border border-cyan-500/40">
                   Experiment #{selectedExperiment.number}
                 </span>
-                <span className="px-3 py-1 rounded-full bg-amber-500 text-slate-950 font-black text-xs">
+                <span className="px-2.5 sm:px-3 py-1 rounded-full bg-amber-500 text-slate-950 font-black text-[10px] sm:text-xs">
                   {selectedExperiment.difficulty} Level
                 </span>
               </div>
             </div>
 
-            <div className="p-6 sm:p-8 space-y-6">
+            <div className="p-4 sm:p-8 space-y-6">
               <div>
                 <span className="text-xs font-bold uppercase text-cyan-700 bg-cyan-50 px-2.5 py-0.5 rounded-full">
                   {selectedExperiment.category}

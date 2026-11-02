@@ -65,7 +65,7 @@ export const RobocupSpecialMentionSection: React.FC<RobocupSpecialMentionSection
   return (
     <section 
       id="robocup-special-mention" 
-      className="relative rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white border-2 border-cyan-500/40 shadow-2xl overflow-hidden p-6 sm:p-10 lg:p-12 space-y-10"
+      className="relative rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-white border-2 border-cyan-500/40 shadow-2xl overflow-hidden p-4 sm:p-8 lg:p-12 space-y-6 sm:space-y-10"
     >
       {/* Ambient background glows */}
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-bl from-cyan-500/20 via-blue-600/10 to-transparent rounded-full blur-3xl pointer-events-none -mr-28 -mt-28" />
@@ -75,25 +75,25 @@ export const RobocupSpecialMentionSection: React.FC<RobocupSpecialMentionSection
       <div className="relative z-10 flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-6 border-b border-slate-800">
         <div className="space-y-3 max-w-3xl">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 text-xs font-black tracking-wider uppercase shadow-inner">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 text-[10px] sm:text-xs font-black tracking-wider uppercase shadow-inner">
               <Trophy className="w-4 h-4 text-amber-400 animate-pulse" />
               <span>SPECIAL MENTION · NATIONAL CHAMPIONSHIP 2027</span>
             </span>
-            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-xs font-bold">
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/50 text-amber-300 text-[10px] sm:text-xs font-bold">
               <Sparkles className="w-3.5 h-3.5" />
               <span>10 Robots • 1 Sealed Box • 60 Mins</span>
             </span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight">
             Balki <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-teal-300 to-amber-300">RoboCup</span> Hackathon 2027
           </h2>
 
-          <div className="text-lg sm:text-xl font-bold text-amber-400 tracking-wide">
+          <div className="text-base sm:text-xl font-bold text-amber-400 tracking-wide">
             "Build it. Code it. Win it!"
           </div>
 
-          <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-2xl">
+          <p className="text-xs sm:text-base text-slate-300 leading-relaxed max-w-2xl">
             India's most thrilling at-home STEM robotics championship for <strong className="text-white">Grades 8 to 12</strong> (Solo or Duo). Receive a tamper-evident sealed kit with parts for 10 possible robots, unbox live on Google Meet, build under 35 minutes, code, and execute on the 2400x1200mm arena mat!
           </p>
         </div>

@@ -342,7 +342,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-amber-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-amber-500 selection:text-white overflow-x-hidden">
       {/* Global Navigation Bar */}
       <Navbar
         activeTab={activeTab}
@@ -365,7 +365,7 @@ function AppContent() {
       />
 
       {/* Main Routed Content */}
-      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 pb-24 lg:pb-8">
         
         {activeTab === 'home' && (
           <StoreSection

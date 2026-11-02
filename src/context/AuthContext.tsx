@@ -6,13 +6,14 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   signOut as firebaseSignOut,
-  updateProfile as updateFirebaseProfile
+  updateProfile as updateFirebaseProfile,
+  getRedirectResult
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleAuthProvider, OperationType, handleFirestoreError } from '../lib/firebase';
 import { UserProfile } from '../types';
 
-interface SignUpDetails {
+export interface SignUpDetails {
   displayName: string;
   institution?: string;
   institutionType?: string;
@@ -20,7 +21,7 @@ interface SignUpDetails {
   role?: string;
 }
 
-interface AuthContextType {
+export interface AuthContextType {
   currentUser: FirebaseUser | null;
   userProfile: UserProfile | null;
   loading: boolean;
@@ -38,8 +39,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Sync user profile from Firestore
-  const syncProfile = async (fUser: FirebaseUser) => {
+  // Synchronize or bootstrap user profile document in Firestore
+  const syncProfile = async (fUser: FirebaseUser, fallbackDetails?: Partial<UserProfile>) => {
     try {
       const userRef = doc(db, 'users', fUser.uid);
       const snap = await getDoc(userRef);
@@ -47,22 +48,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (snap.exists()) {
         const data = snap.data() as UserProfile;
         setUserProfile(data);
-        // update lastLoginAt
-        try {
-          await setDoc(userRef, { lastLoginAt: new Date().toISOString() }, { merge: true });
-        } catch (e) {
-          // ignore
-        }
+        // Update last login timestamp quietly
+        setDoc(userRef, { lastLoginAt: new Date().toISOString() }, { merge: true }).catch(() => {});
       } else {
         // Create initial profile in Firestore
         const newProfile: UserProfile = {
           uid: fUser.uid,
           email: fUser.email || '',
-          displayName: fUser.displayName || fUser.email?.split('@')[0] || 'Client Partner',
-          institution: 'Atal Tinkering Lab / STEM Partner School',
-          institutionType: 'Kendriya Vidyalaya',
-          phone: fUser.phoneNumber || '',
-          role: 'ATL In-Charge',
+          displayName: fallbackDetails?.displayName || fUser.displayName || fUser.email?.split('@')[0] || 'Client Partner',
+          institution: fallbackDetails?.institution || 'Atal Tinkering Lab / STEM Partner School',
+          institutionType: fallbackDetails?.institutionType || 'Kendriya Vidyalaya',
+          phone: fallbackDetails?.phone || fUser.phoneNumber || '',
+          role: fallbackDetails?.role || 'ATL In-Charge',
           hasPurchased: false,
           totalOrdersCount: 0,
           totalSpent: 0,
@@ -73,15 +70,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUserProfile(newProfile);
       }
     } catch (err) {
-      console.error('Error fetching or creating user profile in Firestore:', err);
-      // Fallback in-memory profile so the app remains functional
+      console.warn('Profile synchronization notice (using resilient client state):', err);
+      // Fallback in-memory profile so the client is never locked out of the UI
       setUserProfile({
         uid: fUser.uid,
         email: fUser.email || '',
-        displayName: fUser.displayName || 'Client Partner',
-        institution: 'Atal Tinkering Lab',
-        institutionType: 'Kendriya Vidyalaya',
-        role: 'ATL In-Charge',
+        displayName: fallbackDetails?.displayName || fUser.displayName || 'Client Partner',
+        institution: fallbackDetails?.institution || 'Atal Tinkering Lab',
+        institutionType: fallbackDetails?.institutionType || 'Kendriya Vidyalaya',
+        role: fallbackDetails?.role || 'ATL In-Charge',
         hasPurchased: false,
         totalOrdersCount: 0,
         totalSpent: 0,
@@ -91,6 +88,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   useEffect(() => {
+    // Process redirect result if any redirect auth flow was used
+    getRedirectResult(auth)
+      .then(async (result) => {
+        if (result?.user) {
+          await syncProfile(result.user);
+        }
+      })
+      .catch((err) => {
+        // Ignore normal no-redirect status
+        if (err.code !== 'auth/popup-closed-by-user') {
+          console.warn('Firebase redirect authentication status:', err);
+        }
+      });
+
+    // Subscribe to auth state changes with persistent session tracking
     const unsubscribe = onAuthStateChanged(auth, async (fUser) => {
       setCurrentUser(fUser);
       if (fUser) {
@@ -105,23 +117,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signInWithEmail = async (email: string, pass: string) => {
-    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    const trimmedEmail = email.trim();
+    const cred = await signInWithEmailAndPassword(auth, trimmedEmail, pass);
     await syncProfile(cred.user);
   };
 
   const signUpWithEmail = async (email: string, pass: string, details: SignUpDetails) => {
-    const cred = await createUserWithEmailAndPassword(auth, email, pass);
-    await updateFirebaseProfile(cred.user, {
-      displayName: details.displayName
-    });
+    const trimmedEmail = email.trim();
+    const cred = await createUserWithEmailAndPassword(auth, trimmedEmail, pass);
+    
+    // Update display name in Firebase Auth user record
+    if (details.displayName) {
+      await updateFirebaseProfile(cred.user, {
+        displayName: details.displayName.trim()
+      }).catch((e) => console.warn('Could not update Auth displayName:', e));
+    }
 
     const profileData: UserProfile = {
       uid: cred.user.uid,
-      email: cred.user.email || email,
-      displayName: details.displayName,
-      institution: details.institution || 'Atal Tinkering Lab Partner',
+      email: cred.user.email || trimmedEmail,
+      displayName: details.displayName.trim() || 'Client Partner',
+      institution: details.institution?.trim() || 'Atal Tinkering Lab Partner',
       institutionType: details.institutionType || 'Kendriya Vidyalaya',
-      phone: details.phone || '',
+      phone: details.phone?.trim() || '',
       role: details.role || 'ATL In-Charge',
       hasPurchased: false,
       totalOrdersCount: 0,
@@ -134,6 +152,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await setDoc(doc(db, 'users', cred.user.uid), profileData);
       setUserProfile(profileData);
     } catch (e) {
+      console.warn('Initial profile doc set error:', e);
+      setUserProfile(profileData);
       handleFirestoreError(e, OperationType.WRITE, `users/${cred.user.uid}`);
     }
   };
@@ -146,6 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await firebaseSignOut(auth);
     setUserProfile(null);
+    setCurrentUser(null);
   };
 
   const updateProfileData = async (details: Partial<UserProfile>) => {

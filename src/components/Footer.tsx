@@ -19,7 +19,7 @@ interface FooterProps {
 
 export const Footer: React.FC<FooterProps> = ({ setActiveTab, openB2BModal }) => {
   return (
-    <footer className="relative overflow-hidden bg-slate-950 text-slate-300 border-t border-slate-800 pt-16 pb-12">
+    <footer className="relative overflow-hidden bg-slate-950 text-slate-300 border-t border-slate-800 pt-16 pb-28 sm:pb-16">
       {/* Subtle STEM Ambient Circuitry Background */}
       <img
         src="https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1600&q=80"

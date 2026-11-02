@@ -210,50 +210,50 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
         </div>
       </section>
 
-      {/* Quick Anchor Jump Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 px-5 rounded-2xl border border-slate-200/90 shadow-2xs">
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline">
-          Explore Homepage:
+      {/* Quick Anchor Jump Bar - Responsive Touch Carousel on Mobile */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-2.5 px-3 sm:px-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs scroll-smooth">
+        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider hidden sm:inline shrink-0">
+          Explore:
         </span>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs shrink-0">
           <a
             href="#robocup-special-mention"
-            className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-black border border-amber-400 hover:bg-amber-400 transition-colors flex items-center gap-1.5 shadow-xs"
+            className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-black border border-amber-400 hover:bg-amber-400 transition-colors flex items-center gap-1.5 shadow-xs shrink-0"
           >
             <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
-            <span>ROBOCUP 2027 Hackathon (Brochure & QR Form)</span>
+            <span>ROBOCUP 2027 Hackathon (Brochure & Form)</span>
           </a>
 
           <a
             href="#flagship-spotlight"
-            className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 font-bold border border-amber-200/80 hover:bg-amber-100 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 font-bold border border-amber-200/80 hover:bg-amber-100 transition-colors flex items-center gap-1.5 shrink-0"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span>Flagship Lab Spotlight</span>
+            <span>Flagship Lab</span>
           </a>
 
           <a
             href="#products-catalog"
-            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1.5 shrink-0"
           >
             <ShoppingCart className="w-3.5 h-3.5 text-slate-500" />
-            <span>Full Hardware Catalog ({products.length})</span>
+            <span>Catalog ({products.length})</span>
           </a>
 
           <a
             href="#client-reviews"
-            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1.5 shrink-0"
           >
             <GraduationCap className="w-3.5 h-3.5 text-amber-600" />
-            <span>School Reviews (340+)</span>
+            <span>School Reviews</span>
           </a>
 
           <a
             href="#case-studies-blogs"
-            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-semibold hover:bg-slate-200 transition-colors flex items-center gap-1.5 shrink-0"
           >
             <BookOpen className="w-3.5 h-3.5 text-amber-600" />
-            <span>Industry Studies & Blogs</span>
+            <span>Case Studies</span>
           </a>
         </div>
       </div>
@@ -304,13 +304,13 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
           </span>
         </div>
 
-        {/* Category Pill Filters */}
-        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+        {/* Category Pill Filters - Smooth Horizontal Swipe on Mobile */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 scroll-smooth">
           {categories.map((cat) => (
             <button
               key={cat.id}
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all shrink-0 min-h-[38px] flex items-center cursor-pointer ${
                 selectedCategory === cat.id
                   ? 'bg-amber-600 text-white shadow-md'
                   : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
@@ -391,7 +391,7 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
           {filteredProducts.map((product) => (
             <div
               key={product.id}
@@ -405,7 +405,7 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
                     alt={product.name}
                     referrerPolicy="no-referrer"
                     onError={(e) => {
-                      e.currentTarget.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=600&q=80';
+                      e.currentTarget.src = '/assets/aistudio/1_08ee71b2.webp';
                     }}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />

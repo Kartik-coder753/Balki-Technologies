@@ -290,13 +290,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-6 animate-in fade-in zoom-in-95">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden my-auto sm:my-6 max-h-[94vh] overflow-y-auto animate-in fade-in zoom-in-95">
         
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white">
+        <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-100 flex items-center justify-between bg-slate-900 text-white sticky top-0 z-10">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-amber-400" />
+            <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0" />
             <div>
               <h3 className="font-bold text-sm flex items-center gap-2">
                 <span>Balki Technologies Secure Gateway</span>

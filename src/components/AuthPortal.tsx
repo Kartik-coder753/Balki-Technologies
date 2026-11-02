@@ -14,9 +14,14 @@ import {
   AlertCircle,
   Cpu,
   GraduationCap,
-  Award
+  Award,
+  ExternalLink,
+  Copy,
+  Check,
+  Globe
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { parseAuthError } from '../lib/firebase';
 import { BalkiLogo } from './BalkiLogo';
 
 export const AuthPortal: React.FC = () => {
@@ -40,34 +45,56 @@ export const AuthPortal: React.FC = () => {
 
   // Status & error state
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isUnauthorizedDomain, setIsUnauthorizedDomain] = useState<boolean>(false);
+  const [copiedHost, setCopiedHost] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [authAction, setAuthAction] = useState<string>('');
+
+  const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'balki-technologies.vercel.app';
+
+  const copyHostname = () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(currentHost);
+      setCopiedHost(true);
+      setTimeout(() => setCopiedHost(false), 2500);
+    }
+  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setIsUnauthorizedDomain(false);
+
+    if (!loginEmail.trim() || !loginPassword) {
+      setErrorMsg('Please enter both your registered email and password.');
+      return;
+    }
+
     setIsLoading(true);
+    setAuthAction('login');
 
     try {
       await signInWithEmail(loginEmail.trim(), loginPassword);
     } catch (err: any) {
       console.error('Login error:', err);
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
-        setErrorMsg('Invalid email or password. Please verify your credentials or create a new account.');
-      } else if (err.code === 'auth/invalid-email') {
-        setErrorMsg('Please enter a valid email address.');
-      } else if (err.code === 'auth/too-many-requests') {
-        setErrorMsg('Too many failed attempts. Please reset your password or wait a few minutes.');
-      } else {
-        setErrorMsg(err.message || 'Authentication failed. Please try again.');
-      }
+      const parsed = parseAuthError(err);
+      setErrorMsg(parsed.message);
+      setIsUnauthorizedDomain(parsed.isUnauthorizedDomain);
     } finally {
       setIsLoading(false);
+      setAuthAction('');
     }
   };
 
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setIsUnauthorizedDomain(false);
+
+    if (!regEmail.trim()) {
+      setErrorMsg('Please provide a valid institutional or personal email address.');
+      return;
+    }
 
     if (regPassword.length < 6) {
       setErrorMsg('Password must be at least 6 characters long.');
@@ -75,10 +102,11 @@ export const AuthPortal: React.FC = () => {
     }
 
     setIsLoading(true);
+    setAuthAction('register');
 
     try {
       await signUpWithEmail(regEmail.trim(), regPassword, {
-        displayName: regName.trim(),
+        displayName: regName.trim() || 'Client Partner',
         institution: regInstitution.trim() || 'Atal Tinkering Lab Partner',
         institutionType: regInstitutionType,
         role: regRole,
@@ -86,32 +114,33 @@ export const AuthPortal: React.FC = () => {
       });
     } catch (err: any) {
       console.error('Registration error:', err);
-      if (err.code === 'auth/email-already-in-use') {
-        setErrorMsg('An account with this email already exists. Please switch to Sign In.');
-      } else if (err.code === 'auth/weak-password') {
-        setErrorMsg('Password is too weak. Please choose a stronger password.');
-      } else if (err.code === 'auth/invalid-email') {
-        setErrorMsg('Please provide a valid institutional or personal email.');
-      } else {
-        setErrorMsg(err.message || 'Failed to create account. Please try again.');
-      }
+      const parsed = parseAuthError(err);
+      setErrorMsg(parsed.message);
+      setIsUnauthorizedDomain(parsed.isUnauthorizedDomain);
     } finally {
       setIsLoading(false);
+      setAuthAction('');
     }
   };
 
   const handleGoogleSignIn = async () => {
     setErrorMsg(null);
+    setIsUnauthorizedDomain(false);
     setIsLoading(true);
+    setAuthAction('google');
+
     try {
       await signInWithGoogle();
     } catch (err: any) {
       console.error('Google sign-in error:', err);
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setErrorMsg(err.message || 'Google authentication was cancelled or failed.');
+      const parsed = parseAuthError(err);
+      if (err?.code !== 'auth/popup-closed-by-user') {
+        setErrorMsg(parsed.message);
+        setIsUnauthorizedDomain(parsed.isUnauthorizedDomain);
       }
     } finally {
       setIsLoading(false);
+      setAuthAction('');
     }
   };
 
@@ -123,30 +152,27 @@ export const AuthPortal: React.FC = () => {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.06),transparent_50%)] pointer-events-none" />
 
       {/* Top Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-6 py-4">
+      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-4 sm:px-6 py-3.5 sm:py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <BalkiLogo size="md" />
-            <div>
-              <span className="font-extrabold text-white text-base tracking-tight block">
-                Balki Technologies
-              </span>
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <BalkiLogo type="full" variant="dark" className="h-8 sm:h-10 w-auto max-w-[160px] sm:max-w-[240px]" />
+            <div className="hidden sm:block">
               <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider block">
                 Official AIM ATL & NEP 2020 Hardware Partner
               </span>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>256-Bit Encrypted Client Database</span>
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
+            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+            <span className="hidden min-[380px]:inline">Encrypted Client Database</span>
           </div>
         </div>
       </header>
 
       {/* Main Authentication Card */}
-      <main className="flex-1 flex items-center justify-center p-4 sm:p-6 my-6">
-        <div className="w-full max-w-xl bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl p-6 sm:p-8 backdrop-blur-xl relative">
+      <main className="flex-1 flex items-center justify-center p-3 sm:p-6 my-2 sm:my-6">
+        <div className="w-full max-w-xl bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl p-4 sm:p-8 backdrop-blur-xl relative">
           
           {/* Header Banner */}
           <div className="text-center space-y-2 mb-6">
@@ -168,7 +194,7 @@ export const AuthPortal: React.FC = () => {
           <div className="flex rounded-xl bg-slate-950/80 p-1 border border-slate-800 mb-6">
             <button
               type="button"
-              onClick={() => { setMode('login'); setErrorMsg(null); }}
+              onClick={() => { setMode('login'); setErrorMsg(null); setIsUnauthorizedDomain(false); }}
               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 mode === 'login'
                   ? 'bg-amber-600 text-white shadow-md'
@@ -179,7 +205,7 @@ export const AuthPortal: React.FC = () => {
             </button>
             <button
               type="button"
-              onClick={() => { setMode('register'); setErrorMsg(null); }}
+              onClick={() => { setMode('register'); setErrorMsg(null); setIsUnauthorizedDomain(false); }}
               className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 mode === 'register'
                   ? 'bg-amber-600 text-white shadow-md'
@@ -192,9 +218,46 @@ export const AuthPortal: React.FC = () => {
 
           {/* Error Banner */}
           {errorMsg && (
-            <div className="mb-5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-              <span>{errorMsg}</span>
+            <div className="mb-5 p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs flex flex-col gap-2.5 animate-in fade-in duration-200">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                <span className="font-medium leading-relaxed">{errorMsg}</span>
+              </div>
+
+              {/* Special Diagnostic Guide for auth/unauthorized-domain */}
+              {isUnauthorizedDomain && (
+                <div className="mt-2 pt-2.5 border-t border-rose-500/20 bg-slate-950/60 p-3 rounded-lg text-slate-300 text-[11px] space-y-2">
+                  <div className="flex items-center justify-between text-amber-300 font-bold">
+                    <span className="flex items-center gap-1.5">
+                      <Globe className="w-3.5 h-3.5 text-amber-400" />
+                      Domain Authorization Fix Required
+                    </span>
+                    <button
+                      type="button"
+                      onClick={copyHostname}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] cursor-pointer transition-colors"
+                    >
+                      {copiedHost ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedHost ? 'Copied!' : 'Copy Domain'}</span>
+                    </button>
+                  </div>
+                  <p className="text-slate-400 leading-normal">
+                    Firebase blocks authentication requests from domains that are not explicitly authorized in the Firebase Console.
+                  </p>
+                  <div className="bg-slate-900 border border-slate-800 rounded p-2 text-amber-200/90 font-mono text-[10px] break-all">
+                    Current Domain: <span className="text-white font-bold">{currentHost}</span>
+                  </div>
+                  <div className="space-y-1 text-slate-400 text-[10.5px]">
+                    <div className="font-semibold text-slate-200">Quick 30-Second Solution in Firebase Console:</div>
+                    <ol className="list-decimal list-inside space-y-0.5 text-slate-300">
+                      <li>Go to <strong>Firebase Console</strong> → Select project <code className="text-amber-400">gen-lang-client-0184886612</code></li>
+                      <li>Navigate to <strong>Authentication</strong> → <strong>Settings</strong> tab → <strong>Authorized domains</strong></li>
+                      <li>Click <strong>Add domain</strong> and paste <code className="text-amber-400">{currentHost}</code> (also add <code className="text-amber-400">localhost</code> for dev)</li>
+                      <li>Click <strong>Save</strong> and reload this page to sign in immediately.</li>
+                    </ol>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -210,10 +273,11 @@ export const AuthPortal: React.FC = () => {
                   <input
                     type="email"
                     required
+                    disabled={isLoading}
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     placeholder="e.g. principal@school.edu.in or your email"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -227,10 +291,11 @@ export const AuthPortal: React.FC = () => {
                   <input
                     type={showLoginPassword ? 'text' : 'password'}
                     required
+                    disabled={isLoading}
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     placeholder="Enter your account password"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none transition-colors disabled:opacity-60"
                   />
                   <button
                     type="button"
@@ -247,8 +312,11 @@ export const AuthPortal: React.FC = () => {
                 disabled={isLoading}
                 className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50"
               >
-                {isLoading ? (
-                  <span>Authenticating Account...</span>
+                {isLoading && authAction === 'login' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <span>Authenticating Account...</span>
+                  </div>
                 ) : (
                   <>
                     <span>Log In to Client Portal</span>
@@ -270,10 +338,11 @@ export const AuthPortal: React.FC = () => {
                     <input
                       type="text"
                       required
+                      disabled={isLoading}
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
                       placeholder="e.g. Dr. Sunita Rao"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -286,10 +355,11 @@ export const AuthPortal: React.FC = () => {
                     <Phone className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                       type="tel"
+                      disabled={isLoading}
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
                       placeholder="e.g. +91 98765 43210"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -304,10 +374,11 @@ export const AuthPortal: React.FC = () => {
                   <input
                     type="email"
                     required
+                    disabled={isLoading}
                     value={regEmail}
                     onChange={(e) => setRegEmail(e.target.value)}
                     placeholder="e.g. educator@school.edu.in or your email"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none disabled:opacity-60"
                   />
                 </div>
               </div>
@@ -321,11 +392,12 @@ export const AuthPortal: React.FC = () => {
                   <input
                     type={showRegPassword ? 'text' : 'password'}
                     required
+                    disabled={isLoading}
                     minLength={6}
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     placeholder="Minimum 6 characters"
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-10 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-10 py-2 text-xs text-white placeholder-slate-500 focus:outline-none disabled:opacity-60"
                   />
                   <button
                     type="button"
@@ -347,10 +419,11 @@ export const AuthPortal: React.FC = () => {
                     <input
                       type="text"
                       required
+                      disabled={isLoading}
                       value={regInstitution}
                       onChange={(e) => setRegInstitution(e.target.value)}
                       placeholder="e.g. Kendriya Vidyalaya No. 1"
-                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-9 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none disabled:opacity-60"
                     />
                   </div>
                 </div>
@@ -360,9 +433,10 @@ export const AuthPortal: React.FC = () => {
                     Institution Category
                   </label>
                   <select
+                    disabled={isLoading}
                     value={regInstitutionType}
                     onChange={(e) => setRegInstitutionType(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none disabled:opacity-60"
                   >
                     <option value="Kendriya Vidyalaya">Kendriya Vidyalaya (KVS)</option>
                     <option value="Navodaya Vidyalaya">Jawahar Navodaya (JNV)</option>
@@ -380,9 +454,10 @@ export const AuthPortal: React.FC = () => {
                   Designation / Role in Lab
                 </label>
                 <select
+                  disabled={isLoading}
                   value={regRole}
                   onChange={(e) => setRegRole(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl px-3 py-2 text-xs text-white focus:outline-none disabled:opacity-60"
                 >
                   <option value="ATL In-Charge">ATL In-Charge & Tinkering Mentor</option>
                   <option value="Principal / Director">Principal / School Director</option>
@@ -398,8 +473,11 @@ export const AuthPortal: React.FC = () => {
                 disabled={isLoading}
                 className="w-full py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer disabled:opacity-50 mt-2"
               >
-                {isLoading ? (
-                  <span>Registering Account in Database...</span>
+                {isLoading && authAction === 'register' ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                    <span>Registering Account in Database...</span>
+                  </div>
                 ) : (
                   <>
                     <span>Create Registered Account</span>
@@ -429,25 +507,34 @@ export const AuthPortal: React.FC = () => {
             onClick={handleGoogleSignIn}
             className="w-full py-2.5 px-4 bg-slate-950 hover:bg-slate-800/80 border border-slate-800 hover:border-slate-700 rounded-xl text-xs font-bold text-white flex items-center justify-center gap-2.5 transition-all cursor-pointer disabled:opacity-50"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path
-                fill="#EA4335"
-                d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
-              />
-              <path
-                fill="#4285F4"
-                d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.4C3.7 20.1 7.5 23 12 23z"
-              />
-            </svg>
-            <span>Continue with Verified Google Account</span>
+            {isLoading && authAction === 'google' ? (
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+                <span>Connecting with Google...</span>
+              </div>
+            ) : (
+              <>
+                <svg className="w-4 h-4" viewBox="0 0 24 24">
+                  <path
+                    fill="#EA4335"
+                    d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.5 1 3.7 3.6 1.9 7.3l3.7 2.9C6.5 7.4 9 5 12 5z"
+                  />
+                  <path
+                    fill="#4285F4"
+                    d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.6 14.8c-.2-.7-.4-1.5-.4-2.8s.2-2.1.4-2.8L1.9 6.3C.7 8.7 0 10.3 0 12s.7 3.3 1.9 5.7l3.7-2.9z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3 0-5.5-2-6.4-4.8L1.9 16.4C3.7 20.1 7.5 23 12 23z"
+                  />
+                </svg>
+                <span>Continue with Verified Google Account</span>
+              </>
+            )}
           </button>
 
           {/* Institutional Trust Badges */}

@@ -46,10 +46,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     : [product.image];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs overflow-y-auto">
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-slate-200 overflow-hidden my-auto sm:my-8 max-h-[94vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 bg-slate-50 sticky top-0 z-10">
           <div className="flex items-center gap-2">
             <span className="px-2.5 py-1 text-[11px] font-bold uppercase rounded-md bg-amber-100 text-amber-800 border border-amber-200">
               {product.gradeLevel}
@@ -60,15 +60,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/80 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 md:p-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="p-4 sm:p-6 md:p-8 space-y-5 sm:space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-8">
             {/* Image & Badges */}
             <div className="space-y-4">
               <div className="relative aspect-4/3 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner">
@@ -77,7 +77,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   alt={product.name}
                   referrerPolicy="no-referrer"
                   onError={(e) => {
-                    e.currentTarget.src = 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80';
+                    e.currentTarget.src = '/assets/aistudio/1_08ee71b2.webp';
                   }}
                   className="w-full h-full object-cover transition-all duration-300"
                 />
