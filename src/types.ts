@@ -16,6 +16,7 @@ export type NavTab =
   | 'home' 
   | 'store' 
   | 'quotations'
+  | 'hackathon'
   | 'blog' 
   | 'about' 
   | 'contact' 

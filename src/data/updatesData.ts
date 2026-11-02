@@ -4,39 +4,40 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
   {
     id: 'upd-robocup-hackathon',
     type: 'company',
-    title: 'National ROBOCUP STEM Hackathon 2026-27 Announced!',
-    subtitle: 'Autonomous Robotics, Maze Solvers, AI Vision & Drone Avionics Championship — Coming Soon!',
-    badge: 'SPECIAL MENTION · ROBOCUP HACKATHON 2026-27',
+    title: 'Balki RoboCup Hackathon 2027: "Build it. Code it. Win it!"',
+    subtitle: '10 Robots • 1 Sealed Box • 60 Minutes — India\'s Most Rigorous At-Home STEM Robotics Championship',
+    badge: 'NATIONAL REMOTE EDITION · ROBOCUP 2027',
     badgeColor: 'amber',
-    date: 'Coming Soon (2026-27)',
-    image: '/src/assets/images/robotic_arm_kit_1792086690563.jpg',
-    description: 'Balki Technologies is proud to announce that the prestigious National ROBOCUP STEM Hackathon 2026-27 is currently being organized! Bringing together school tinkering teams, Atal Tinkering Labs, and budding young roboticists from across India to compete in autonomous robotics, AI computer vision, maze navigation, and drone avionics. Coming soon — be ready for updates!',
+    date: 'Finals: 9–10 Jan 2027 (Reg: 1 Nov – 15 Dec 2026)',
+    image: '/hackathon/Screenshot_2026-10-30_142603_66930140.png',
+    description: 'Balki Technologies officially unveils the Balki RoboCup Hackathon 2027! For students in Grades 8 to 12 competing Solo or Duo. Receive a tamper-evident sealed kit delivered to your doorstep with components to build any of 10 championship robots. Join a live 1-on-1 Google Meet proctored slot, unbox on camera, build in 35 minutes, code, and execute on the 2400x1200mm arena mat! 1st Place wins ₹10,000 Cash + Q250 Drone Kit, Top 5 get founder mentorship, Top 20 get R&D internships, and all participants keep their kit forever!',
     highlights: [
-      'Autonomous Maze Navigation & Ultrasonic Obstacle Avoidance Rover Track',
-      'AI Edge Computer Vision & Robotic Arm Object Sorting Challenge',
-      'Robo-Soccer Tournament: High-Torque Wireless Telemetry Arena',
-      'Autonomous Quadcopter Precision Waypoint & Aerial Mapping Mission',
-      'Over ₹10,00,000+ in STEM Innovation Grants, Medals & National Recognition'
+      '10 Possible Robotics Experiments inside 1 tamper-evident mystery sealed kit',
+      'Live 1-on-1 Google Meet Proctored 60-Minute Slot with certified robotics judges',
+      '1st Place Champion: ₹10,000 Cash Prize + Balki Q250 DIY Quadcopter Drone Kit',
+      'Top 5 Teams: 1-Month 1-on-1 Mentorship directly with Founder Phanindra Balki',
+      'Top 20 Teams: 1-Month Remote R&D Internship with Balki Technologies Engineering Lab',
+      'Grades 8–12: Solo (₹1,800 Early Bird / ₹2,500 Regular) or Duo (₹2,500 Early Bird / ₹3,000 Regular)',
+      '100% Kit Retention: Keep the entire robot hardware, sensors, tools, and arena mat forever!'
     ],
-    actionText: 'Be Ready For Updates · Pre-Register',
+    actionText: 'Explore Official Hackathon Hub (Rules & Experiments)',
     featured: true,
     announcementDetails: {
-      fullStory: 'Balki Technologies Pvt. Ltd. is thrilled to unveil the preliminary announcement for the National ROBOCUP STEM Hackathon 2026-27! Designed to ignite competitive tinkering and engineering rigor across India’s school network, this multi-stage national championship invites students from Classes 6 to 12 as well as polytechnic innovators to build, code, and deploy real-world autonomous hardware systems. Coming soon — keep your sensors calibrated, kits assembled, and stay tuned for the official rulebook and portal opening!',
+      fullStory: 'Balki Technologies Pvt. Ltd. is thrilled to officially publish the complete brochure, remote edition rulebook, and curriculum compendium for the Balki RoboCup Hackathon 2027! India\'s most rigorous at-home robotics championship brings school innovators from across the country into live competition via Google Meet. Equipped with an official 2400mm x 1200mm arena challenge mat and a tamper-evident sealed box containing parts for 10 possible robots, students unbox live on camera, assemble their assigned mystery robot in under 35 minutes, and compete across 3 scored field tasks. Registration is open from 1st November to 15th December 2026, with the live national finals on 9th–10th January 2027.',
       impactOnSchools: [
-        'National Platform: Gives student tinkerers from Atal Tinkering Labs real-world exposure to competitive robotics and problem solving.',
-        'Mentorship & Capacity Building: Free masterclass series on PID motor control, OpenCV computer vision, and ROS/ArduPilot tuning prior to the qualifiers.',
-        'Institutional Accreditations: Participating schools earn national STEM Excellence badges, trophies, and hardware grant upgrades.'
+        'National Accreditation: Direct recognition for school Atal Tinkering Labs and student tinkering clubs across all Indian states & UTs.',
+        'Mentorship & Industry Exposure: Top 5 teams receive direct 1-month mentorship with Balki Technologies Founder Phanindra Balki, and Top 20 teams earn remote R&D internships.',
+        'Zero Kit Return Friction: Every team retains the complete hardware kit, electronic components, and heavy-duty 2400x1200mm arena mat forever for ongoing laboratory tinkering.'
       ],
       technicalHighlights: [
-        'Competition Arenas: 4 specialized hardware tracks + 1 Open Green IoT Automation track',
-        'Team Composition: 3 to 5 student innovators per squad + 1 school faculty mentor',
-        'Hardware Guidelines: Compatible with Balki Technologies Pro-Robotics kits, Arduino UNO R3, ESP32, and Raspberry Pi platforms',
-        'Timeline: Coming Soon — official registration portal, problem statements, and regional qualifier dates announcing shortly!'
+        'The 10 Robots: Autonomous Line & Obstacle Rover, RC Bluetooth Car, ESP32 Wi-Fi Surveillance Bot, 4-DOF Robotic Arm, Soccer Goalkeeper Deflection Bot, Rescue Victim Sorter, Rescue Victim Payload Gripper, Gesture Controlled Rover, Self-Balancing Inverted Pendulum, and Agri-Tech RF Swarm Defender.',
+        'Official 100-Point Scorecard: 40 points assembly craftsmanship & speed (under 20 mins = 15 pts, first-time-right = 10 pts, wire hygiene = 10 pts, teamwork = 5 pts) + 60 points task performance (3 tasks @ 20 pts each).',
+        'Remote Proctoring Rigor: Dual-camera Google Meet layout (Overhead arena mat view via phone + student workbench view via laptop) with certified live proctor.'
       ],
       officialQuote: {
-        text: 'The ROBOCUP Hackathon isn’t just a contest; it’s a national proving ground where school students transition from assembling kits to solving real physical-world challenges with intelligent autonomous hardware.',
-        author: 'Er. R. Balki',
-        designation: 'Managing Director & Chief of Lab Engineering, Balki Technologies'
+        text: 'True engineering isn’t following pre-baked cookbook instructions over weeks. It’s opening a box of real sensors, motors, and controllers, understanding circuit topology under the clock, and making intelligent machines solve physical tasks.',
+        author: 'Phanindra Balki',
+        designation: 'Founder & Chief of Engineering, Balki Technologies'
       }
     }
   },
@@ -306,9 +307,9 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
 export const LIVE_TICKER_ITEMS = [
   {
     id: 'tick-robocup-hackathon',
-    badge: 'ROBOCUP HACKATHON',
-    text: '🏆 National ROBOCUP STEM Hackathon 2026-27 is being organized! Autonomous rovers, AI vision & drones — Coming Soon, be ready for updates!',
-    actionTab: 'home'
+    badge: 'ROBOCUP 2027',
+    text: '🏆 Balki RoboCup Hackathon 2027: "Build it. Code it. Win it!" 10 Robots • 1 Sealed Box • 60 Mins. ₹10,000 + Drone Kit. Registrations Open!',
+    actionTab: 'hackathon'
   },
   {
     id: 'tick-atl-1',

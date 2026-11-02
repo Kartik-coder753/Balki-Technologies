@@ -21,6 +21,7 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { StoreSection } from './components/StoreSection';
 import { QuotationsSection } from './components/QuotationsSection';
+import { HackathonSection } from './components/HackathonSection';
 import { CoursesSection } from './components/CoursesSection';
 import { RentalsSection } from './components/RentalsSection';
 import { InventoryManager } from './components/InventoryManager';
@@ -327,6 +328,17 @@ export default function App() {
             onAddToCart={handleAddToCart}
             openB2BModal={() => setIsB2BOpen(true)}
             setActiveTab={setActiveTab}
+            onExploreCategory={(cat) => {
+              setStoreCategory(cat);
+              setActiveTab('store');
+            }}
+          />
+        )}
+
+        {activeTab === 'hackathon' && (
+          <HackathonSection
+            setActiveTab={setActiveTab}
+            openB2BModal={() => setIsB2BOpen(true)}
             onExploreCategory={(cat) => {
               setStoreCategory(cat);
               setActiveTab('store');

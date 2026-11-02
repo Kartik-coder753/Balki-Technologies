@@ -100,6 +100,17 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab, openB2BModal }) =>
               <li>
                 <button 
                   onClick={() => {
+                    setActiveTab('hackathon');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }} 
+                  className="hover:text-cyan-300 transition-colors text-left text-cyan-400 font-black flex items-center gap-1.5"
+                >
+                  <span>🏆 Balki RoboCup Hackathon 2027 Hub</span>
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => {
                     setActiveTab('quotations');
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }} 

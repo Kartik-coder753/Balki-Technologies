@@ -117,9 +117,9 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
       }
     }
     if (update.id === 'upd-robocup-hackathon') {
-      const el = document.getElementById('robocup-special-mention');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth' });
+      if (setActiveTab) {
+        setActiveTab('hackathon');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
       setSelectedUpdateForModal(update);

@@ -220,28 +220,7 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
             className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-black border border-amber-400 hover:bg-amber-400 transition-colors flex items-center gap-1.5 shadow-xs"
           >
             <Zap className="w-3.5 h-3.5 fill-slate-950 text-slate-950" />
-            <span>ROBOCUP Hackathon (Special Mention · Coming Soon)</span>
-          </a>
-
-          {setActiveTab && (
-            <button
-              onClick={() => {
-                setActiveTab('quotations');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="px-3 py-1.5 rounded-lg bg-slate-900 text-amber-300 font-extrabold border border-amber-500/50 hover:bg-slate-800 transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
-            >
-              <Boxes className="w-3.5 h-3.5 text-amber-400" />
-              <span>ATL Quotations Dossier (169 Items)</span>
-            </button>
-          )}
-
-          <a
-            href="#latest-updates-corner"
-            className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-800 font-bold border border-slate-200 hover:bg-slate-200 transition-colors flex items-center gap-1.5"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span>Latest Updates</span>
+            <span>ROBOCUP 2027 Hackathon (Brochure & QR Form)</span>
           </a>
 
           <a

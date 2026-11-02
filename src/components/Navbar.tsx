@@ -879,23 +879,25 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* 3. ATL QUOTATIONS (169-Item Institutional Dossier) */}
+
+
+            {/* ROBOCUP 2027 Hackathon Hub */}
             <button
-              id="nav-tab-quotations"
+              id="nav-tab-hackathon"
               onClick={() => {
-                setActiveTab('quotations');
+                setActiveTab('hackathon');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-all cursor-pointer ${
-                activeTab === 'quotations'
-                  ? 'bg-amber-500 text-slate-950 font-black shadow-xs'
-                  : 'text-amber-900 bg-amber-50/90 hover:bg-amber-100 border border-amber-300/80 font-bold'
+                activeTab === 'hackathon'
+                  ? 'bg-gradient-to-r from-cyan-500 via-teal-500 to-blue-600 text-white font-black shadow-md'
+                  : 'text-cyan-950 bg-cyan-50 hover:bg-cyan-100 border border-cyan-300 font-bold'
               }`}
             >
-              <Boxes className="w-3.5 h-3.5 text-amber-700" />
-              <span>ATL QUOTATIONS</span>
-              <span className="text-[10px] px-1.5 py-0.2 bg-amber-500 text-slate-950 font-black rounded-full">
-                169 Items
+              <Trophy className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+              <span>ROBOCUP 2027</span>
+              <span className="text-[10px] px-1.5 py-0.2 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black rounded-full shadow-2xs">
+                ₹10K + Drone
               </span>
             </button>
 
@@ -1098,34 +1100,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </div>
 
-            {/* 7. LATEST UPDATES Corner Pill */}
-            <button
-              id="nav-tab-updates"
-              onClick={() => {
-                setActiveTab('home');
-                setIsShopMenuOpen(false);
-                setIsMoreMenuOpen(false);
-                setTimeout(() => {
-                  const el = document.getElementById('latest-updates-corner');
-                  if (el) {
-                    el.scrollIntoView({ behavior: 'smooth' });
-                  } else {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }
-                }, 100);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-orange-500/15 to-amber-500/15 hover:from-amber-500/25 hover:to-orange-500/25 text-amber-900 border border-amber-300 font-extrabold transition-all cursor-pointer group shadow-2xs"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-600"></span>
-              </span>
-              <Sparkles className="w-3.5 h-3.5 text-amber-600 group-hover:rotate-12 transition-transform" />
-              <span>LATEST UPDATES</span>
-              <span className="text-[10px] px-1.5 py-0.2 bg-amber-500 text-slate-950 font-black rounded-md">
-                NEW
-              </span>
-            </button>
+
 
           </div>
 
@@ -1285,23 +1260,27 @@ export const Navbar: React.FC<NavbarProps> = ({
                   )}
                 </div>
 
-                {/* ATL QUOTATIONS (Mobile) */}
+
+
+                {/* ROBOCUP 2027 HACKATHON (Mobile) */}
                 <button
                   onClick={() => {
-                    setActiveTab('quotations');
+                    setActiveTab('hackathon');
                     setIsMobileMenuOpen(false);
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                   className={`w-full p-3 rounded-xl flex items-center justify-between transition-colors text-left ${
-                    activeTab === 'quotations' ? 'bg-amber-500 text-slate-950 font-black' : 'text-amber-950 bg-amber-50 border border-amber-300 font-bold'
+                    activeTab === 'hackathon'
+                      ? 'bg-gradient-to-r from-cyan-500 via-teal-500 to-blue-600 text-white font-black'
+                      : 'text-cyan-950 bg-cyan-50 border border-cyan-300 font-bold'
                   }`}
                 >
                   <span className="flex items-center gap-3">
-                    <Boxes className="w-4 h-4 text-amber-600" />
-                    <span>ATL 169-PRODUCT QUOTATIONS</span>
+                    <Trophy className="w-4 h-4 text-amber-500 animate-pulse" />
+                    <span>ROBOCUP HACKATHON 2027</span>
                   </span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black">
-                    169 Items
+                    10 Robots
                   </span>
                 </button>
 
