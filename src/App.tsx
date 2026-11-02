@@ -25,7 +25,7 @@ import { HackathonSection } from './components/HackathonSection';
 import { CoursesSection } from './components/CoursesSection';
 import { RentalsSection } from './components/RentalsSection';
 import { InventoryManager } from './components/InventoryManager';
-import { StudentDashboard } from './components/StudentDashboard';
+import { ClientDashboard } from './components/ClientDashboard';
 import { CareersSection } from './components/CareersSection';
 import { ContactSupportSection } from './components/ContactSupportSection';
 import { AboutUsSection } from './components/AboutUsSection';
@@ -35,8 +35,15 @@ import { CheckoutModal } from './components/CheckoutModal';
 import { ProductDetailModal } from './components/ProductDetailModal';
 import { B2BPortalModal } from './components/B2BPortalModal';
 import { OrderTrackingModal } from './components/OrderTrackingModal';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthPortal } from './components/AuthPortal';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { db, handleFirestoreError } from './lib/firebase';
+import { Loader2 } from 'lucide-react';
 
-export default function App() {
+function AppContent() {
+  const { currentUser, userProfile, loading, updateProfileData } = useAuth();
+
   // Navigation State
   const [activeTab, setActiveTab] = useState<NavTab>('home');
   const [storeCategory, setStoreCategory] = useState<ProductCategory>('all');
@@ -65,6 +72,50 @@ export default function App() {
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingTargetId, setTrackingTargetId] = useState('');
 
+  // Sync userProgress with authenticated client profile dynamically
+  useEffect(() => {
+    if (userProfile || currentUser) {
+      setUserProgress(prev => ({
+        ...prev,
+        studentName: userProfile?.displayName || currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Client Member',
+        schoolName: userProfile?.institution || 'Atal Tinkering Lab Partner',
+        grade: userProfile?.role || 'Innovator'
+      }));
+    }
+  }, [userProfile, currentUser]);
+
+  // Real-time Firestore sync for client's orders
+  useEffect(() => {
+    if (!currentUser) {
+      setOrders([]);
+      return;
+    }
+
+    try {
+      const ordersCol = collection(db, 'orders');
+      const q = query(ordersCol, where('userId', '==', currentUser.uid));
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const list: Order[] = [];
+          snapshot.forEach((d) => {
+            list.push({ id: d.id, ...d.data() } as Order);
+          });
+          list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setOrders(list);
+        },
+        (err) => {
+          console.warn('Orders listener fallback', err);
+          handleFirestoreError(err, 'read', 'orders');
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (e) {
+      console.warn('Failed to subscribe to client orders in Firestore', e);
+    }
+  }, [currentUser]);
+
   const handleOpenTracking = (orderOrId?: Order | string) => {
     if (typeof orderOrId === 'string') {
       setTrackingTargetId(orderOrId);
@@ -73,23 +124,20 @@ export default function App() {
     } else if (orders.length > 0) {
       setTrackingTargetId(orders[0].id);
     } else {
-      setTrackingTargetId('ORD-2026-9081');
+      setTrackingTargetId('');
     }
     setIsTrackingOpen(true);
   };
 
-  // Initial Fetch from backend APIs
+  // Initial Fetch from backend APIs for catalog and public services
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [prodRes, courseRes, rentRes, invRes, progRes, ordRes, revRes, caseRes, tktRes] = await Promise.all([
+        const [prodRes, courseRes, rentRes, invRes, caseRes, tktRes] = await Promise.all([
           fetch('/api/products').catch(() => null),
           fetch('/api/courses').catch(() => null),
           fetch('/api/rentals').catch(() => null),
           fetch('/api/inventory').catch(() => null),
-          fetch('/api/user/progress').catch(() => null),
-          fetch('/api/orders').catch(() => null),
-          fetch('/api/reviews').catch(() => null),
           fetch('/api/case-studies').catch(() => null),
           fetch('/api/support/tickets').catch(() => null)
         ]);
@@ -98,9 +146,6 @@ export default function App() {
         if (courseRes && courseRes.ok) setCourses(await courseRes.json());
         if (rentRes && rentRes.ok) setRentals(await rentRes.json());
         if (invRes && invRes.ok) setInventory(await invRes.json());
-        if (progRes && progRes.ok) setUserProgress(await progRes.json());
-        if (ordRes && ordRes.ok) setOrders(await ordRes.json());
-        if (revRes && revRes.ok) setReviews(await revRes.json());
         if (caseRes && caseRes.ok) setCaseStudies(await caseRes.json());
         if (tktRes && tktRes.ok) setSupportTickets(await tktRes.json());
       } catch (e) {
@@ -109,7 +154,6 @@ export default function App() {
     };
     fetchData();
   }, []);
-
 
   // Cart Handlers
   const handleAddToCart = (product: Product, quantity = 1) => {
@@ -178,12 +222,24 @@ export default function App() {
     setCartItems(prev => prev.filter(item => item.product.id !== productId));
   };
 
-  // Complete Order
-  const handleOrderSuccess = (order: Order) => {
+  // Complete Order & Update Client Purchase History
+  const handleOrderSuccess = async (order: Order) => {
     setOrders(prev => [order, ...prev]);
     setCartItems([]);
     setCouponDiscount(0);
     setAppliedCoupon('');
+
+    // Update client purchasing metrics in profile
+    try {
+      await updateProfileData({
+        hasPurchased: true,
+        totalOrdersCount: (userProfile?.totalOrdersCount || 0) + 1,
+        totalSpent: (userProfile?.totalSpent || 0) + (order.totalAmount || 0)
+      });
+    } catch (e) {
+      console.warn('Failed to update client purchasing stats in profile:', e);
+    }
+
     // Update local products & inventory stock
     setProducts(prev =>
       prev.map(prod => {
@@ -238,44 +294,56 @@ export default function App() {
       if (res.ok) {
         const updated: UserProgress = await res.json();
         setUserProgress(updated);
-      } else {
-        setUserProgress(prev => {
-          const completed = Array.from(new Set([...prev.completedLessonIds, lessonId]));
-          return {
-            ...prev,
-            completedLessonIds: completed,
-            tinkeringHours: prev.tinkeringHours + 1.5,
-            quizScores: { ...prev.quizScores, [lessonId]: quizScore }
-          };
-        });
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // Inventory Update
-  const handleUpdateStock = async (
-    sku: string, 
-    deltaStock: number, 
-    newMinThreshold?: number, 
-    notes?: string
-  ) => {
-    const res = await fetch('/api/inventory/update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku, deltaStock, newMinThreshold, notes })
-    });
-    if (!res.ok) throw new Error('Inventory update failed');
-    const data = await res.json();
-    const updatedItem: InventoryItem = data.item || data;
-    setInventory(prev => prev.map(item => item.sku === sku ? updatedItem : item));
-    setProducts(prev => prev.map(p => p.sku === sku ? { ...p, stock: updatedItem.currentStock } : p));
+  // Update Inventory Stock
+  const handleUpdateStock = (sku: string, newStock: number) => {
+    setInventory(prev =>
+      prev.map(item =>
+        item.sku === sku
+          ? {
+              ...item,
+              currentStock: newStock,
+              status: newStock <= 0 ? 'Critical' : newStock <= item.minimumThreshold ? 'Low Stock' : 'In Stock',
+              lastRestocked: new Date().toISOString().split('T')[0]
+            }
+          : item
+      )
+    );
+    setProducts(prev =>
+      prev.map(p => (p.sku === sku ? { ...p, stock: newStock } : p))
+    );
   };
 
+  // While checking authentication state, show branded loading screen
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white space-y-4">
+        <div className="w-12 h-12 border-4 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="text-center space-y-1">
+          <p className="text-xs font-bold tracking-widest text-amber-400 uppercase">
+            Balki Technologies
+          </p>
+          <p className="text-xs text-slate-400 font-mono">
+            Verifying Authenticated Client Session...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // MANDATORY LOGIN WALL: If not signed in, show AuthPortal
+  if (!currentUser) {
+    return <AuthPortal />;
+  }
+
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 font-sans selection:bg-amber-500 selection:text-white">
-      {/* Top Navbar */}
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-amber-500 selection:text-white">
+      {/* Global Navigation Bar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -296,52 +364,62 @@ export default function App() {
         onOpenTracking={() => handleOpenTracking()}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        {(activeTab === 'home' || activeTab === 'store') && (
+      {/* Main Routed Content */}
+      <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        
+        {activeTab === 'home' && (
           <StoreSection
             products={products}
+            selectedCategory="all"
+            setSelectedCategory={setStoreCategory}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onAddToCart={handleAddToCart}
+            onBuyNow={handleBuyNow}
+            onSelectProduct={(product) => setSelectedProduct(product)}
+            openB2BModal={() => setIsB2BOpen(true)}
+            onNavigate={(tab) => setActiveTab(tab)}
             courses={courses}
             rentals={rentals}
-            reviews={reviews}
             caseStudies={caseStudies}
-            initialCategory={storeCategory}
-            onAddToCart={handleAddToCart}
-            onSelectProduct={(p) => setSelectedProduct(p)}
-            onBuyNow={handleBuyNow}
+            reviews={reviews}
+            onAddReview={(newRev) => setReviews((prev) => [newRev, ...prev])}
+          />
+        )}
+
+        {activeTab === 'store' && (
+          <StoreSection
+            products={products}
+            selectedCategory={storeCategory}
+            setSelectedCategory={setStoreCategory}
             searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            onAddToCart={handleAddToCart}
+            onBuyNow={handleBuyNow}
+            onSelectProduct={(product) => setSelectedProduct(product)}
             openB2BModal={() => setIsB2BOpen(true)}
-            setActiveTab={setActiveTab}
-            onAddReview={(newRev) => {
-              setReviews((prev) => [newRev, ...prev]);
-              fetch('/api/reviews', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newRev)
-              }).catch((e) => console.warn('Saved in local state', e));
-            }}
+            onNavigate={(tab) => setActiveTab(tab)}
+            courses={courses}
+            rentals={rentals}
+            caseStudies={caseStudies}
+            reviews={reviews}
+            onAddReview={(newRev) => setReviews((prev) => [newRev, ...prev])}
           />
         )}
 
         {activeTab === 'quotations' && (
           <QuotationsSection
+            onOpenB2BModal={() => setIsB2BOpen(true)}
             onAddToCart={handleAddToCart}
-            openB2BModal={() => setIsB2BOpen(true)}
-            setActiveTab={setActiveTab}
-            onExploreCategory={(cat) => {
-              setStoreCategory(cat);
-              setActiveTab('store');
-            }}
+            onBuyNow={handleBuyNow}
           />
         )}
 
         {activeTab === 'hackathon' && (
           <HackathonSection
-            setActiveTab={setActiveTab}
-            openB2BModal={() => setIsB2BOpen(true)}
-            onExploreCategory={(cat) => {
-              setStoreCategory(cat);
+            onOpenStore={() => {
               setActiveTab('store');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
           />
         )}
@@ -396,11 +474,11 @@ export default function App() {
         )}
 
         {activeTab === 'dashboard' && (
-          <StudentDashboard
-            userProgress={userProgress}
+          <ClientDashboard
             orders={orders}
             rentals={rentalBookings}
             courses={courses}
+            userProgress={userProgress}
             setActiveTab={setActiveTab}
             onTrackOrder={(order) => handleOpenTracking(order)}
           />
@@ -474,5 +552,13 @@ export default function App() {
         }}
       />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

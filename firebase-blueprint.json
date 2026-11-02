@@ -1,0 +1,112 @@
+{
+  "entities": {
+    "User": {
+      "title": "Client Profile & Credentials",
+      "description": "Registered client and institutional buyer credentials, institution profile and purchasing status",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth unique client identifier" },
+        "email": { "type": "string", "format": "email", "description": "Registered account email address" },
+        "displayName": { "type": "string", "maxLength": 100, "description": "Full name of the client / institution lead" },
+        "institution": { "type": "string", "maxLength": 150, "description": "School, university, or company name" },
+        "institutionType": { "type": "string", "enum": ["Kendriya Vidyalaya", "Navodaya Vidyalaya", "Private CBSE/ICSE", "Govt Model School", "University/College", "Corporate/Industrial", "Individual Tinkerer"] },
+        "phone": { "type": "string", "maxLength": 20, "description": "Client contact phone number" },
+        "role": { "type": "string", "enum": ["ATL In-Charge", "Principal / Director", "STEM Educator", "Student Innovator", "Lab Coordinator", "Procurement Officer", "Client"] },
+        "hasPurchased": { "type": "boolean", "description": "Flag indicating if the client has purchased any product" },
+        "totalOrdersCount": { "type": "number", "description": "Total number of completed orders" },
+        "totalSpent": { "type": "number", "description": "Total expenditure in INR" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of account registration" },
+        "lastLoginAt": { "type": "string", "description": "ISO timestamp of last sign in" }
+      },
+      "required": ["uid", "email", "displayName"]
+    },
+    "Product": {
+      "title": "Product Catalog Item",
+      "description": "Certified STEM kits, lab equipment, robotics modules, and sensor packages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique product SKU or identifier" },
+        "name": { "type": "string", "maxLength": 200, "description": "Commercial product title" },
+        "category": { "type": "string", "description": "Product category" },
+        "gradeLevel": { "type": "string", "description": "Target NEP grade band" },
+        "price": { "type": "number", "description": "Retail price in INR" },
+        "originalPrice": { "type": "number", "description": "Strikethrough MRP price" },
+        "rating": { "type": "number", "description": "Customer satisfaction score" },
+        "reviewsCount": { "type": "number", "description": "Total verified reviews" },
+        "stock": { "type": "number", "description": "Available inventory units in warehouse" },
+        "sku": { "type": "string", "description": "Stock Keeping Unit code" },
+        "image": { "type": "string", "description": "Primary high-resolution product photography URL" },
+        "shortDesc": { "type": "string", "description": "One sentence elevator summary" },
+        "description": { "type": "string", "description": "Detailed curriculum and hardware overview" },
+        "nepAligned": { "type": "boolean", "description": "Compliance with NEP 2020 hands-on standards" },
+        "atlCertified": { "type": "boolean", "description": "Certified for NITI Aayog Atal Tinkering Labs" }
+      },
+      "required": ["id", "name", "category", "price", "stock", "sku"]
+    },
+    "Order": {
+      "title": "Client Purchase Order & Consignment",
+      "description": "Commercial equipment purchase record, invoice breakdown, and live tracking",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique Order Reference (e.g. ORD-2026-XXXX)" },
+        "userId": { "type": "string", "description": "Authenticated client UID" },
+        "customerName": { "type": "string", "maxLength": 100, "description": "Billing contact name" },
+        "customerEmail": { "type": "string", "format": "email", "description": "Client email for invoicing" },
+        "customerPhone": { "type": "string", "maxLength": 20, "description": "Delivery contact phone" },
+        "schoolName": { "type": "string", "maxLength": 150, "description": "School or institutional buyer name" },
+        "gstin": { "type": "string", "description": "Institutional GSTIN (optional)" },
+        "items": { "type": "array", "description": "Purchased items with quantity and product details" },
+        "subtotal": { "type": "number", "description": "Base subtotal in INR" },
+        "gstAmount": { "type": "number", "description": "18% GST in INR" },
+        "shippingFee": { "type": "number", "description": "Shipping charges" },
+        "discount": { "type": "number", "description": "Applied coupon discount" },
+        "totalAmount": { "type": "number", "description": "Final paid amount in INR" },
+        "paymentMethod": { "type": "string", "description": "UPI, Card, NetBanking or SchoolPO" },
+        "paymentStatus": { "type": "string", "description": "Paid, Refunded, or PO Approved" },
+        "orderStatus": { "type": "string", "description": "qc_assembly, dispatched, in_transit, delivered" },
+        "trackingNumber": { "type": "string", "description": "Express tracking number" },
+        "deliveryOtp": { "type": "string", "description": "4-digit security handover OTP" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of order creation" }
+      },
+      "required": ["id", "userId", "customerName", "customerEmail", "totalAmount", "paymentStatus", "createdAt"]
+    },
+    "Review": {
+      "title": "Verified Client Review",
+      "description": "Authentic review submitted by authenticated clients for products or website services",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Review unique identifier" },
+        "userId": { "type": "string", "description": "Author client UID" },
+        "authorName": { "type": "string", "maxLength": 100, "description": "Name of the client" },
+        "institution": { "type": "string", "maxLength": 150, "description": "School or institution of reviewer" },
+        "rating": { "type": "number", "description": "1 to 5 star rating" },
+        "targetType": { "type": "string", "enum": ["website", "product"], "description": "Review target type" },
+        "productId": { "type": "string", "maxLength": 100, "description": "Associated product ID if product review" },
+        "productName": { "type": "string", "maxLength": 200, "description": "Associated product title if product review" },
+        "headline": { "type": "string", "maxLength": 150, "description": "Summary headline" },
+        "reviewText": { "type": "string", "maxLength": 1500, "description": "Detailed review body" },
+        "likesCount": { "type": "number", "description": "Number of helpful votes" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of review submission" }
+      },
+      "required": ["id", "userId", "authorName", "rating", "targetType", "headline", "reviewText"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "entity": "User",
+      "description": "User profile, credentials, and buying status"
+    },
+    "/products/{productId}": {
+      "entity": "Product",
+      "description": "Public STEM catalog items and specifications"
+    },
+    "/orders/{orderId}": {
+      "entity": "Order",
+      "description": "Client equipment purchases and delivery consignments"
+    },
+    "/reviews/{reviewId}": {
+      "entity": "Review",
+      "description": "Verified client reviews and feedback"
+    }
+  }
+}

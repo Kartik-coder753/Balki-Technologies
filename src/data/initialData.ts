@@ -446,167 +446,18 @@ export const INITIAL_COURSES: Course[] = [
 export const INITIAL_INVENTORY: InventoryItem[] = ATL_INVENTORY;
 
 export const INITIAL_USER_PROGRESS: UserProgress = {
-  studentName: 'Aarav Sharma',
-  schoolName: 'Kendriya Vidyalaya, Hyderabad',
-  grade: 'Class 8-A',
-  tinkeringHours: 32,
-  completedLessonIds: ['c1-l1', 'c1-l2', 'c2-l1'],
-  quizScores: {
-    'c1-l1': 100,
-    'c1-l2': 100,
-    'c2-l1': 100
-  },
-  earnedCertificates: [
-    {
-      courseId: 'course-1',
-      courseTitle: 'Junior Tinkerer: Electronics & Magic Circuits (Classes 3–5)',
-      issueDate: 'August 14, 2026',
-      certificateId: 'BALKI-CERT-2026-7842'
-    }
-  ],
-  badges: [
-    {
-      id: 'badge-1',
-      name: 'Circuit Apprentice',
-      icon: 'Zap',
-      description: 'Built and verified your first closed electrical loop without short-circuits.',
-      unlockedAt: '2026-08-10'
-    },
-    {
-      id: 'badge-2',
-      name: 'Radar Navigator',
-      icon: 'Radio',
-      description: 'Mastered ultrasonic echolocation mathematics and acoustic reflection.',
-      unlockedAt: '2026-08-25'
-    },
-    {
-      id: 'badge-3',
-      name: 'ATL 30-Hours Club',
-      icon: 'Award',
-      description: 'Logged over 30 verified hands-on tinkering hours inside an Atal Tinkering Lab.',
-      unlockedAt: '2026-09-02'
-    }
-  ],
-  likedCourseIds: ['course-1', 'course-4']
+  studentName: '',
+  schoolName: '',
+  grade: 'Innovator',
+  tinkeringHours: 0,
+  completedLessonIds: [],
+  quizScores: {},
+  earnedCertificates: [],
+  badges: [],
+  likedCourseIds: []
 };
 
-export const INITIAL_ORDERS: Order[] = [
-  {
-    id: 'BALKI-ORD-2026-9041',
-    createdAt: '2026-09-10',
-    customerName: 'Dr. Ramesh Sundaram',
-    customerEmail: 'ramesh.atl@dpssecunderabad.edu.in',
-    customerPhone: '+91 98850 12345',
-    schoolName: 'Delhi Public School (ATL Wing)',
-    shippingAddress: {
-      street: 'Plot 42, Nacharam Road',
-      city: 'Secunderabad',
-      state: 'Telangana',
-      pincode: '500076'
-    },
-    items: [
-      {
-        product: INITIAL_PRODUCTS[0],
-        quantity: 5
-      },
-      {
-        product: INITIAL_PRODUCTS[2],
-        quantity: 5
-      }
-    ],
-    subtotal: 16240,
-    gstAmount: 2923.2,
-    shippingFee: 0,
-    discount: 0,
-    totalAmount: 19163.2,
-    paymentMethod: 'SchoolPO',
-    paymentStatus: 'PO Approved (Net 30)',
-    trackingNumber: 'BALKI-EXP-940212IN',
-    orderStatus: 'in_transit',
-    deliveryOtp: '4829',
-    paymentReference: 'PO-DPS-SEC-2026/09',
-    trackingDetails: {
-      courierPartner: 'Delhivery B2B Logistics (Priority STEM Express)',
-      awbNumber: 'DELHIVERY-B2B-940212IN',
-      dispatchDate: '2026-09-11T10:30:00.000Z',
-      expectedDeliveryDate: '2026-09-14T17:00:00.000Z',
-      originHub: 'Balki Central Fulfillment, Financial District, Hyderabad',
-      destinationHub: 'Secunderabad North Delivery Center, Telangana',
-      deliverySecurityOtp: '4829',
-      assignedFieldEngineer: {
-        name: 'Ramesh Verma',
-        phone: '+91 90711 99139',
-        badge: 'Lead Robotics Technician (ATL Certified)'
-      },
-      liveCoordinates: {
-        lat: 17.4435,
-        lng: 78.3842
-      },
-      checkpoints: [
-        {
-          id: 'chk-1',
-          status: 'order_placed',
-          title: 'Order Verified & Institutional PO Approved',
-          description: 'Official School Purchase Order verified under Net-30 ATL funding compliance.',
-          location: 'Balki Corporate HQ, Hyderabad',
-          timestamp: '2026-09-10T09:15:00.000Z',
-          completed: true,
-          current: false
-        },
-        {
-          id: 'chk-2',
-          status: 'qc_assembly',
-          title: 'Quality Check & Serial Number Allocation',
-          description: 'Components tested for zero-defect compliance, anti-static foam packed, barcoded.',
-          location: 'Balki Assembly Center, Hyderabad',
-          timestamp: '2026-09-10T16:45:00.000Z',
-          completed: true,
-          current: false
-        },
-        {
-          id: 'chk-3',
-          status: 'dispatched',
-          title: 'Dispatched via Priority Logistics',
-          description: 'Consignment handed over to Delhivery B2B Express. Waybill generated.',
-          location: 'Shamshabad Air Freight & Logistics Hub',
-          timestamp: '2026-09-11T10:30:00.000Z',
-          completed: true,
-          current: false
-        },
-        {
-          id: 'chk-4',
-          status: 'in_transit',
-          title: 'In Transit – Arrived at Regional Sorting Hub',
-          description: 'Scanned at regional transshipment facility. Outward connection scheduled.',
-          location: 'Secunderabad Regional Sorting Hub',
-          timestamp: '2026-09-12T08:20:00.000Z',
-          completed: true,
-          current: true
-        },
-        {
-          id: 'chk-5',
-          status: 'out_for_delivery',
-          title: 'Out for School Lab Delivery & Verification',
-          description: 'Assigned to field technician for secure school gate delivery and OTP verification.',
-          location: 'Secunderabad North Delivery Van 04',
-          timestamp: '2026-09-14T09:00:00.000Z',
-          completed: false,
-          current: false
-        },
-        {
-          id: 'chk-6',
-          status: 'delivered',
-          title: 'Lab Delivery & Technician Handover Sign-off',
-          description: 'Unboxed in school innovation lab, inspection checklist signed by ATL in-charge.',
-          location: 'DPS Secunderabad Tinkering Lab',
-          timestamp: '2026-09-14T15:30:00.000Z',
-          completed: false,
-          current: false
-        }
-      ]
-    }
-  }
-];
+export const INITIAL_ORDERS: Order[] = [];
 
 // Aliases for convenience
 export const initialProducts = INITIAL_PRODUCTS;

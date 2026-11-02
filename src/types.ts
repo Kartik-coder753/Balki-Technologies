@@ -154,6 +154,7 @@ export type PaymentMethod = 'UPI' | 'Card' | 'NetBanking' | 'SchoolPO';
 
 export interface Order {
   id: string;
+  userId?: string;
   createdAt: string;
   customerName: string;
   customerEmail: string;
@@ -289,22 +290,39 @@ export interface InternshipApplication {
   submittedAt: string;
 }
 
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  institution?: string;
+  institutionType?: string;
+  phone?: string;
+  role?: string;
+  createdAt: string;
+  lastLoginAt?: string;
+  hasPurchased?: boolean;
+  totalOrdersCount?: number;
+  totalSpent?: number;
+}
+
 export interface ClientReview {
   id: string;
+  userId?: string;
   authorName: string;
-  designation: string;
-  institution: string;
-  institutionType: 'Kendriya Vidyalaya' | 'Private CBSE/ICSE' | 'STEM Academy' | 'Govt Model School' | 'University/College' | 'Industry Lab';
-  location: string;
-  productId: string;
-  productName: string;
+  designation?: string;
+  institution?: string;
+  institutionType?: string;
+  location?: string;
+  targetType?: 'website' | 'product';
+  productId?: string;
+  productName?: string;
   rating: number;
   date: string;
-  verifiedPurchase: boolean;
+  verifiedPurchase?: boolean;
   headline: string;
   reviewText: string;
   studentsImpacted?: number;
-  likesCount: number;
+  likesCount?: number;
   avatarUrl?: string;
   badge?: string;
 }

@@ -30,6 +30,9 @@ import {
 import confetti from 'canvas-confetti';
 import { CartItem, Order, PaymentMethod } from '../types';
 import { downloadTaxInvoice } from '../utils/downloadHelpers';
+import { useAuth } from '../context/AuthContext';
+import { doc, setDoc } from 'firebase/firestore';
+import { db, handleFirestoreError } from '../lib/firebase';
 
 const canaraBankQrImg = '/canara_bank_upi_qr.jpeg';
 
@@ -67,18 +70,30 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [copiedAwb, setCopiedAwb] = useState(false);
   const [upiCopied, setUpiCopied] = useState(false);
 
-  // Form states
-  const [customerName, setCustomerName] = useState('Dr. K. Srinivas');
-  const [customerEmail, setCustomerEmail] = useState('srinivas.lab@stemschool.edu.in');
-  const [customerPhone, setCustomerPhone] = useState('+91 98480 12345');
-  const [schoolName, setSchoolName] = useState('Delhi Public School ATL Innovation Cell');
-  const [gstin, setGstin] = useState('36AAACD1234F1Z9');
+  // Authenticated Client Context
+  const { currentUser, userProfile } = useAuth();
+
+  // Form states populated from authenticated user
+  const [customerName, setCustomerName] = useState(userProfile?.displayName || '');
+  const [customerEmail, setCustomerEmail] = useState(currentUser?.email || '');
+  const [customerPhone, setCustomerPhone] = useState(userProfile?.phone || '');
+  const [schoolName, setSchoolName] = useState(userProfile?.institution || '');
+  const [gstin, setGstin] = useState('');
   
   // Shipping Address
-  const [street, setStreet] = useState('Survey No. 45, Nanakramguda, Financial District');
+  const [street, setStreet] = useState('');
   const [city, setCity] = useState('Hyderabad');
   const [state, setState] = useState('Telangana');
-  const [pincode, setPincode] = useState('500032');
+  const [pincode, setPincode] = useState('500001');
+
+  useEffect(() => {
+    if (userProfile || currentUser) {
+      if (userProfile?.displayName) setCustomerName(userProfile.displayName);
+      if (currentUser?.email) setCustomerEmail(currentUser.email);
+      if (userProfile?.phone) setCustomerPhone(userProfile.phone);
+      if (userProfile?.institution) setSchoolName(userProfile.institution);
+    }
+  }, [userProfile, currentUser, isOpen]);
 
   // Card details
   const [cardNumber, setCardNumber] = useState('4532 •••• •••• 8912');
@@ -215,6 +230,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       }
       
       setCreatedOrder(order);
+
+      // Persist order to Firestore database for registered user
+      if (currentUser?.uid) {
+        order.userId = currentUser.uid;
+        try {
+          const orderDocRef = doc(db, 'orders', order.id);
+          await setDoc(orderDocRef, { ...order, userId: currentUser.uid });
+        } catch (dbErr) {
+          console.warn('Failed to sync order to Firestore:', dbErr);
+          handleFirestoreError(dbErr, 'create', 'orders');
+        }
+      }
+
       onOrderPlaced(order);
       setStep('success');
 

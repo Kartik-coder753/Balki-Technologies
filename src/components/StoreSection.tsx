@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { Course, RentalEquipment, NavTab } from '../types';
 import { FeaturedProductSpotlight } from './FeaturedProductSpotlight';
-import { ClientReviewsSection } from './ClientReviewsSection';
+import { ClientReviewsHub } from './ClientReviewsHub';
 import { CaseStudiesBlogSection } from './CaseStudiesBlogSection';
 import { CaseStudyModal } from './CaseStudyModal';
 import { LatestUpdatesCorner } from './LatestUpdatesCorner';
@@ -498,12 +498,10 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
         </div>
       )}
 
-      {/* 3. Client & School Reviews Section for Products in Use */}
-      <ClientReviewsSection
-        reviews={reviews}
+      {/* 3. Verified Registered Client Reviews Section */}
+      <ClientReviewsHub
         products={products}
         onSelectProduct={onSelectProduct}
-        onAddReview={onAddReview}
       />
 
       {/* 4. Field Studies & Corporate Innovation Blogs */}

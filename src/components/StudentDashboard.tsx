@@ -207,56 +207,70 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </div>
 
           <div className="space-y-3">
-            {orders.map((order) => (
-              <div
-                key={order.id}
-                className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2 text-xs"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="font-bold text-slate-900">{order.id}</span>
-                    <p className="text-[10px] text-slate-500 font-mono">Tracking: {order.trackingNumber}</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                    {order.paymentStatus}
-                  </span>
-                </div>
-
-                <div className="text-[11px] text-slate-600">
-                  {order.items.map((it, i) => (
-                    <p key={i}>• {it.quantity}x {it.product.name}</p>
-                  ))}
-                </div>
-
-                <div className="flex justify-between items-center pt-2 border-t border-slate-200 font-bold">
-                  <span className="text-slate-500">Total Invoice:</span>
-                  <span className="text-slate-900 text-sm">₹{order.totalAmount.toLocaleString('en-IN')}</span>
-                </div>
-
-                <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-                  {onTrackOrder && (
-                    <button
-                      id={`btn-track-order-${order.id}`}
-                      onClick={() => onTrackOrder(order)}
-                      className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Open Live Consignment Tracker"
-                    >
-                      <Truck className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Track Consignment</span>
-                    </button>
-                  )}
-                  <button
-                    id={`btn-download-order-invoice-${order.id}`}
-                    onClick={() => downloadTaxInvoice(order)}
-                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    title="Download GST Compliant Tax Invoice"
-                  >
-                    <Download className="w-3.5 h-3.5 text-amber-400" />
-                    <span>Download Tax Invoice (PDF)</span>
-                  </button>
-                </div>
+            {orders.length === 0 ? (
+              <div className="p-6 text-center text-slate-500 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="font-bold text-slate-700">No orders placed yet</p>
+                <p className="text-[11px] text-slate-400 mt-1">Your registered purchase orders and tracking records will appear here.</p>
+                <button
+                  onClick={() => setActiveTab('store')}
+                  className="mt-3 px-3.5 py-1.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Browse Hardware Catalog
+                </button>
               </div>
-            ))}
+            ) : (
+              orders.map((order) => (
+                <div
+                  key={order.id}
+                  className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2 text-xs"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-bold text-slate-900">{order.id}</span>
+                      <p className="text-[10px] text-slate-500 font-mono">Tracking: {order.trackingNumber}</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      {order.paymentStatus}
+                    </span>
+                  </div>
+
+                  <div className="text-[11px] text-slate-600">
+                    {order.items.map((it, i) => (
+                      <p key={i}>• {it.quantity}x {it.product.name}</p>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200 font-bold">
+                    <span className="text-slate-500">Total Invoice:</span>
+                    <span className="text-slate-900 text-sm">₹{order.totalAmount.toLocaleString('en-IN')}</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                    {onTrackOrder && (
+                      <button
+                        id={`btn-track-order-${order.id}`}
+                        onClick={() => onTrackOrder(order)}
+                        className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                        title="Open Live Consignment Tracker"
+                      >
+                        <Truck className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Track Consignment</span>
+                      </button>
+                    )}
+                    <button
+                      id={`btn-download-order-invoice-${order.id}`}
+                      onClick={() => downloadTaxInvoice(order)}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title="Download GST Compliant Tax Invoice"
+                    >
+                      <Download className="w-3.5 h-3.5 text-amber-400" />
+                      <span>Download Tax Invoice (PDF)</span>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -276,31 +290,45 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </div>
 
           <div className="space-y-3">
-            {rentals.map((r) => (
-              <div
-                key={r.id}
-                className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2 text-xs"
-              >
-                <div className="flex justify-between items-start">
-                  <div>
-                    <span className="font-bold text-slate-900">{r.equipmentName}</span>
-                    <p className="text-[10px] text-slate-500">Booking ID: {r.id}</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                    {r.status}
-                  </span>
-                </div>
-
-                <div className="flex justify-between text-[11px] text-slate-600">
-                  <span>Period: {r.startDate} to {r.endDate}</span>
-                  <span className="font-bold">Total: ₹{r.totalAmount.toLocaleString('en-IN')}</span>
-                </div>
-
-                <div className="text-[10px] text-emerald-700 font-medium">
-                  ✓ Refundable Security Deposit: ₹{r.depositFee.toLocaleString('en-IN')}
-                </div>
+            {rentals.length === 0 ? (
+              <div className="p-6 text-center text-slate-500 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="font-bold text-slate-700">No active hardware rentals</p>
+                <p className="text-[11px] text-slate-400 mt-1">Rent 3D printers, oscilloscopes, or CNC PCB millers for your lab.</p>
+                <button
+                  onClick={() => setActiveTab('rentals')}
+                  className="mt-3 px-3.5 py-1.5 bg-amber-600 text-white rounded-xl text-xs font-bold hover:bg-amber-700 transition-colors cursor-pointer"
+                >
+                  Explore Rental Catalog
+                </button>
               </div>
-            ))}
+            ) : (
+              rentals.map((r) => (
+                <div
+                  key={r.id}
+                  className="p-4 rounded-2xl border border-slate-200 bg-slate-50 space-y-2 text-xs"
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-bold text-slate-900">{r.equipmentName}</span>
+                      <p className="text-[10px] text-slate-500">Booking ID: {r.id}</p>
+                    </div>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                      {r.status}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between text-[11px] text-slate-600">
+                    <span>Period: {r.startDate} to {r.endDate}</span>
+                    <span className="font-bold">Total: ₹{r.totalAmount.toLocaleString('en-IN')}</span>
+                  </div>
+
+                  <div className="text-[10px] text-emerald-700 font-medium">
+                    ✓ Refundable Security Deposit: ₹{r.depositFee.toLocaleString('en-IN')}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>

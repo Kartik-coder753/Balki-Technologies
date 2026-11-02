@@ -31,11 +31,14 @@ import {
   Compass,
   Truck,
   Boxes,
-  Trophy
+  Trophy,
+  LogOut,
+  User
 } from 'lucide-react';
 import { CartItem, Product, Course, RentalEquipment, ProductCategory, NavTab } from '../types';
 import { downloadCurriculumGuide } from '../utils/downloadHelpers';
 import { BalkiLogo } from './BalkiLogo';
+import { useAuth } from '../context/AuthContext';
 
 interface NavbarProps {
   activeTab: NavTab;
@@ -77,6 +80,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [mobileShopExpanded, setMobileShopExpanded] = useState(false);
   const [mobileMoreExpanded, setMobileMoreExpanded] = useState(false);
+
+  const { currentUser, userProfile, logout } = useAuth();
 
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -529,23 +534,38 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Tinkering Hours & Dashboard */}
+            {/* Client Dashboard / My Account & Purchases */}
             <button
-              id="btn-student-dashboard"
+              id="btn-client-dashboard"
               onClick={() => setActiveTab('dashboard')}
               className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === 'dashboard'
                   ? 'bg-amber-600 text-white shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
               }`}
-              title="Student Tinkering Passport"
+              title="Client Profile, Credentials & Purchase History"
             >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">My Learning</span>
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-800 font-bold">
-                {tinkeringHours}h
+              <User className="w-3.5 h-3.5 text-amber-600" />
+              <span className="hidden sm:inline font-bold">
+                {userProfile?.displayName ? userProfile.displayName.split(' ')[0] : 'My Account'}
+              </span>
+              <span className="hidden md:inline px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-900 font-bold">
+                {userProfile?.hasPurchased ? 'Buyer' : 'Client'}
               </span>
             </button>
+
+            {/* Logout Action */}
+            {currentUser && (
+              <button
+                id="btn-nav-logout"
+                onClick={() => logout()}
+                className="inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer"
+                title="Sign Out"
+              >
+                <LogOut className="w-3.5 h-3.5 shrink-0" />
+                <span className="hidden xl:inline">Sign Out</span>
+              </button>
+            )}
 
             {/* Shopping Cart Drawer Trigger */}
             <button
@@ -1396,9 +1416,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                           setActiveTab('dashboard');
                           setIsMobileMenuOpen(false);
                         }}
-                        className="w-full text-left py-1 hover:text-amber-600"
+                        className="w-full text-left py-1 hover:text-amber-600 font-bold text-amber-700"
                       >
-                        Student Tinkering Passport ({tinkeringHours}h)
+                        Client Dashboard & Orders ({userProfile?.displayName ? userProfile.displayName.split(' ')[0] : 'My Account'})
                       </button>
                       <button
                         onClick={() => {
@@ -1409,6 +1429,18 @@ export const Navbar: React.FC<NavbarProps> = ({
                       >
                         Careers at Balki
                       </button>
+                      {currentUser && (
+                        <button
+                          onClick={() => {
+                            logout();
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className="w-full text-left py-1 font-bold text-rose-600 flex items-center gap-1.5"
+                        >
+                          <LogOut className="w-3.5 h-3.5" />
+                          <span>Sign Out</span>
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           openB2BModal();
