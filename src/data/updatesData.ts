@@ -162,7 +162,7 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
     badge: 'CLEAN ENERGY HARDWARE',
     badgeColor: 'emerald',
     date: 'August 2026',
-    image: 'https://images.unsplash.com/photo-1509391365360-2e959784a276?auto=format&fit=crop&w=800&q=80',
+    image: '/products/solar_tracker_clean_energy.png',
     description: 'Balki Technologies introduces our flagship single-axis solar tracking project. Features dual Light Dependent Resistors (LDRs), SG90 servo motor pivot, and real-time photovoltaic energy generation telemetry.',
     highlights: [
       'Increases solar panel power harvesting efficiency by up to 40%',
@@ -195,7 +195,7 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
     badge: 'NEW SERVICE LAUNCHED',
     badgeColor: 'purple',
     date: 'August 2026',
-    image: 'https://images.unsplash.com/photo-1631557559471-ae60769556ff?auto=format&fit=crop&w=800&q=80',
+    image: '/products/lab_rental_fleet_3d_dso.png',
     description: 'Schools and student teams preparing for national science fairs can now rent pre-calibrated Bambu CoreXY 3D printers, dual-channel 100MHz digital storage oscilloscopes, and FLIR thermal imagers starting at just ₹650/day.',
     highlights: [
       'Doorstep dispatch in shockproof military-grade flight cases',

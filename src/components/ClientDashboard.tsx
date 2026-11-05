@@ -29,6 +29,7 @@ import { db, handleFirestoreError } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { Order, RentalBooking, Course, NavTab, UserProgress } from '../types';
 import { downloadTaxInvoice } from '../utils/downloadHelpers';
+import { AdminOrderManager } from './AdminOrderManager';
 
 interface ClientDashboardProps {
   orders: Order[];
@@ -48,7 +49,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   onTrackOrder
 }) => {
   const { currentUser, userProfile, updateProfileData } = useAuth();
-  const [activeSubTab, setActiveSubTab] = useState<'purchases' | 'credentials' | 'tinkering'>('purchases');
+  const isAdmin = currentUser?.email?.toLowerCase() === 'kartikks1205@gmail.com' || userProfile?.role === 'Admin';
+  const [activeSubTab, setActiveSubTab] = useState<'purchases' | 'credentials' | 'tinkering' | 'admin_console'>('purchases');
   
   // Real-time Firestore client orders
   const [clientOrders, setClientOrders] = useState<Order[]>(initialOrders);
@@ -348,6 +350,20 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           <Clock className="w-4 h-4 text-amber-400" />
           <span>ATL Learning & Hardware Rentals</span>
         </button>
+
+        {isAdmin && (
+          <button
+            onClick={() => setActiveSubTab('admin_console')}
+            className={`px-4 sm:px-5 py-2.5 sm:py-3 rounded-2xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap shrink-0 min-h-[40px] ${
+              activeSubTab === 'admin_console'
+                ? 'bg-cyan-600 text-white shadow-xs'
+                : 'text-cyan-700 bg-cyan-50 hover:bg-cyan-100 border border-cyan-200'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4 text-cyan-600" />
+            <span>Admin Approvals & Orders</span>
+          </button>
+        )}
       </div>
 
       {profileSuccessMessage && (
@@ -440,6 +456,18 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {order.approvalStatus && (
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                            order.approvalStatus === 'approved'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : order.approvalStatus === 'pending_approval'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
+                              : 'bg-rose-50 text-rose-700 border border-rose-200'
+                          }`}>
+                            {order.approvalStatus === 'pending_approval' ? 'Approval Pending' : order.approvalStatus === 'approved' ? 'Approved' : 'Rejected'}
+                          </span>
+                        )}
+
                         <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                           order.paymentStatus.includes('Paid') || order.paymentStatus.includes('Approved')
                             ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
@@ -791,6 +819,11 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
           </div>
 
         </div>
+      )}
+
+      {/* 5. Tab 4: Administrative Order Approvals & Management Console */}
+      {activeSubTab === 'admin_console' && isAdmin && (
+        <AdminOrderManager />
       )}
 
     </div>

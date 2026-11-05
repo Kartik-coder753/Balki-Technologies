@@ -150,37 +150,124 @@ export interface TrackingDetails {
   checkpoints: TrackingCheckpoint[];
 }
 
-export type PaymentMethod = 'UPI' | 'Card' | 'NetBanking' | 'SchoolPO';
+export type PaymentMethod = 'UPI' | 'Card' | 'NetBanking' | 'SchoolPO' | 'Razorpay';
+
+export type OrderApprovalStatus = 'pending_approval' | 'approved' | 'rejected';
 
 export interface Order {
   id: string;
+  orderId?: string;
   userId?: string;
+  customerId?: string;
   createdAt: string;
+  updatedAt?: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
   schoolName?: string;
   gstin?: string;
+  deliveryAddress?: {
+    street: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
   shippingAddress: {
     street: string;
     city: string;
     state: string;
     pincode: string;
   };
+  products?: CartItem[];
   items: CartItem[];
   subtotal: number;
+  taxAmount?: number;
   gstAmount: number;
+  shippingCharges?: number;
   shippingFee: number;
   discount: number;
+  finalAmount?: number;
   totalAmount: number;
+  currency?: string;
   paymentMethod: PaymentMethod;
-  paymentStatus: 'Paid' | 'PO Approved (Net 30)' | 'Payment Pending' | 'Refunded';
+  paymentStatus: 'Pending' | 'Paid' | 'PO Approved (Net 30)' | 'Payment Pending' | 'Refunded' | 'Failed';
+  orderStatus: OrderStatus;
+  approvalStatus: OrderApprovalStatus;
+  approvedAt?: string;
+  approvedBy?: string;
+  rejectionReason?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpayPaymentLinkId?: string;
+  courierName?: string;
   trackingNumber: string;
-  orderStatus?: OrderStatus;
   trackingDetails?: TrackingDetails;
   paymentReference?: string;
   notes?: string;
   deliveryOtp?: string;
+}
+
+export interface OrderRequest {
+  requestId: string;
+  customerId: string;
+  customerDetails: {
+    name: string;
+    email: string;
+    phone: string;
+    schoolName?: string;
+    gstin?: string;
+    address?: string;
+  };
+  requestedProducts: {
+    productId: string;
+    productName: string;
+    quantity: number;
+    estimatedUnitPrice: number;
+  }[];
+  requestedAmount: number;
+  approvalStatus: OrderApprovalStatus;
+  rejectionReason?: string | null;
+  finalQuotedAmount?: number | null;
+  shippingCharges: number;
+  paymentStatus: 'Pending' | 'Paid' | 'PO Approved (Net 30)';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentTransaction {
+  transactionId: string;
+  orderId: string;
+  customerId: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  transactionType: 'payment' | 'refund' | 'authorization';
+  gatewayReference?: string;
+  status: 'SUCCESS' | 'PENDING' | 'FAILED';
+  metadata?: Record<string, any>;
+  createdAt: string;
+}
+
+export interface AppNotification {
+  notificationId: string;
+  recipientId: string;
+  recipientEmail?: string;
+  title: string;
+  message: string;
+  type: 'order_status' | 'approval' | 'system' | 'tracking';
+  orderId?: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface AdminUser {
+  adminId: string;
+  email: string;
+  displayName: string;
+  role: 'super_admin' | 'order_manager' | 'catalog_manager';
+  permissions: string[];
+  createdAt: string;
+  lastActiveAt?: string;
 }
 
 export interface PaymentIntent {

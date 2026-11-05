@@ -1,11 +1,12 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default Deny Catch-All
+    // Global Default Deny Catch-All
     match /{document=**} {
       allow read, write: if false;
     }
 
+    // Hardened Global Helpers
     function isSignedIn() {
       return request.auth != null;
     }
@@ -26,12 +27,28 @@ service cloud.firestore {
       return resource.data;
     }
 
+    // Admin Verification via adminUsers collection or verified bootstrap email
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/adminUsers/$(request.auth.uid)) ||
+        (request.auth.token.email == 'kartikks1205@gmail.com' && request.auth.token.email_verified == true)
+      );
+    }
+
     // Validation for User Profile
     function isValidUser(data) {
       return data.keys().hasAll(['uid', 'email', 'displayName']) &&
              data.uid == request.auth.uid &&
              data.email is string && data.email.size() <= 150 &&
              data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100;
+    }
+
+    // Validation for Admin User
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['adminId', 'email', 'role']) &&
+             data.adminId is string && data.adminId.size() <= 128 &&
+             data.email is string && data.email.size() <= 150 &&
+             data.role in ['super_admin', 'order_manager', 'catalog_manager'];
     }
 
     // Validation for Review
@@ -45,43 +62,178 @@ service cloud.firestore {
              data.reviewText is string && data.reviewText.size() <= 1500;
     }
 
-    // Validation for Order
+    // Validation for Order (supports both orderId/id and customerId/userId)
     function isValidOrder(data) {
-      return data.keys().hasAll(['id', 'userId', 'customerName', 'customerEmail', 'totalAmount', 'paymentStatus']) &&
-             data.userId == request.auth.uid &&
-             data.customerName is string && data.customerName.size() <= 100 &&
-             data.customerEmail is string && data.customerEmail.size() <= 150 &&
-             data.totalAmount is number && data.totalAmount >= 0;
+      return (
+        (('orderId' in data && data.orderId is string && data.orderId.size() <= 128) || ('id' in data && data.id is string && data.id.size() <= 128)) &&
+        (('customerId' in data && data.customerId is string && data.customerId.size() <= 128) || ('userId' in data && data.userId is string && data.userId.size() <= 128)) &&
+        data.customerName is string && data.customerName.size() <= 100 &&
+        data.customerEmail is string && data.customerEmail.size() <= 150 &&
+        (('finalAmount' in data && data.finalAmount is number && data.finalAmount >= 0) || ('totalAmount' in data && data.totalAmount is number && data.totalAmount >= 0))
+      );
     }
 
-    // Users Collection (Client Credentials & Profile)
+    // Validation for Order Request (Large purchases)
+    function isValidOrderRequest(data) {
+      return data.keys().hasAll(['requestId', 'customerId', 'requestedProducts', 'requestedAmount', 'approvalStatus', 'paymentStatus']) &&
+             data.requestId is string && data.requestId.size() <= 128 &&
+             data.customerId == request.auth.uid &&
+             data.requestedAmount is number && data.requestedAmount >= 0 &&
+             data.approvalStatus in ['pending_approval', 'approved', 'rejected'] &&
+             data.paymentStatus in ['Pending', 'Paid', 'PO Approved (Net 30)'];
+    }
+
+    // Validation for Payment Transaction
+    function isValidPaymentTransaction(data) {
+      return data.keys().hasAll(['transactionId', 'orderId', 'customerId', 'amount', 'currency', 'status']) &&
+             data.transactionId is string && data.transactionId.size() <= 128 &&
+             data.orderId is string && data.orderId.size() <= 128 &&
+             data.amount is number && data.amount >= 0 &&
+             data.status in ['SUCCESS', 'PENDING', 'FAILED'];
+    }
+
+    // Validation for Notification
+    function isValidNotification(data) {
+      return data.keys().hasAll(['notificationId', 'recipientId', 'title', 'message', 'type', 'read']) &&
+             data.notificationId is string && data.notificationId.size() <= 128 &&
+             data.title is string && data.title.size() <= 150 &&
+             data.message is string && data.message.size() <= 1000 &&
+             data.read is bool;
+    }
+
+    // ==========================================
+    // 1. Admin Users Collection (RBAC Registry)
+    // ==========================================
+    match /adminUsers/{adminId} {
+      allow get: if isOwner(adminId) || isAdmin();
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin() && isValidAdminUser(incoming());
+    }
+
+    // ==========================================
+    // 2. Users Collection (Profile & Client Data)
+    // ==========================================
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow create, update: if isOwner(userId) && isValidUser(incoming());
-      allow delete: if false;
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming()) && (!('role' in incoming()) || incoming().role != 'Admin');
+      allow update: if (isOwner(userId) && isValidUser(incoming()) && !incoming().diff(existing()).affectedKeys().hasAny(['role', 'hasPurchased', 'totalSpent', 'totalOrdersCount'])) || isAdmin();
+      allow delete: if isAdmin();
     }
 
-    // Products Collection (Product Catalog)
+    // ==========================================
+    // 0. Connection Health Check
+    // ==========================================
+    match /test/{testId} {
+      allow read: if true;
+    }
+
+    // ==========================================
+    // 3. Products Collection (E-Commerce Catalog)
+    // ==========================================
     match /products/{productId} {
-      allow read: if isSignedIn();
-      allow write: if false; // Read-only on client; managed by admin/seed
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    // Reviews Collection: Registered users can read and post verified reviews
-    match /reviews/{reviewId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(reviewId) && isValidReview(incoming());
-      allow update: if isSignedIn() && (existing().userId == request.auth.uid || incoming().diff(existing()).affectedKeys().hasOnly(['likesCount']));
-      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
-    }
-
-    // Orders Collection: Secured to purchasing registered client
+    // ==========================================
+    // 4. Orders Collection (Customer Orders)
+    // ==========================================
     match /orders/{orderId} {
-      allow get: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming());
-      allow update: if isSignedIn() && existing().userId == request.auth.uid;
-      allow delete: if false;
+      allow get: if isSignedIn() && (
+        (resource.data.customerId == request.auth.uid) ||
+        (resource.data.userId == request.auth.uid) ||
+        isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        (resource.data.customerId == request.auth.uid) ||
+        (resource.data.userId == request.auth.uid) ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming()) && (
+        (incoming().customerId == request.auth.uid) ||
+        (incoming().userId == request.auth.uid)
+      ) && (
+        (!('approvalStatus' in incoming()) || incoming().approvalStatus == 'pending_approval' || isAdmin())
+      );
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        (existing().customerId == request.auth.uid || existing().userId == request.auth.uid) &&
+        isValidOrder(incoming()) &&
+        !incoming().diff(existing()).affectedKeys().hasAny([
+          'paymentStatus', 'approvalStatus', 'orderStatus', 'finalAmount', 'totalAmount',
+          'subtotal', 'shippingCharges', 'shippingFee', 'taxAmount', 'gstAmount', 'discount'
+        ])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 5. Order Requests Collection (Bulk & Quotes)
+    // ==========================================
+    match /orderRequests/{requestId} {
+      allow get: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid || isAdmin()
+      );
+      allow create: if isSignedIn() && isValidId(requestId) && isValidOrderRequest(incoming()) &&
+                   incoming().customerId == request.auth.uid &&
+                   incoming().approvalStatus == 'pending_approval';
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        existing().customerId == request.auth.uid &&
+        isValidOrderRequest(incoming()) &&
+        !incoming().diff(existing()).affectedKeys().hasAny(['approvalStatus', 'finalQuotedAmount', 'paymentStatus'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 6. Payment Transactions Collection (Audit)
+    // ==========================================
+    match /paymentTransactions/{transactionId} {
+      allow get: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid || isAdmin()
+      );
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin() && isValidPaymentTransaction(incoming());
+    }
+
+    // ==========================================
+    // 7. Notifications Collection
+    // ==========================================
+    match /notifications/{notificationId} {
+      allow get: if isSignedIn() && (
+        resource.data.recipientId == request.auth.uid || isAdmin()
+      );
+      allow list: if isSignedIn() && (
+        resource.data.recipientId == request.auth.uid || isAdmin()
+      );
+      allow create: if isAdmin() && isValidNotification(incoming());
+      allow update: if isAdmin() || (
+        isSignedIn() &&
+        existing().recipientId == request.auth.uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['read'])
+      );
+      allow delete: if (isSignedIn() && existing().recipientId == request.auth.uid) || isAdmin();
+    }
+
+    // ==========================================
+    // 8. Reviews Collection
+    // ==========================================
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidId(reviewId) && isValidReview(incoming());
+      allow update: if isSignedIn() && (
+        existing().userId == request.auth.uid ||
+        incoming().diff(existing()).affectedKeys().hasOnly(['likesCount']) ||
+        isAdmin()
+      );
+      allow delete: if isSignedIn() && (
+        existing().userId == request.auth.uid || isAdmin()
+      );
     }
   }
 }

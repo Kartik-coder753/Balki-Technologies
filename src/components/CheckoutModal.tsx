@@ -181,6 +181,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       // 2. Verify Payment & Register Consignment
       const payload = {
         intentId,
+        customerId: currentUser?.uid,
+        userId: currentUser?.uid,
         customerName,
         customerEmail,
         customerPhone,
@@ -192,7 +194,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           state,
           pincode
         },
+        deliveryAddress: {
+          street,
+          city,
+          state,
+          pincode
+        },
         items: cartItems,
+        products: cartItems,
         paymentMethod,
         couponDiscount,
         paymentDetails: {
@@ -234,9 +243,40 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       // Persist order to Firestore database for registered user
       if (currentUser?.uid) {
         order.userId = currentUser.uid;
+        order.customerId = currentUser.uid;
         try {
           const orderDocRef = doc(db, 'orders', order.id);
-          await setDoc(orderDocRef, { ...order, userId: currentUser.uid });
+          const firestoreOrder = {
+            ...order,
+            orderId: order.id,
+            id: order.id,
+            userId: currentUser.uid,
+            customerId: currentUser.uid,
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            customerPhone: order.customerPhone,
+            products: order.items || order.products,
+            items: order.items,
+            subtotal: order.subtotal,
+            taxAmount: order.gstAmount || order.taxAmount || 0,
+            gstAmount: order.gstAmount,
+            shippingCharges: order.shippingFee || order.shippingCharges || 0,
+            shippingFee: order.shippingFee,
+            finalAmount: order.totalAmount || order.finalAmount,
+            totalAmount: order.totalAmount || order.finalAmount,
+            currency: 'INR',
+            paymentStatus: order.paymentStatus,
+            orderStatus: order.orderStatus || 'qc_assembly',
+            approvalStatus: order.approvalStatus || 'pending_approval',
+            paymentMethod: order.paymentMethod,
+            trackingNumber: order.trackingNumber,
+            courierName: order.courierName || 'Delhivery B2B Priority',
+            deliveryAddress: order.shippingAddress,
+            shippingAddress: order.shippingAddress,
+            createdAt: order.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
+          await setDoc(orderDocRef, firestoreOrder);
         } catch (dbErr) {
           console.warn('Failed to sync order to Firestore:', dbErr);
           handleFirestoreError(dbErr, 'create', 'orders');

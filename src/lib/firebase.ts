@@ -6,7 +6,7 @@ import {
   browserLocalPersistence, 
   Auth 
 } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { getFirestore, Firestore, doc, getDocFromServer } from 'firebase/firestore';
 import rawConfig from '../../firebase-applet-config.json';
 
 // Configuration resolution:
@@ -32,6 +32,24 @@ export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(
 
 // Initialize Firestore specifying the databaseId
 export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Test connection on boot
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      setTimeout(async () => {
+        try {
+          await getDocFromServer(doc(db, 'test', 'connection'));
+        } catch {
+          console.warn("Firestore connection: running in resilient client mode.");
+        }
+      }, 1500);
+    }
+  }
+}
+testConnection();
 
 // Initialize Firebase Auth
 export const auth: Auth = getAuth(app);

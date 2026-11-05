@@ -11,7 +11,7 @@
         "institution": { "type": "string", "maxLength": 150, "description": "School, university, or company name" },
         "institutionType": { "type": "string", "enum": ["Kendriya Vidyalaya", "Navodaya Vidyalaya", "Private CBSE/ICSE", "Govt Model School", "University/College", "Corporate/Industrial", "Individual Tinkerer"] },
         "phone": { "type": "string", "maxLength": 20, "description": "Client contact phone number" },
-        "role": { "type": "string", "enum": ["ATL In-Charge", "Principal / Director", "STEM Educator", "Student Innovator", "Lab Coordinator", "Procurement Officer", "Client"] },
+        "role": { "type": "string", "enum": ["ATL In-Charge", "Principal / Director", "STEM Educator", "Student Innovator", "Lab Coordinator", "Procurement Officer", "Client", "Admin"] },
         "hasPurchased": { "type": "boolean", "description": "Flag indicating if the client has purchased any product" },
         "totalOrdersCount": { "type": "number", "description": "Total number of completed orders" },
         "totalSpent": { "type": "number", "description": "Total expenditure in INR" },
@@ -48,27 +48,102 @@
       "description": "Commercial equipment purchase record, invoice breakdown, and live tracking",
       "type": "object",
       "properties": {
-        "id": { "type": "string", "description": "Unique Order Reference (e.g. ORD-2026-XXXX)" },
-        "userId": { "type": "string", "description": "Authenticated client UID" },
+        "orderId": { "type": "string", "description": "Unique Order Reference (e.g. ORD-2026-XXXX)" },
+        "customerId": { "type": "string", "description": "Authenticated client UID" },
         "customerName": { "type": "string", "maxLength": 100, "description": "Billing contact name" },
         "customerEmail": { "type": "string", "format": "email", "description": "Client email for invoicing" },
         "customerPhone": { "type": "string", "maxLength": 20, "description": "Delivery contact phone" },
-        "schoolName": { "type": "string", "maxLength": 150, "description": "School or institutional buyer name" },
-        "gstin": { "type": "string", "description": "Institutional GSTIN (optional)" },
-        "items": { "type": "array", "description": "Purchased items with quantity and product details" },
+        "products": { "type": "array", "description": "Purchased items with quantity and product details" },
         "subtotal": { "type": "number", "description": "Base subtotal in INR" },
-        "gstAmount": { "type": "number", "description": "18% GST in INR" },
-        "shippingFee": { "type": "number", "description": "Shipping charges" },
-        "discount": { "type": "number", "description": "Applied coupon discount" },
-        "totalAmount": { "type": "number", "description": "Final paid amount in INR" },
-        "paymentMethod": { "type": "string", "description": "UPI, Card, NetBanking or SchoolPO" },
-        "paymentStatus": { "type": "string", "description": "Paid, Refunded, or PO Approved" },
-        "orderStatus": { "type": "string", "description": "qc_assembly, dispatched, in_transit, delivered" },
+        "shippingCharges": { "type": "number", "description": "Freight & carrier shipping charges" },
+        "taxAmount": { "type": "number", "description": "18% GST tax amount in INR" },
+        "finalAmount": { "type": "number", "description": "Final payable amount in INR" },
+        "currency": { "type": "string", "description": "ISO currency code, default INR" },
+        "paymentStatus": { "type": "string", "enum": ["Pending", "Paid", "PO Approved (Net 30)", "Refunded", "Failed"], "description": "Gateway and settlement status" },
+        "orderStatus": { "type": "string", "enum": ["order_placed", "qc_assembly", "dispatched", "in_transit", "out_for_delivery", "delivered", "cancelled"], "description": "Physical milestone status" },
+        "approvalStatus": { "type": "string", "enum": ["pending_approval", "approved", "rejected"], "description": "Administrative approval status" },
+        "paymentMethod": { "type": "string", "description": "Payment instrument type (UPI, Card, NetBanking, SchoolPO, Razorpay)" },
+        "razorpayOrderId": { "type": "string", "description": "Associated Razorpay order identifier" },
+        "razorpayPaymentId": { "type": "string", "description": "Associated Razorpay payment identifier" },
+        "razorpayPaymentLinkId": { "type": "string", "description": "Associated Razorpay payment link identifier" },
         "trackingNumber": { "type": "string", "description": "Express tracking number" },
-        "deliveryOtp": { "type": "string", "description": "4-digit security handover OTP" },
-        "createdAt": { "type": "string", "description": "ISO timestamp of order creation" }
+        "courierName": { "type": "string", "description": "Designated logistics carrier partner" },
+        "deliveryAddress": { "type": "object", "description": "Physical delivery location with street, city, state and pincode" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of order creation" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last order update" }
       },
-      "required": ["id", "userId", "customerName", "customerEmail", "totalAmount", "paymentStatus", "createdAt"]
+      "required": ["orderId", "customerId", "customerName", "customerEmail", "customerPhone", "subtotal", "taxAmount", "finalAmount", "currency", "paymentStatus", "orderStatus", "approvalStatus", "createdAt"]
+    },
+    "OrderRequest": {
+      "title": "Large Purchase Order Request",
+      "description": "Institutional quotation and large volume purchase request requiring administrative review",
+      "type": "object",
+      "properties": {
+        "requestId": { "type": "string", "description": "Unique quotation request identifier (e.g. REQ-2026-XXXX)" },
+        "customerId": { "type": "string", "description": "Client UID of requesting educator or institution" },
+        "customerDetails": { "type": "object", "description": "Institutional contact name, email, phone, school name, and GSTIN" },
+        "requestedProducts": { "type": "array", "description": "List of products and quantities requested for bulk procurement" },
+        "requestedAmount": { "type": "number", "description": "Estimated retail amount prior to institutional quote" },
+        "approvalStatus": { "type": "string", "enum": ["pending_approval", "approved", "rejected"], "description": "Review status by Balki procurement desk" },
+        "rejectionReason": { "type": "string", "maxLength": 500, "description": "Administrative rationale if request is rejected" },
+        "finalQuotedAmount": { "type": "number", "description": "Discounted institutional price approved by administrator" },
+        "shippingCharges": { "type": "number", "description": "Negotiated or waived shipping fees" },
+        "paymentStatus": { "type": "string", "enum": ["Pending", "Paid", "PO Approved (Net 30)"], "description": "Payment status of approved quote" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of quote submission" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last review update" }
+      },
+      "required": ["requestId", "customerId", "customerDetails", "requestedProducts", "requestedAmount", "approvalStatus", "paymentStatus", "createdAt"]
+    },
+    "PaymentTransaction": {
+      "title": "Payment Transaction Record",
+      "description": "Secure financial audit record of all gateway payments, UPI settlements, and refunds",
+      "type": "object",
+      "properties": {
+        "transactionId": { "type": "string", "description": "Unique transaction audit reference" },
+        "orderId": { "type": "string", "description": "Associated order identifier" },
+        "customerId": { "type": "string", "description": "Purchaser UID" },
+        "amount": { "type": "number", "description": "Transaction amount in INR" },
+        "currency": { "type": "string", "description": "ISO currency code, INR" },
+        "paymentMethod": { "type": "string", "description": "Payment gateway or bank instrument used" },
+        "transactionType": { "type": "string", "enum": ["payment", "refund", "authorization"], "description": "Direction of financial transaction" },
+        "gatewayReference": { "type": "string", "description": "Acquiring bank or gateway reference number (e.g. UTR / paymentId)" },
+        "status": { "type": "string", "enum": ["SUCCESS", "PENDING", "FAILED"], "description": "Settlement outcome" },
+        "metadata": { "type": "object", "description": "Gateway payload metadata" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of transaction recording" }
+      },
+      "required": ["transactionId", "orderId", "customerId", "amount", "currency", "status", "createdAt"]
+    },
+    "Notification": {
+      "title": "System and Transactional Notification",
+      "description": "Transactional messages delivered to customers and administrators regarding orders, approvals, and dispatches",
+      "type": "object",
+      "properties": {
+        "notificationId": { "type": "string", "description": "Unique notification identifier" },
+        "recipientId": { "type": "string", "description": "User UID of recipient or 'admin' for system alerts" },
+        "recipientEmail": { "type": "string", "format": "email", "description": "Notification destination email" },
+        "title": { "type": "string", "maxLength": 150, "description": "Subject line or notification header" },
+        "message": { "type": "string", "maxLength": 1000, "description": "Body copy of notification" },
+        "type": { "type": "string", "enum": ["order_status", "approval", "system", "tracking"], "description": "Category of message" },
+        "orderId": { "type": "string", "description": "Related order ID if applicable" },
+        "read": { "type": "boolean", "description": "Whether message has been acknowledged" },
+        "createdAt": { "type": "string", "description": "ISO timestamp when notification was triggered" }
+      },
+      "required": ["notificationId", "recipientId", "title", "message", "type", "read", "createdAt"]
+    },
+    "AdminUser": {
+      "title": "Authorized Administrative User",
+      "description": "Trusted administrative account authorized to review orders, approve quotes, and dispatch consignments",
+      "type": "object",
+      "properties": {
+        "adminId": { "type": "string", "description": "Firebase Auth UID of administrator" },
+        "email": { "type": "string", "format": "email", "description": "Admin corporate email address" },
+        "displayName": { "type": "string", "maxLength": 100, "description": "Full name of administrator" },
+        "role": { "type": "string", "enum": ["super_admin", "order_manager", "catalog_manager"], "description": "Assigned administrative role" },
+        "permissions": { "type": "array", "description": "List of granular administrative capabilities" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of admin account creation" },
+        "lastActiveAt": { "type": "string", "description": "ISO timestamp of last administrative activity" }
+      },
+      "required": ["adminId", "email", "role"]
     },
     "Review": {
       "title": "Verified Client Review",
@@ -89,23 +164,51 @@
         "createdAt": { "type": "string", "description": "ISO timestamp of review submission" }
       },
       "required": ["id", "userId", "authorName", "rating", "targetType", "headline", "reviewText"]
+    },
+    "TestConnection": {
+      "title": "Firestore Connection Verification",
+      "description": "Document used to verify connectivity on application boot",
+      "type": "object",
+      "properties": {
+        "status": { "type": "string", "description": "Connection test status" }
+      }
     }
   },
   "firestore": {
+    "/test/{testId}": {
+      "schema": "TestConnection",
+      "description": "Connection verification endpoint"
+    },
     "/users/{userId}": {
-      "entity": "User",
+      "schema": "User",
       "description": "User profile, credentials, and buying status"
     },
     "/products/{productId}": {
-      "entity": "Product",
+      "schema": "Product",
       "description": "Public STEM catalog items and specifications"
     },
     "/orders/{orderId}": {
-      "entity": "Order",
+      "schema": "Order",
       "description": "Client equipment purchases and delivery consignments"
     },
+    "/orderRequests/{requestId}": {
+      "schema": "OrderRequest",
+      "description": "Large institutional purchase requests and quotes"
+    },
+    "/paymentTransactions/{transactionId}": {
+      "schema": "PaymentTransaction",
+      "description": "Secure financial payment audit records"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Transactional and status alert messages"
+    },
+    "/adminUsers/{adminId}": {
+      "schema": "AdminUser",
+      "description": "Authorized administrative accounts and RBAC privileges"
+    },
     "/reviews/{reviewId}": {
-      "entity": "Review",
+      "schema": "Review",
       "description": "Verified client reviews and feedback"
     }
   }
