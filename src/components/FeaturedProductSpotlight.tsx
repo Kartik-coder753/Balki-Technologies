@@ -77,9 +77,9 @@ export const FeaturedProductSpotlight: React.FC<FeaturedProductSpotlightProps> =
   ];
 
   return (
-    <section id="flagship-spotlight" className="relative rounded-3xl bg-white border border-slate-200/90 shadow-lg overflow-hidden my-10">
+    <section id="flagship-spotlight" className="relative rounded-2xl sm:rounded-3xl bg-white border border-slate-200/90 shadow-lg overflow-hidden my-6 sm:my-10">
       {/* Decorative Top Banner */}
-      <div className="relative bg-gradient-to-r from-amber-600 via-amber-500 to-orange-600 text-white px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 text-xs font-semibold overflow-hidden">
+      <div className="relative bg-gradient-to-r from-amber-600 via-amber-500 to-orange-600 text-white px-4 sm:px-6 py-3 sm:py-3.5 flex flex-wrap items-center justify-between gap-2.5 text-xs font-semibold overflow-hidden">
         <img
           src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1600&q=80"
           alt="Hardware Prototyping Showcase"
@@ -88,22 +88,22 @@ export const FeaturedProductSpotlight: React.FC<FeaturedProductSpotlightProps> =
           className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay pointer-events-none"
         />
         <div className="relative z-10 flex items-center gap-2">
-          <Sparkles className="w-4 h-4 animate-spin-slow" />
-          <span className="tracking-wide uppercase font-extrabold text-[11px]">Flagship Institutional Showcase</span>
+          <Sparkles className="w-4 h-4 animate-spin-slow shrink-0" />
+          <span className="tracking-wide uppercase font-extrabold text-[10px] sm:text-[11px]">Flagship Institutional Showcase</span>
           <span className="hidden sm:inline-block text-amber-200">•</span>
-          <span className="hidden sm:inline-block text-amber-100">Official NITI Aayog ATL Compliant Package (P1–P4)</span>
+          <span className="hidden sm:inline-block text-amber-100">Official NITI Aayog ATL Package (P1–P4)</span>
         </div>
-        <div className="relative z-10 flex items-center gap-3">
-          <span className="bg-black/20 px-2.5 py-0.5 rounded-full text-[11px] font-bold">100% NEP 2020 Aligned</span>
-          <span className="bg-white text-slate-950 px-2.5 py-0.5 rounded-full text-[11px] font-extrabold">340+ Labs Active</span>
+        <div className="relative z-10 flex items-center gap-2 sm:gap-3">
+          <span className="bg-black/20 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold">100% NEP 2020</span>
+          <span className="bg-white text-slate-950 px-2 py-0.5 rounded-full text-[10px] sm:text-[11px] font-extrabold">340+ Labs Active</span>
         </div>
       </div>
 
-      <div className="p-6 md:p-10 lg:p-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+      <div className="p-4 sm:p-8 md:p-10 lg:p-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-start">
           
           {/* Left Column: Visuals & Live Product Card */}
-          <div className="lg:col-span-5 space-y-5">
+          <div className="lg:col-span-5 space-y-4 sm:space-y-5">
             <div className="relative rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 shadow-md group aspect-4/3">
               <img
                 src={flagshipProduct.image}
@@ -114,50 +114,50 @@ export const FeaturedProductSpotlight: React.FC<FeaturedProductSpotlightProps> =
               <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
               
               {/* Badges on Image */}
-              <div className="absolute top-4 left-4 flex flex-col gap-1.5">
-                <span className="bg-amber-500 text-slate-950 font-extrabold text-xs px-3 py-1 rounded-lg shadow-md flex items-center gap-1.5">
+              <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex flex-col gap-1.5 z-10">
+                <span className="bg-amber-500 text-slate-950 font-extrabold text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-lg shadow-md flex items-center gap-1.5">
                   <Award className="w-3.5 h-3.5" />
                   India's #1 ATL Setup Kit
                 </span>
-                <span className="bg-slate-900/90 text-white font-medium text-[11px] px-2.5 py-0.5 rounded-md backdrop-blur-xs border border-slate-700">
+                <span className="bg-slate-900/90 text-white font-medium text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-md backdrop-blur-xs border border-slate-700 self-start">
                   SKU: {flagshipProduct.sku}
                 </span>
               </div>
 
-              <div className="absolute bottom-4 left-4 right-4 text-white">
+              <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 text-white z-10">
                 <div className="flex items-center gap-1 text-amber-400 text-xs font-bold mb-1">
                   <div className="flex">
                     {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />
+                      <Star key={i} className="w-3.5 sm:w-4 h-3.5 sm:h-4 fill-amber-400 text-amber-400" />
                     ))}
                   </div>
-                  <span className="text-white ml-1.5 font-extrabold">4.9 / 5.0</span>
-                  <span className="text-slate-300 font-normal">(142 verified schools)</span>
+                  <span className="text-white ml-1.5 font-extrabold text-[11px] sm:text-xs">4.9 / 5.0</span>
+                  <span className="text-slate-300 font-normal text-[10px] sm:text-xs">(142 schools)</span>
                 </div>
-                <p className="text-xs text-slate-200 line-clamp-2">
+                <p className="text-[11px] sm:text-xs text-slate-200 line-clamp-2">
                   Complete turnkey lab solution with over 350+ modular components, microcontrollers, mechanical chassis, and teacher training.
                 </p>
               </div>
             </div>
 
             {/* Quick Metrics Bento */}
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="block text-lg font-black text-slate-900">350+</span>
-                <span className="text-[11px] font-medium text-slate-500">Components</span>
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 sm:p-3">
+                <span className="block text-base sm:text-lg font-black text-slate-900">350+</span>
+                <span className="text-[10px] sm:text-[11px] font-medium text-slate-500">Components</span>
               </div>
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="block text-lg font-black text-slate-900">40+</span>
-                <span className="text-[11px] font-medium text-slate-500">Sensors & ICs</span>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 sm:p-3">
+                <span className="block text-base sm:text-lg font-black text-slate-900">40+</span>
+                <span className="text-[10px] sm:text-[11px] font-medium text-slate-500">Sensors & ICs</span>
               </div>
-              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
-                <span className="block text-lg font-black text-amber-600">12 Mo.</span>
-                <span className="text-[11px] font-medium text-slate-500">Onsite Warranty</span>
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 sm:p-3">
+                <span className="block text-base sm:text-lg font-black text-amber-600">12 Mo.</span>
+                <span className="text-[10px] sm:text-[11px] font-medium text-slate-500">Onsite Warranty</span>
               </div>
             </div>
 
             {/* Client Testimonial Snippet */}
-            <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3.5 text-xs text-slate-700 space-y-1.5">
+            <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 sm:p-3.5 text-xs text-slate-700 space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-slate-900">Principal's Review:</span>
                 <span className="text-[10px] font-semibold text-amber-800 bg-amber-100/80 px-2 py-0.5 rounded-full">KVS Delhi Cantt</span>
@@ -335,28 +335,28 @@ export const FeaturedProductSpotlight: React.FC<FeaturedProductSpotlightProps> =
 
             {/* Price, Stock & Action Buttons */}
             <div className="pt-4 border-t border-slate-200 space-y-4">
-              <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3">
                 <div>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-950">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-2xl sm:text-3xl font-black text-slate-950">
                       ₹{flagshipProduct.price.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-sm text-slate-400 line-through">
+                    <span className="text-xs sm:text-sm text-slate-400 line-through">
                       ₹{flagshipProduct.originalPrice.toLocaleString('en-IN')}
                     </span>
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                       Save ₹{(flagshipProduct.originalPrice - flagshipProduct.price).toLocaleString('en-IN')} (23% Off)
                     </span>
                   </div>
-                  <span className="text-[11px] text-slate-500 block mt-0.5">
+                  <span className="text-[10px] sm:text-[11px] text-slate-500 block mt-1">
                     Inclusive of 18% GST (₹{(flagshipProduct.price * 0.18 / 1.18).toFixed(0)} ITC claimable) • Free Insured Pan-India Transit
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-                    <PackageCheck className="w-3.5 h-3.5" />
-                    In Stock ({flagshipProduct.stock} Units at {flagshipProduct.warehouseLocation})
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 sm:px-3 py-1 rounded-full border border-emerald-200">
+                    <PackageCheck className="w-3.5 h-3.5 shrink-0" />
+                    <span>In Stock ({flagshipProduct.stock} Units)</span>
                   </span>
                 </div>
               </div>
@@ -365,41 +365,41 @@ export const FeaturedProductSpotlight: React.FC<FeaturedProductSpotlightProps> =
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
                 <button
                   onClick={() => onAddToCart(flagshipProduct, 1)}
-                  className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
                 >
-                  <ShoppingCart className="w-4 h-4" />
+                  <ShoppingCart className="w-4 h-4 shrink-0" />
                   <span>Add Lab to Cart</span>
                 </button>
 
                 <button
                   onClick={() => onBuyNow(flagshipProduct, 1)}
-                  className="w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-amber-600/30 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3 px-4 bg-amber-600 hover:bg-amber-700 text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-amber-600/30 transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
                 >
-                  <Zap className="w-4 h-4" />
+                  <Zap className="w-4 h-4 shrink-0" />
                   <span>Instant Buy Now</span>
                 </button>
 
                 <button
                   onClick={openB2BModal}
-                  className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5"
+                  className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 min-h-[44px] cursor-pointer"
                 >
-                  <Building2 className="w-4 h-4 text-amber-600" />
+                  <Building2 className="w-4 h-4 text-amber-600 shrink-0" />
                   <span>School PO / Quote</span>
                 </button>
 
                 <button
                   id="btn-spotlight-download-datasheet"
                   onClick={() => downloadProductDatasheet(flagshipProduct)}
-                  className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl border border-slate-300 transition-all flex items-center justify-center gap-1.5 min-h-[44px] cursor-pointer"
                   title="Download Technical Datasheet"
                 >
-                  <Download className="w-4 h-4 text-amber-600" />
-                  <span>Download Datasheet (PDF)</span>
+                  <Download className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Download Datasheet</span>
                 </button>
               </div>
 
               {/* Trust badges footer */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-[11px] text-slate-500">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 text-[10px] sm:text-[11px] text-slate-500">
                 <div className="flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                   <span>12-Month Replacement</span>
@@ -417,6 +417,7 @@ export const FeaturedProductSpotlight: React.FC<FeaturedProductSpotlightProps> =
                   <span>School PO Net-30</span>
                 </div>
               </div>
+
 
             </div>
 

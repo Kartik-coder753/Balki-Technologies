@@ -35,40 +35,40 @@ export const QuotationsSection: React.FC<QuotationsSectionProps> = ({
     <div className="space-y-10 pb-16 animate-in fade-in duration-200">
       
       {/* Top Breadcrumb & Return to Store Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 py-3 px-4 bg-white rounded-2xl border border-slate-200 shadow-2xs">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3 px-4 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs text-slate-500">
           <button 
             onClick={() => setActiveTab('home')}
-            className="hover:text-amber-600 transition-colors font-medium"
+            className="hover:text-amber-600 transition-colors font-medium cursor-pointer"
           >
             Home
           </button>
           <span>/</span>
           <button 
             onClick={() => setActiveTab('store')}
-            className="hover:text-amber-600 transition-colors font-medium"
+            className="hover:text-amber-600 transition-colors font-medium cursor-pointer"
           >
             Hardware Store
           </button>
           <span>/</span>
-          <span className="text-slate-900 font-bold">ATL Quotations & 169 Products Dossier</span>
+          <span className="text-slate-900 font-bold truncate">ATL Quotations Dossier</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2">
           <button
             onClick={() => setActiveTab('store')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer min-h-[40px]"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Return to Store Catalog</span>
+            <span>Return to Store</span>
           </button>
 
           <button
             onClick={openB2BModal}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-900 bg-amber-400 hover:bg-amber-300 rounded-xl transition-colors shadow-2xs cursor-pointer"
+            className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-bold text-amber-900 bg-amber-400 hover:bg-amber-300 rounded-xl transition-colors shadow-2xs cursor-pointer min-h-[40px]"
           >
             <Building2 className="w-3.5 h-3.5" />
-            <span>Request Custom School Quotation</span>
+            <span>Request School Quote</span>
           </button>
         </div>
       </div>
@@ -139,17 +139,17 @@ export const QuotationsSection: React.FC<QuotationsSectionProps> = ({
             </h2>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
             <button
               onClick={() => downloadCurriculumGuide()}
-              className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center gap-1.5"
+              className="px-3.5 py-2 text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
               <span>Download AIM Guidelines PDF</span>
             </button>
             <button
               onClick={openB2BModal}
-              className="px-3.5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors shadow-xs"
+              className="px-3.5 py-2 text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-colors shadow-xs flex items-center justify-center min-h-[40px] cursor-pointer"
             >
               Contact Lab Procurement Officer
             </button>
@@ -200,16 +200,16 @@ export const QuotationsSection: React.FC<QuotationsSectionProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2.5 shrink-0">
             <a
               href="tel:+919071199139"
-              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors"
+              className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-colors text-center min-h-[40px] flex items-center justify-center cursor-pointer"
             >
               Call +91-9071199139
             </a>
             <button
               onClick={openB2BModal}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-colors shadow-2xs"
+              className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl transition-colors shadow-2xs text-center min-h-[40px] flex items-center justify-center cursor-pointer"
             >
               Request Custom PO
             </button>

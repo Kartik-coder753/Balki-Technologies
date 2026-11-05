@@ -189,16 +189,16 @@ export const BalkiLogo: React.FC<BalkiLogoProps> = ({
           alt="BALKI TECHNOLOGIES"
           referrerPolicy="no-referrer"
           onError={() => setImageError(true)}
-          className="h-12 sm:h-14 md:h-15 w-auto max-w-[240px] sm:max-w-[280px] md:max-w-[320px] object-contain drop-shadow-2xs group-hover:scale-[1.02] transition-transform duration-200"
+          className="h-7 xs:h-8 sm:h-12 md:h-14 w-auto max-w-[125px] xs:max-w-[160px] sm:max-w-[260px] md:max-w-[320px] object-contain drop-shadow-2xs group-hover:scale-[1.02] transition-transform duration-200"
         />
       </div>
     );
   }
 
   return (
-    <div className={`flex items-center gap-3 sm:gap-3.5 select-none ${className}`}>
+    <div className={`flex items-center gap-2 sm:gap-3.5 select-none ${className}`}>
       {/* Peacock 'B' Emblem */}
-      <div className={`w-12 h-12 sm:w-14 sm:h-14 shrink-0 p-0.5 rounded-2xl ${
+      <div className={`w-8 h-8 sm:w-12 sm:h-12 shrink-0 p-0.5 rounded-xl sm:rounded-2xl ${
         isDark ? 'bg-slate-800/95 border-slate-700 shadow-md' : 'bg-white border-slate-200/90 shadow-sm'
       } border flex items-center justify-center group-hover:scale-105 group-hover:shadow-md transition-all duration-300`}>
         <BalkiEmblem className="w-full h-full" />
@@ -208,13 +208,13 @@ export const BalkiLogo: React.FC<BalkiLogoProps> = ({
       <div className="flex flex-col justify-center select-none">
         <div className="flex items-center tracking-tight leading-none">
           {/* Futuristic 'BALKI' with Cyan to Royal Blue gradient */}
-          <span className="text-2xl sm:text-3xl font-black tracking-wider bg-gradient-to-r from-teal-400 via-cyan-500 to-blue-700 bg-clip-text text-transparent">
+          <span className="text-lg sm:text-2xl font-black tracking-wider bg-gradient-to-r from-teal-400 via-cyan-500 to-blue-700 bg-clip-text text-transparent">
             BALKI
           </span>
         </div>
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center justify-between pt-0.5">
           {/* Geometric 'TECHNOLOGIES' */}
-          <span className={`text-[10px] sm:text-[11px] font-extrabold tracking-[0.28em] uppercase ${
+          <span className={`text-[8px] sm:text-[10px] font-extrabold tracking-[0.22em] sm:tracking-[0.28em] uppercase ${
             isDark ? 'text-slate-200' : 'text-slate-800'
           }`}>
             TECHNOLOGIES

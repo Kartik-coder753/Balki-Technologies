@@ -137,32 +137,32 @@ export const RobocupSpecialMentionSection: React.FC<RobocupSpecialMentionSection
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3 shrink-0">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 w-full lg:w-auto shrink-0">
           <a
             href={googleFormUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs sm:text-sm transition-all shadow-lg shadow-amber-500/20 flex items-center gap-2 cursor-pointer"
+            className="px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs sm:text-sm transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
           >
-            <Sparkles className="w-4 h-4 fill-slate-950" />
+            <Sparkles className="w-4 h-4 fill-slate-950 shrink-0" />
             <span>Register on Google Form</span>
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
           </a>
 
           <a
             href={brochurePdf}
             download="RoboCup_Hackathon_2027_Official_Brochure.pdf"
-            className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer"
+            className="px-4 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
           >
-            <Download className="w-4 h-4 text-cyan-400" />
+            <Download className="w-4 h-4 text-cyan-400 shrink-0" />
             <span>Download Brochure PDF</span>
           </a>
 
           <button
             onClick={handleOpenHackathonHub}
-            className="px-4 py-3 rounded-xl bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 font-bold text-xs sm:text-sm transition-all flex items-center gap-2 cursor-pointer"
+            className="px-4 py-3 rounded-xl bg-cyan-950 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 font-bold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 min-h-[44px] cursor-pointer"
           >
-            <ArrowRight className="w-4 h-4 text-cyan-400" />
+            <ArrowRight className="w-4 h-4 text-cyan-400 shrink-0" />
             <span>Hackathon Hub</span>
           </button>
         </div>

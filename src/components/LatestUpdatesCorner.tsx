@@ -255,7 +255,7 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
       </div>
 
       {/* 2. Main Latest Updates Corner Container */}
-      <div className="bg-gradient-to-b from-white via-amber-50/20 to-white rounded-3xl p-6 md:p-8 border border-amber-200/80 shadow-xl relative overflow-hidden">
+      <div className="bg-gradient-to-b from-white via-amber-50/20 to-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 border border-amber-200/80 shadow-xl relative overflow-hidden">
         
         {/* Subtle Decorative STEM Laboratory Blueprint Grid Background */}
         <img
@@ -270,29 +270,29 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-400/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
 
-        <div className="relative space-y-6">
+        <div className="relative space-y-5 sm:space-y-6">
 
           {/* Section Header with Quick Indicators */}
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-slate-200/80">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 pb-4 border-b border-slate-200/80">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-xs font-bold">
-                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 text-[10px] sm:text-xs font-bold">
+                <Sparkles className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                 <span>WHAT'S NEW AT BALKI TECHNOLOGIES</span>
               </div>
-              <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2 flex-wrap">
                 <span>Latest Updates & Innovations Corner</span>
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                  Updated September 2026
+                <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                  Updated Sept 2026
                 </span>
               </h2>
-              <p className="text-xs md:text-sm text-slate-600 max-w-2xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-600 max-w-2xl leading-relaxed">
                 Explore newly launched STEM laboratory hardware, certified NEP 2020 interactive courses, equipment rentals, and institutional partnerships built for India's 50,000+ Atal Tinkering Labs.
               </p>
             </div>
 
             {/* Quick Metrics Badges with Ambient Visual Imagery */}
-            <div className="flex items-center gap-3 shrink-0 text-xs font-semibold">
-              <div className="relative overflow-hidden px-3.5 py-2.5 rounded-2xl bg-white border border-amber-200/80 shadow-2xs text-slate-700 flex items-center gap-2.5 group">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 shrink-0 text-xs font-semibold">
+              <div className="relative overflow-hidden px-3 py-2 rounded-2xl bg-white border border-amber-200/80 shadow-2xs text-slate-700 flex items-center gap-2 group flex-1 sm:flex-initial">
                 <img
                   src="https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=400&q=80"
                   alt="Drone Rig Background"
@@ -300,16 +300,16 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   className="absolute inset-0 w-full h-full object-cover opacity-10 mix-blend-multiply pointer-events-none group-hover:scale-105 transition-transform"
                 />
-                <div className="relative z-10 w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                  <Rocket className="w-4 h-4 text-amber-600" />
+                <div className="relative z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <Rocket className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
                 </div>
                 <div className="relative z-10">
-                  <p className="text-[10px] text-slate-400 uppercase font-bold">Latest Hardware</p>
+                  <p className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold">Latest Hardware</p>
                   <p className="text-xs font-extrabold text-slate-900">Drone Lab Kit</p>
                 </div>
               </div>
 
-              <div className="relative overflow-hidden px-3.5 py-2.5 rounded-2xl bg-white border border-blue-200/80 shadow-2xs text-slate-700 flex items-center gap-2.5 group">
+              <div className="relative overflow-hidden px-3 py-2 rounded-2xl bg-white border border-blue-200/80 shadow-2xs text-slate-700 flex items-center gap-2 group flex-1 sm:flex-initial">
                 <img
                   src="https://images.unsplash.com/photo-1588072432836-e10032774350?auto=format&fit=crop&w=400&q=80"
                   alt="Classroom Lab Background"
@@ -317,7 +317,7 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   className="absolute inset-0 w-full h-full object-cover opacity-10 mix-blend-multiply pointer-events-none group-hover:scale-105 transition-transform"
                 />
-                <div className="relative z-10 w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                <div className="relative z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
                   <GraduationCap className="w-4 h-4 text-blue-600" />
                 </div>
                 <div className="relative z-10">
@@ -640,25 +640,25 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
               </div>
 
               {/* Subscribe Input Form */}
-              <form onSubmit={handleSubscribe} className="w-full md:w-auto flex items-center gap-2">
+              <form onSubmit={handleSubscribe} className="w-full md:w-auto">
                 {isSubscribed ? (
-                  <div className="px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
-                    <Check className="w-4 h-4 text-emerald-400" />
+                  <div className="px-4 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-bold flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-400 shrink-0" />
                     <span>Subscribed! You'll receive priority launch updates.</span>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 w-full md:w-84">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-96">
                     <input
                       type="email"
                       required
                       placeholder="Enter school or teacher email..."
                       value={subscriberEmail}
                       onChange={(e) => setSubscriberEmail(e.target.value)}
-                      className="w-full px-3.5 py-2 text-xs bg-slate-900/90 text-white placeholder-slate-400 border border-slate-700 rounded-xl focus:outline-none focus:border-amber-400 focus:bg-slate-900"
+                      className="w-full px-3.5 py-2.5 text-xs bg-slate-900/90 text-white placeholder-slate-400 border border-slate-700 rounded-xl focus:outline-none focus:border-amber-400 focus:bg-slate-900 min-h-[42px]"
                     />
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-extrabold shrink-0 transition-colors shadow-md cursor-pointer"
+                      className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-extrabold shrink-0 transition-colors shadow-md cursor-pointer min-h-[42px] flex items-center justify-center"
                     >
                       Notify Me
                     </button>
@@ -675,8 +675,8 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
 
       {/* 5. Detailed Update Announcement Modal */}
       {selectedUpdateForModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-8">
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200 my-auto">
             
             {/* Modal Header Cover */}
             <div className="relative aspect-video max-h-64 w-full bg-slate-900 overflow-hidden">
