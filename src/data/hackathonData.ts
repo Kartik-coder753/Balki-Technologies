@@ -48,7 +48,7 @@ export const HACKATHON_METADATA = {
   proctoringPlatform: 'Google Meet Live Dual-Camera Proctoring',
   dates: {
     registrationStart: '1st November 2026',
-    earlyBirdEnd: '30th November 2026',
+    earlyBirdEnd: '25th November 2026',
     registrationEnd: '15th December 2026',
     dispatchStart: '16th December 2026',
     finalsDates: '9th – 10th January 2027',
@@ -215,12 +215,12 @@ export const HACKATHON_METADATA = {
 export const HACKATHON_DOCUMENTS: HackathonDoc[] = [
   {
     id: 'doc-brochure',
-    title: 'Official RoboCup Hackathon 2027 Brochure',
-    filename: 'RoboCup_Hackathon_2027_Brochure__1__2f828f38.pdf',
-    size: '1.8 MB PDF',
-    badge: 'Official Brochure',
-    description: 'Complete visual brochure featuring theme "Build it. Code it. Win it!", eligibility, cash prizes, dates, sealed box format, and mentorship perks.',
-    path: '/hackathon/RoboCup_Hackathon_2027_Brochure__1__2f828f38.pdf'
+    title: 'Official RoboCup Hackathon 2027 Brochure (Updated)',
+    filename: 'RoboCup_Hackathon_2027_Official_Brochure.pdf',
+    size: '986 KB PDF',
+    badge: 'Updated Official Brochure',
+    description: 'Updated 8-page official brochure: "Build it. Code it. Win it!", eligibility (Grades 8-12), ₹10,000 + drone kit, early bird pricing ending 25 Nov 2026, 5-stop roadmap, and Balki founder mentorship.',
+    path: '/hackathon/RoboCup_Hackathon_2027_Official_Brochure.pdf'
   },
   {
     id: 'doc-rulebook',
@@ -737,7 +737,7 @@ export const HACKATHON_TIMELINE: HackathonTimelineStep[] = [
     status: 'active'
   },
   {
-    date: '30th Nov 2026',
+    date: '25th Nov 2026',
     title: 'Early Bird Window Closes',
     subtitle: 'Special fee of ₹1,800 (Solo) / ₹2,500 (Duo) ends. Regular registration rates apply.',
     iconName: 'Clock',
@@ -751,30 +751,30 @@ export const HACKATHON_TIMELINE: HackathonTimelineStep[] = [
     status: 'upcoming'
   },
   {
-    date: '16th – 24th Dec 2026',
+    date: 'After Sign-Up (Dec)',
     title: 'Sealed Kit Doorstep Dispatch',
-    subtitle: 'Tamper-evident sealed boxes + arena mat delivered to participants across all 28 states & UTs.',
+    subtitle: 'Tamper-evident sealed boxes + arena mat delivered right to your door across all states & UTs.',
     iconName: 'Truck',
     status: 'upcoming'
   },
   {
-    date: '28th Dec – 5th Jan 2027',
-    title: 'Proctoring Slot Booking & Test Run',
-    subtitle: 'Teams test dual-camera Google Meet links and schedule their preferred 1-hour competition slot.',
+    date: 'Nov – Jan 2027',
+    title: 'Get Ready & Plan Your Build',
+    subtitle: 'Get to know your robot and plan your build with masterclasses and practice challenges.',
     iconName: 'Calendar',
     status: 'upcoming'
   },
   {
     date: '9th – 10th Jan 2027',
     title: 'The National Finals: 60-Minute Live Build',
-    subtitle: 'Live proctored 1-hour showdown. Unbox sealed mystery challenge, assemble, code, and execute on mat!',
+    subtitle: 'Live proctored 1-hour showdown on Google Meet. Open the box, build against the clock, beat 3 tasks on camera!',
     iconName: 'Trophy',
     status: 'upcoming'
   },
   {
     date: '16th – 17th Jan 2027',
     title: 'Grand Awards & Winner Declaration',
-    subtitle: 'National ceremony stream. ₹10,000 cash prize, drone kits, internships, and mentorships awarded.',
+    subtitle: 'National ceremony stream. Winners announced! ₹10,000 cash prize, drone kits, R&D internships, and founder mentorships awarded.',
     iconName: 'Award',
     status: 'upcoming'
   }

@@ -545,7 +545,7 @@ export const HackathonSection: React.FC<HackathonSectionProps> = ({
                 <div className="pt-2">
                   <span className="text-3xl font-black text-slate-900">₹{meta.pricing.solo.earlyBird.toLocaleString('en-IN')}</span>
                   <span className="text-xs text-slate-400 line-through ml-2">₹{meta.pricing.solo.regular.toLocaleString('en-IN')}</span>
-                  <div className="text-xs font-bold text-emerald-600 mt-1">Early Bird Price until 30th Nov</div>
+                  <div className="text-xs font-bold text-emerald-600 mt-1">Early Bird Price until 25th Nov</div>
                 </div>
               </div>
 
