@@ -89,6 +89,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const shopMenuRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
+  const cornerMenuRef = useRef<HTMLDivElement>(null);
 
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -104,22 +105,13 @@ export const Navbar: React.FC<NavbarProps> = ({
       if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
         setIsMoreMenuOpen(false);
       }
+      if (cornerMenuRef.current && !cornerMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Lock body scroll when mobile menu is open
-  useEffect(() => {
-    if (isMobileMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isMobileMenuOpen]);
 
   // Filter items based on searchQuery
   const query = searchQuery.trim().toLowerCase();
@@ -596,14 +588,348 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Mobile Menu Hamburger */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden min-w-[42px] min-h-[42px] p-2.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer flex items-center justify-center"
-              aria-label="Toggle Navigation Menu"
-            >
-              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
+            {/* Corner 3-Line Menu Trigger & Dedicated Flyout Panel */}
+            <div className="relative" ref={cornerMenuRef}>
+              <button
+                id="btn-corner-menu"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className={`min-w-[42px] min-h-[42px] p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
+                  isMobileMenuOpen
+                    ? 'bg-slate-900 text-amber-400 border-slate-900 shadow-md ring-2 ring-amber-500/25'
+                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200 border-slate-200 hover:border-slate-300'
+                }`}
+                aria-label="Toggle All Sections Menu"
+                title="All Sections & Navigation Menu"
+              >
+                {isMobileMenuOpen ? (
+                  <X className="w-5 h-5 text-amber-400" />
+                ) : (
+                  <Menu className="w-5 h-5 text-slate-800" />
+                )}
+              </button>
+
+              {/* CORNER DROPDOWN POPOVER: Built right there at the corner, all sections neatly visible without scrolling */}
+              {isMobileMenuOpen && (
+                <>
+                  {/* Subtle backdrop overlay */}
+                  <div
+                    className="fixed inset-0 z-40 bg-slate-950/25 backdrop-blur-[1px] transition-opacity"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  />
+
+                  {/* Corner Popover Panel - Positioned directly under the 3-line button at the corner */}
+                  <div 
+                    className="fixed sm:absolute right-2 sm:right-0 top-[56px] sm:top-full sm:mt-2 w-[calc(100vw-1rem)] sm:w-[410px] max-w-[430px] bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/95 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 ring-1 ring-slate-900/10"
+                    style={{ maxHeight: 'calc(100vh - 75px)' }}
+                  >
+                    
+                    {/* Header Strip with Emblem */}
+                    <div className="px-3.5 sm:px-4 py-2.5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-between border-b border-slate-800">
+                      <div className="flex items-center gap-2">
+                        <BalkiLogo type="icon" className="w-5 h-5" />
+                        <div>
+                          <span className="font-extrabold text-[11px] tracking-wider uppercase text-amber-400 block leading-tight">
+                            Balki Technologies
+                          </span>
+                          <span className="text-[9px] text-slate-400 block leading-none">
+                            All Platform Sections
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setIsMobileMenuOpen(false)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                        aria-label="Close Menu"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* 2-Column Compact Sections Bento Grid - Everything visible right here without scrolling! */}
+                    <div className="p-2 sm:p-2.5 bg-slate-50/80 grid grid-cols-2 gap-1.5 sm:gap-2 text-xs">
+                      
+                      {/* 1. Home */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('home');
+                          setIsMobileMenuOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                          activeTab === 'home'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'home' ? 'bg-white/15 text-amber-400' : 'bg-slate-100 text-slate-700'}`}>
+                          <Home className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold block text-xs truncate">Home</span>
+                          <span className="text-[10px] opacity-70 block truncate">Main Portal</span>
+                        </div>
+                      </button>
+
+                      {/* 2. Store Catalog */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('store');
+                          setIsMobileMenuOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                          activeTab === 'store'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'store' ? 'bg-white/15 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
+                          <ShoppingBag className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold block text-xs truncate">Catalog</span>
+                          <span className="text-[10px] opacity-70 block truncate">1,000+ Hardware</span>
+                        </div>
+                      </button>
+
+                      {/* 3. RoboCup 2027 Hackathon */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('hackathon');
+                          setIsMobileMenuOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                          activeTab === 'hackathon'
+                            ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-transparent shadow-xs font-bold'
+                            : 'bg-gradient-to-r from-cyan-50/90 to-teal-50/70 hover:from-cyan-100 hover:to-teal-100 text-cyan-950 border-cyan-200'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'hackathon' ? 'bg-white/20 text-white' : 'bg-cyan-100 text-cyan-700'}`}>
+                          <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-extrabold block text-xs truncate">RoboCup 2027</span>
+                          <span className="text-[10px] text-amber-600 font-bold block truncate">₹10K Hackathon</span>
+                        </div>
+                      </button>
+
+                      {/* 4. ATL Quotations Dossier */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('quotations');
+                          setIsMobileMenuOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                          activeTab === 'quotations'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'quotations' ? 'bg-white/15 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
+                          <Boxes className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold block text-xs truncate">ATL Quotations</span>
+                          <span className="text-[10px] opacity-70 block truncate">169 Line Items</span>
+                        </div>
+                      </button>
+
+                      {/* 5. NEP Interactive Courses */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('courses');
+                          setIsMobileMenuOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                          activeTab === 'courses'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'courses' ? 'bg-white/15 text-amber-400' : 'bg-blue-50 text-blue-600'}`}>
+                          <GraduationCap className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold block text-xs truncate">NEP Courses</span>
+                          <span className="text-[10px] opacity-70 block truncate">Simulators 3–12</span>
+                        </div>
+                      </button>
+
+                      {/* 6. Equipment Rentals */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('rentals');
+                          setIsMobileMenuOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                          activeTab === 'rentals'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'rentals' ? 'bg-white/15 text-amber-400' : 'bg-purple-50 text-purple-600'}`}>
+                          <Clock className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold block text-xs truncate">Lab Rentals</span>
+                          <span className="text-[10px] opacity-70 block truncate">3D & DSOs</span>
+                        </div>
+                      </button>
+
+                      {/* 7. Live Order Tracking / Account */}
+                      {onOpenTracking ? (
+                        <button
+                          onClick={() => {
+                            onOpenTracking();
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className="p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300"
+                        >
+                          <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
+                            <Truck className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold block text-xs truncate">Track Order</span>
+                            <span className="text-[10px] text-emerald-600 font-semibold block truncate">Live Consignment</span>
+                          </div>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setActiveTab('dashboard');
+                            setIsMobileMenuOpen(false);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className="p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90"
+                        >
+                          <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
+                            <User className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0">
+                            <span className="font-bold block text-xs truncate">Account</span>
+                            <span className="text-[10px] opacity-70 block truncate">Orders & Profile</span>
+                          </div>
+                        </button>
+                      )}
+
+                      {/* 8. 24/7 Problem Resolvance & Helpdesk */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('contact');
+                          setIsMobileMenuOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                          activeTab === 'contact'
+                            ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                            : 'bg-white hover:bg-amber-50 text-slate-800 border-slate-200/90 hover:border-amber-300'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'contact' ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600'}`}>
+                          <LifeBuoy className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold block text-xs truncate">24/7 Support</span>
+                          <span className="text-[10px] opacity-70 block truncate">Help & Warranty</span>
+                        </div>
+                      </button>
+
+                      {/* 9. About Us */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('about');
+                          setIsMobileMenuOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                          activeTab === 'about'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'about' ? 'bg-white/15 text-amber-400' : 'bg-slate-100 text-slate-700'}`}>
+                          <Info className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold block text-xs truncate">About Balki</span>
+                          <span className="text-[10px] opacity-70 block truncate">Heritage & Hubs</span>
+                        </div>
+                      </button>
+
+                      {/* 10. Tech Blog */}
+                      <button
+                        onClick={() => {
+                          setActiveTab('blog');
+                          setIsMobileMenuOpen(false);
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
+                          activeTab === 'blog'
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'blog' ? 'bg-white/15 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
+                          <BookOpen className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold block text-xs truncate">Tech Blog</span>
+                          <span className="text-[10px] opacity-70 block truncate">Guides & News</span>
+                        </div>
+                      </button>
+
+                    </div>
+
+                    {/* Quick Institutional Action Strip */}
+                    <div className="p-2.5 bg-white border-t border-slate-200 space-y-1.5">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => {
+                            openB2BModal();
+                            setIsMobileMenuOpen(false);
+                          }}
+                          className="py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[38px]"
+                        >
+                          <Building2 className="w-3.5 h-3.5" />
+                          <span>School Quote</span>
+                        </button>
+                        
+                        <a
+                          href="tel:+919071199139"
+                          className="py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[38px]"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Call Helpline</span>
+                        </a>
+                      </div>
+
+                      {currentUser && (
+                        <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                          <span className="truncate max-w-[200px] text-[11px]">
+                            {userProfile?.displayName || currentUser.email}
+                          </span>
+                          <button
+                            onClick={() => {
+                              logout();
+                              setIsMobileMenuOpen(false);
+                            }}
+                            className="text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer text-xs"
+                          >
+                            <LogOut className="w-3.5 h-3.5" />
+                            <span>Sign Out</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1149,347 +1475,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         </nav>
 
       </div>
-
-      {/* 4. Mobile Navigation Drawer */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex">
-          <div className="w-4/5 max-w-sm bg-white h-full shadow-2xl flex flex-col justify-between overflow-y-auto p-5 animate-in slide-in-from-left duration-200">
-            
-            <div className="space-y-6">
-              {/* Drawer Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <BalkiLogo type="full" variant="light" className="h-10 w-auto" />
-                <button
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Drawer Navigation Links */}
-              <div className="space-y-2 text-sm font-semibold">
-                
-                {/* 1. HOME */}
-                <button
-                  onClick={() => {
-                    setActiveTab('home');
-                    setIsMobileMenuOpen(false);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className={`w-full p-3 rounded-xl flex items-center gap-3 transition-colors text-left ${
-                    activeTab === 'home' ? 'bg-slate-900 text-white' : 'text-slate-800 hover:bg-slate-100'
-                  }`}
-                >
-                  <Home className="w-4 h-4" />
-                  <span>HOME</span>
-                </button>
-
-                {/* LATEST UPDATES CORNER (Mobile) */}
-                <button
-                  onClick={() => {
-                    setActiveTab('home');
-                    setIsMobileMenuOpen(false);
-                    setTimeout(() => {
-                      const el = document.getElementById('latest-updates-corner');
-                      if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    }, 100);
-                  }}
-                  className="w-full p-3 rounded-xl flex items-center justify-between transition-colors text-left bg-gradient-to-r from-amber-500/20 via-orange-500/15 to-amber-500/20 text-amber-900 border border-amber-300 font-extrabold"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <Sparkles className="w-4 h-4 text-amber-600" />
-                    <span>LATEST UPDATES CORNER</span>
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 bg-amber-500 text-slate-950 font-black rounded-full">
-                    NEW
-                  </span>
-                </button>
-
-                {/* 2. SHOP (Collapsible Accordion) */}
-                <div className="space-y-1">
-                  <button
-                    onClick={() => setMobileShopExpanded(!mobileShopExpanded)}
-                    className="w-full p-3 rounded-xl flex items-center justify-between text-slate-800 hover:bg-slate-100 transition-colors text-left"
-                  >
-                    <span className="flex items-center gap-3">
-                      <Package className="w-4 h-4 text-amber-600" />
-                      <span>SHOP</span>
-                    </span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${mobileShopExpanded ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {mobileShopExpanded && (
-                    <div className="pl-6 pr-2 py-2 space-y-1.5 text-xs text-slate-600 bg-slate-50 rounded-xl">
-                      <button
-                        onClick={() => handleCategoryClick('biology-anatomy')}
-                        className="w-full text-left py-1.5 hover:text-amber-600 flex items-center justify-between"
-                      >
-                        <span>Anatomy Models</span>
-                        <span className="text-[10px] text-amber-600">3D</span>
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick('microscopes-optics')}
-                        className="w-full text-left py-1.5 hover:text-amber-600"
-                      >
-                        <span>Biology & Microscopes</span>
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick('chemistry-lab')}
-                        className="w-full text-left py-1.5 hover:text-amber-600"
-                      >
-                        <span>Chemistry Lab Glassware</span>
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick('physics-lab')}
-                        className="w-full text-left py-1.5 hover:text-amber-600"
-                      >
-                        <span>Physics Lab Apparatus</span>
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick('mathematics-lab')}
-                        className="w-full text-left py-1.5 hover:text-amber-600"
-                      >
-                        <span>Mathematics Lab</span>
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick('atl-packages')}
-                        className="w-full text-left py-1.5 hover:text-amber-600"
-                      >
-                        <span>ATL Reference Packages</span>
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick('grade-kits')}
-                        className="w-full text-left py-1.5 hover:text-amber-600"
-                      >
-                        <span>Grade-Progressive Kits (Classes 3-12)</span>
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick('microcontrollers')}
-                        className="w-full text-left py-1.5 hover:text-amber-600"
-                      >
-                        <span>Microcontrollers (Uno, ESP32)</span>
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick('sensors')}
-                        className="w-full text-left py-1.5 hover:text-amber-600"
-                      >
-                        <span>Sensors & Transducers</span>
-                      </button>
-                      <button
-                        onClick={() => handleCategoryClick('drone-3d')}
-                        className="w-full text-left py-1.5 hover:text-amber-600"
-                      >
-                        <span>Drones & 3D Printers</span>
-                      </button>
-                      <div className="pt-2 border-t border-slate-200">
-                        <button
-                          onClick={() => handleCategoryClick('all')}
-                          className="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-bold text-center"
-                        >
-                          Browse All Products
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-
-
-                {/* ROBOCUP 2027 HACKATHON (Mobile) */}
-                <button
-                  onClick={() => {
-                    setActiveTab('hackathon');
-                    setIsMobileMenuOpen(false);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className={`w-full p-3 rounded-xl flex items-center justify-between transition-colors text-left ${
-                    activeTab === 'hackathon'
-                      ? 'bg-gradient-to-r from-cyan-500 via-teal-500 to-blue-600 text-white font-black'
-                      : 'text-cyan-950 bg-cyan-50 border border-cyan-300 font-bold'
-                  }`}
-                >
-                  <span className="flex items-center gap-3">
-                    <Trophy className="w-4 h-4 text-amber-500 animate-pulse" />
-                    <span>ROBOCUP HACKATHON 2027</span>
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-slate-950 font-black">
-                    10 Robots
-                  </span>
-                </button>
-
-                {/* 3. BLOG */}
-                <button
-                  onClick={() => {
-                    setActiveTab('blog');
-                    setIsMobileMenuOpen(false);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className={`w-full p-3 rounded-xl flex items-center gap-3 transition-colors text-left ${
-                    activeTab === 'blog' ? 'bg-slate-900 text-white' : 'text-slate-800 hover:bg-slate-100'
-                  }`}
-                >
-                  <BookOpen className="w-4 h-4 text-amber-600" />
-                  <span>BLOG</span>
-                </button>
-
-                {/* 4. ABOUT US */}
-                <button
-                  onClick={() => {
-                    setActiveTab('about');
-                    setIsMobileMenuOpen(false);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className={`w-full p-3 rounded-xl flex items-center gap-3 transition-colors text-left ${
-                    activeTab === 'about' ? 'bg-slate-900 text-white' : 'text-slate-800 hover:bg-slate-100'
-                  }`}
-                >
-                  <Info className="w-4 h-4 text-blue-600" />
-                  <span>ABOUT US</span>
-                </button>
-
-                {/* 5. CONTACT US */}
-                <button
-                  onClick={() => {
-                    setActiveTab('contact');
-                    setIsMobileMenuOpen(false);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className={`w-full p-3 rounded-xl flex items-center justify-between transition-colors text-left ${
-                    activeTab === 'contact' ? 'bg-amber-600 text-white font-bold' : 'text-amber-800 bg-amber-50'
-                  }`}
-                >
-                  <span className="flex items-center gap-3">
-                    <LifeBuoy className="w-4 h-4 text-amber-600" />
-                    <span>CONTACT US</span>
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-bold">24/7</span>
-                </button>
-
-                {/* 5.1 TRACK ORDER (Mobile) */}
-                {onOpenTracking && (
-                  <button
-                    onClick={() => {
-                      onOpenTracking();
-                      setIsMobileMenuOpen(false);
-                    }}
-                    className="w-full p-3 rounded-xl flex items-center justify-between text-left bg-slate-900 text-white font-bold"
-                  >
-                    <span className="flex items-center gap-3">
-                      <Truck className="w-4 h-4 text-amber-400" />
-                      <span>TRACK CONSIGNMENT</span>
-                    </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-mono">LIVE</span>
-                  </button>
-                )}
-
-                {/* 6. MORE (Collapsible) */}
-                <div className="space-y-1">
-                  <button
-                    onClick={() => setMobileMoreExpanded(!mobileMoreExpanded)}
-                    className="w-full p-3 rounded-xl flex items-center justify-between text-slate-800 hover:bg-slate-100 transition-colors text-left"
-                  >
-                    <span className="flex items-center gap-3">
-                      <Layers className="w-4 h-4 text-purple-600" />
-                      <span>MORE</span>
-                    </span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${mobileMoreExpanded ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {mobileMoreExpanded && (
-                    <div className="pl-6 pr-2 py-2 space-y-2 text-xs text-slate-600 bg-slate-50 rounded-xl">
-                      <button
-                        onClick={() => {
-                          setActiveTab('courses');
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full text-left py-1 hover:text-amber-600"
-                      >
-                        Interactive NEP Courses (Classes 3–12)
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveTab('rentals');
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full text-left py-1 hover:text-amber-600"
-                      >
-                        Equipment Rentals (DSO, 3D Printers)
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveTab('inventory');
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full text-left py-1 hover:text-amber-600"
-                      >
-                        Inventory Lab Portal
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveTab('dashboard');
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full text-left py-1 hover:text-amber-600 font-bold text-amber-700"
-                      >
-                        Client Dashboard & Orders ({userProfile?.displayName ? userProfile.displayName.split(' ')[0] : 'My Account'})
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveTab('careers');
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full text-left py-1 hover:text-amber-600"
-                      >
-                        Careers at Balki
-                      </button>
-                      {currentUser && (
-                        <button
-                          onClick={() => {
-                            logout();
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="w-full text-left py-1 font-bold text-rose-600 flex items-center gap-1.5"
-                        >
-                          <LogOut className="w-3.5 h-3.5" />
-                          <span>Sign Out</span>
-                        </button>
-                      )}
-                      <button
-                        onClick={() => {
-                          openB2BModal();
-                          setIsMobileMenuOpen(false);
-                        }}
-                        className="w-full text-left py-1 font-bold text-amber-700"
-                      >
-                        Request School ATL Quote
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            </div>
-
-            {/* Bottom Contact Section */}
-            <div className="pt-4 border-t border-slate-100 space-y-2 text-xs text-slate-500">
-              <a 
-                href="tel:+919071199139" 
-                className="flex items-center gap-2 text-slate-800 font-bold p-2 rounded-xl bg-slate-100"
-              >
-                <Phone className="w-4 h-4 text-amber-600" />
-                <span>Call Hotline: +91-9071199139</span>
-              </a>
-              <p className="text-[11px] text-center text-slate-400">
-                Balki Technologies Pvt. Ltd. • ISO 9001:2015
-              </p>
-            </div>
-
-          </div>
-
-          <div className="flex-1" onClick={() => setIsMobileMenuOpen(false)} />
-        </div>
-      )}
 
     </header>
 
