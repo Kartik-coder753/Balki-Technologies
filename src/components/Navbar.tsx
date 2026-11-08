@@ -35,7 +35,6 @@ import {
   Trophy,
   LogOut,
   User,
-  MoreHorizontal,
   Sun,
   Bot,
   Zap
@@ -80,7 +79,6 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileSearchActive, setIsMobileSearchActive] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobileShopDrawerOpen, setIsMobileShopDrawerOpen] = useState(false);
   const [mobileShopCategory, setMobileShopCategory] = useState<'all' | 'green-tech' | 'robotics' | 'packages' | 'categories'>('all');
   const [mobileShopSearch, setMobileShopSearch] = useState('');
@@ -96,7 +94,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   const mobileInputRef = useRef<HTMLInputElement>(null);
   const shopMenuRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
-  const cornerMenuRef = useRef<HTMLDivElement>(null);
   const mobileShopDrawerRef = useRef<HTMLDivElement>(null);
 
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -113,12 +110,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
         setIsMoreMenuOpen(false);
       }
-      if (cornerMenuRef.current && !cornerMenuRef.current.contains(event.target as Node)) {
-        setIsMobileMenuOpen(false);
-      }
       if (mobileShopDrawerRef.current && !mobileShopDrawerRef.current.contains(event.target as Node)) {
         const target = event.target as HTMLElement;
-        if (!target.closest('#btn-mobile-shop-dots') && !target.closest('#btn-corner-menu') && !target.closest('#nav-tab-mobile-shop')) {
+        if (!target.closest('#nav-tab-mobile-shop')) {
           setIsMobileShopDrawerOpen(false);
         }
       }
@@ -465,8 +459,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   // Action when a product is clicked in the Mobile Shop Drawer
   const handleMobileProductSelect = (shopItem: typeof SHOP_FEATURED_PRODUCTS[0]) => {
     setIsMobileShopDrawerOpen(false);
-    setIsMobileMenuOpen(false);
-
+    
     // Look for a match in products prop
     const matched = products.find(p => 
       p.name.toLowerCase().includes(shopItem.searchQuery.toLowerCase()) ||
@@ -624,7 +617,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   // Helper for clicking a category from the SHOP menu
   const handleCategoryClick = (cat: ProductCategory) => {
     setIsShopMenuOpen(false);
-    setIsMobileMenuOpen(false);
+    setIsMobileShopDrawerOpen(false);
     if (onSelectCategory) {
       onSelectCategory(cat);
     }
@@ -964,351 +957,6 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Corner 3-Dots Menu Trigger for Shop & Hardware Products */}
-            <div className="relative" ref={cornerMenuRef}>
-              <button
-                id="btn-corner-menu"
-                onClick={() => {
-                  setIsMobileShopDrawerOpen(!isMobileShopDrawerOpen);
-                  setIsMobileMenuOpen(false);
-                }}
-                className={`min-w-[42px] min-h-[42px] p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
-                  isMobileShopDrawerOpen
-                    ? 'bg-slate-900 text-amber-400 border-slate-900 shadow-md ring-2 ring-amber-500/25'
-                    : 'bg-slate-100 text-slate-800 hover:bg-slate-200 border-slate-200 hover:border-slate-300'
-                }`}
-                aria-label="Toggle Shop & Catalog Explorer"
-                title="Shop Products in 3 Dots"
-              >
-                {isMobileShopDrawerOpen ? (
-                  <X className="w-5 h-5 text-amber-400" />
-                ) : (
-                  <MoreHorizontal className="w-5 h-5 text-slate-800" />
-                )}
-              </button>
-
-              {/* CORNER DROPDOWN POPOVER: Built right there at the corner, all sections neatly visible without scrolling */}
-              {isMobileMenuOpen && (
-                <>
-                  {/* Subtle backdrop overlay */}
-                  <div
-                    className="fixed inset-0 z-40 bg-slate-950/25 backdrop-blur-[1px] transition-opacity"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  />
-
-                  {/* Corner Popover Panel - Positioned directly under the 3-line button at the corner */}
-                  <div 
-                    className="fixed sm:absolute right-2 sm:right-0 top-[56px] sm:top-full sm:mt-2 w-[calc(100vw-1rem)] sm:w-[410px] max-w-[430px] bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/95 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 ring-1 ring-slate-900/10"
-                    style={{ maxHeight: 'calc(100vh - 75px)' }}
-                  >
-                    
-                    {/* Header Strip with Emblem */}
-                    <div className="px-3.5 sm:px-4 py-2.5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-between border-b border-slate-800">
-                      <div className="flex items-center gap-2">
-                        <BalkiLogo type="icon" className="w-5 h-5" />
-                        <div>
-                          <span className="font-extrabold text-[11px] tracking-wider uppercase text-amber-400 block leading-tight">
-                            Balki Technologies
-                          </span>
-                          <span className="text-[9px] text-slate-400 block leading-none">
-                            All Platform Sections
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setIsMobileMenuOpen(false)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-                        aria-label="Close Menu"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* 2-Column Compact Sections Bento Grid - Everything visible right here without scrolling! */}
-                    <div className="p-2 sm:p-2.5 bg-slate-50/80 grid grid-cols-2 gap-1.5 sm:gap-2 text-xs">
-                      
-                      {/* 1. Home */}
-                      <button
-                        onClick={() => {
-                          setActiveTab('home');
-                          setIsMobileMenuOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                          activeTab === 'home'
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'home' ? 'bg-white/15 text-amber-400' : 'bg-slate-100 text-slate-700'}`}>
-                          <Home className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold block text-xs truncate">Home</span>
-                          <span className="text-[10px] opacity-70 block truncate">Main Portal</span>
-                        </div>
-                      </button>
-
-                      {/* 2. Store Catalog */}
-                      <button
-                        onClick={() => {
-                          setActiveTab('store');
-                          setIsMobileMenuOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                          activeTab === 'store'
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'store' ? 'bg-white/15 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
-                          <ShoppingBag className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold block text-xs truncate">Catalog</span>
-                          <span className="text-[10px] opacity-70 block truncate">1,000+ Hardware</span>
-                        </div>
-                      </button>
-
-                      {/* 3. RoboCup 2027 Hackathon */}
-                      <button
-                        onClick={() => {
-                          setActiveTab('hackathon');
-                          setIsMobileMenuOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                          activeTab === 'hackathon'
-                            ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white border-transparent shadow-xs font-bold'
-                            : 'bg-gradient-to-r from-cyan-50/90 to-teal-50/70 hover:from-cyan-100 hover:to-teal-100 text-cyan-950 border-cyan-200'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'hackathon' ? 'bg-white/20 text-white' : 'bg-cyan-100 text-cyan-700'}`}>
-                          <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-extrabold block text-xs truncate">RoboCup 2027</span>
-                          <span className="text-[10px] text-amber-600 font-bold block truncate">₹10K Hackathon</span>
-                        </div>
-                      </button>
-
-                      {/* 4. ATL Quotations Dossier */}
-                      <button
-                        onClick={() => {
-                          setActiveTab('quotations');
-                          setIsMobileMenuOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                          activeTab === 'quotations'
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'quotations' ? 'bg-white/15 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
-                          <Boxes className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold block text-xs truncate">ATL Quotations</span>
-                          <span className="text-[10px] opacity-70 block truncate">169 Line Items</span>
-                        </div>
-                      </button>
-
-                      {/* 5. NEP Interactive Courses */}
-                      <button
-                        onClick={() => {
-                          setActiveTab('courses');
-                          setIsMobileMenuOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                          activeTab === 'courses'
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'courses' ? 'bg-white/15 text-amber-400' : 'bg-blue-50 text-blue-600'}`}>
-                          <GraduationCap className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold block text-xs truncate">NEP Courses</span>
-                          <span className="text-[10px] opacity-70 block truncate">Simulators 3–12</span>
-                        </div>
-                      </button>
-
-                      {/* 6. Equipment Rentals */}
-                      <button
-                        onClick={() => {
-                          setActiveTab('rentals');
-                          setIsMobileMenuOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                          activeTab === 'rentals'
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'rentals' ? 'bg-white/15 text-amber-400' : 'bg-purple-50 text-purple-600'}`}>
-                          <Clock className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold block text-xs truncate">Lab Rentals</span>
-                          <span className="text-[10px] opacity-70 block truncate">3D & DSOs</span>
-                        </div>
-                      </button>
-
-                      {/* 7. Live Order Tracking / Account */}
-                      {onOpenTracking ? (
-                        <button
-                          onClick={() => {
-                            onOpenTracking();
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300"
-                        >
-                          <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
-                            <Truck className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <span className="font-bold block text-xs truncate">Track Order</span>
-                            <span className="text-[10px] text-emerald-600 font-semibold block truncate">Live Consignment</span>
-                          </div>
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setActiveTab('dashboard');
-                            setIsMobileMenuOpen(false);
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
-                          }}
-                          className="p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90"
-                        >
-                          <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
-                            <User className="w-3.5 h-3.5" />
-                          </div>
-                          <div className="min-w-0">
-                            <span className="font-bold block text-xs truncate">Account</span>
-                            <span className="text-[10px] opacity-70 block truncate">Orders & Profile</span>
-                          </div>
-                        </button>
-                      )}
-
-                      {/* 8. 24/7 Problem Resolvance & Helpdesk */}
-                      <button
-                        onClick={() => {
-                          setActiveTab('contact');
-                          setIsMobileMenuOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                          activeTab === 'contact'
-                            ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                            : 'bg-white hover:bg-amber-50 text-slate-800 border-slate-200/90 hover:border-amber-300'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'contact' ? 'bg-white/20 text-white' : 'bg-rose-50 text-rose-600'}`}>
-                          <LifeBuoy className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold block text-xs truncate">24/7 Support</span>
-                          <span className="text-[10px] opacity-70 block truncate">Help & Warranty</span>
-                        </div>
-                      </button>
-
-                      {/* 9. About Us */}
-                      <button
-                        onClick={() => {
-                          setActiveTab('about');
-                          setIsMobileMenuOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                          activeTab === 'about'
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'about' ? 'bg-white/15 text-amber-400' : 'bg-slate-100 text-slate-700'}`}>
-                          <Info className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold block text-xs truncate">About Balki</span>
-                          <span className="text-[10px] opacity-70 block truncate">Heritage & Hubs</span>
-                        </div>
-                      </button>
-
-                      {/* 10. Tech Blog */}
-                      <button
-                        onClick={() => {
-                          setActiveTab('blog');
-                          setIsMobileMenuOpen(false);
-                          window.scrollTo({ top: 0, behavior: 'smooth' });
-                        }}
-                        className={`p-2 rounded-xl border text-left transition-all flex items-center gap-2 cursor-pointer ${
-                          activeTab === 'blog'
-                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
-                            : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200/90 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className={`p-1.5 rounded-lg shrink-0 ${activeTab === 'blog' ? 'bg-white/15 text-amber-400' : 'bg-amber-50 text-amber-700'}`}>
-                          <BookOpen className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="min-w-0">
-                          <span className="font-bold block text-xs truncate">Tech Blog</span>
-                          <span className="text-[10px] opacity-70 block truncate">Guides & News</span>
-                        </div>
-                      </button>
-
-                    </div>
-
-                    {/* Quick Institutional Action Strip */}
-                    <div className="p-2.5 bg-white border-t border-slate-200 space-y-1.5">
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            openB2BModal();
-                            setIsMobileMenuOpen(false);
-                          }}
-                          className="py-2 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[38px]"
-                        >
-                          <Building2 className="w-3.5 h-3.5" />
-                          <span>School Quote</span>
-                        </button>
-                        
-                        <a
-                          href="tel:+919071199139"
-                          className="py-2 px-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer min-h-[38px]"
-                        >
-                          <Phone className="w-3.5 h-3.5 text-amber-400" />
-                          <span>Call Helpline</span>
-                        </a>
-                      </div>
-
-                      {currentUser && (
-                        <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-                          <span className="truncate max-w-[200px] text-[11px]">
-                            {userProfile?.displayName || currentUser.email}
-                          </span>
-                          <button
-                            onClick={() => {
-                              logout();
-                              setIsMobileMenuOpen(false);
-                            }}
-                            className="text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer text-xs"
-                          >
-                            <LogOut className="w-3.5 h-3.5" />
-                            <span>Sign Out</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-                </>
-              )}
-            </div>
           </div>
         </div>
 
@@ -1354,8 +1002,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => {
               setActiveTab('home');
               setIsMobileShopDrawerOpen(false);
-              setIsMobileMenuOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'home' && !isMobileShopDrawerOpen
@@ -1372,8 +1019,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             id="nav-tab-mobile-shop"
             onClick={() => {
               setIsMobileShopDrawerOpen(!isMobileShopDrawerOpen);
-              setIsMobileMenuOpen(false);
-            }}
+                          }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               isMobileShopDrawerOpen || activeTab === 'store'
                 ? 'bg-amber-600 text-white shadow-xs'
@@ -1391,8 +1037,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => {
               setActiveTab('hackathon');
               setIsMobileShopDrawerOpen(false);
-              setIsMobileMenuOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
               activeTab === 'hackathon' && !isMobileShopDrawerOpen
@@ -1411,8 +1056,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => {
               setActiveTab('quotations');
               setIsMobileShopDrawerOpen(false);
-              setIsMobileMenuOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'quotations' && !isMobileShopDrawerOpen
@@ -1430,8 +1074,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => {
               setActiveTab('courses');
               setIsMobileShopDrawerOpen(false);
-              setIsMobileMenuOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'courses' && !isMobileShopDrawerOpen
@@ -1449,8 +1092,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => {
               setActiveTab('rentals');
               setIsMobileShopDrawerOpen(false);
-              setIsMobileMenuOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'rentals' && !isMobileShopDrawerOpen
@@ -1468,8 +1110,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => {
               setActiveTab('about');
               setIsMobileShopDrawerOpen(false);
-              setIsMobileMenuOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'about' && !isMobileShopDrawerOpen
@@ -1487,8 +1128,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => {
               setActiveTab('contact');
               setIsMobileShopDrawerOpen(false);
-              setIsMobileMenuOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'contact' && !isMobileShopDrawerOpen
@@ -1506,8 +1146,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => {
               setActiveTab('blog');
               setIsMobileShopDrawerOpen(false);
-              setIsMobileMenuOpen(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'blog' && !isMobileShopDrawerOpen
@@ -1519,185 +1158,324 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>BLOG</span>
           </button>
 
-          {/* 3-DOTS BUTTON AT THE END FOR MOBILE VIEWERS TO OPEN SHOP & PRODUCTS */}
-          <button
-            id="btn-mobile-shop-dots"
-            onClick={() => {
-              setIsMobileShopDrawerOpen(true);
-              setIsMobileMenuOpen(false);
-            }}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 border border-amber-600/70 shadow-xs cursor-pointer hover:brightness-105 active:scale-95 transition-all"
-            title="Open Complete Shop & Hardware Products in 3 Dots"
-            aria-label="Shop and Hardware Products in 3 dots"
-          >
-            <MoreHorizontal className="w-4 h-4 text-slate-950 stroke-[2.5]" />
-            <span className="tracking-wide">••• SHOP</span>
-          </button>
         </div>
 
-        {/* MOBILE SHOP & PRODUCTS DRAWER - Clean, Non-Overlapping & Anchored */}
+        {/* MOBILE SHOP DROPDOWN TABLE - Listed in a dropdown table manner matching laptop preview */}
         {isMobileShopDrawerOpen && (
           <>
             {/* Backdrop Overlay */}
             <div 
-              className="fixed inset-0 top-[88px] sm:top-[96px] z-40 bg-slate-950/40 backdrop-blur-xs transition-opacity lg:hidden"
+              className="fixed inset-0 top-[88px] sm:top-[96px] z-40 bg-slate-950/30 backdrop-blur-[1px] transition-opacity lg:hidden"
               onClick={() => setIsMobileShopDrawerOpen(false)}
             />
 
-            {/* Mobile Shop Drawer Container */}
+            {/* Anchored Dropdown Table Panel */}
             <div 
               ref={mobileShopDrawerRef}
-              className="fixed inset-x-0 top-[88px] sm:top-[96px] bottom-0 z-50 bg-white shadow-2xl flex flex-col border-t border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200 lg:hidden overflow-hidden"
-              style={{ maxHeight: 'calc(100vh - 88px)' }}
+              className="absolute left-0 right-0 top-full mt-1.5 mx-2 sm:mx-4 bg-white rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200 p-4 sm:p-5 z-50 animate-in fade-in slide-in-from-top-2 duration-150 overflow-y-auto max-h-[calc(100vh-115px)] lg:hidden"
             >
-              {/* Drawer Top Strip */}
-              <div className="px-3.5 py-2.5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white shrink-0 border-b border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+              {/* Header Strip with Title & Dismiss */}
+              <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-600 border border-amber-500/20">
                     <Package className="w-4 h-4" />
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-extrabold text-xs sm:text-sm tracking-wide text-amber-400 truncate">
-                        BALKI HARDWARE SHOP
-                      </span>
-                      <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded-full border border-amber-400/30 shrink-0">
-                        169 Items
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 block truncate">
-                      Tap any product to view details & procure
+                  <div>
+                    <span className="font-extrabold text-xs sm:text-sm tracking-wide text-slate-900 block leading-tight">
+                      SHOP HARDWARE CATALOG
+                    </span>
+                    <span className="text-[10px] text-slate-500 block leading-none mt-0.5">
+                      Select any category or hardware to explore
                     </span>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsMobileShopDrawerOpen(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0 ml-2"
-                  aria-label="Close Shop Drawer"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  aria-label="Close Shop Menu"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* In-Drawer Search & Category Filter */}
-              <div className="px-3 pt-2.5 pb-2 bg-slate-50 border-b border-slate-200 shrink-0">
-                <div className="relative">
-                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                  <input
-                    type="text"
-                    placeholder="Search Solar, Drones, Arduino, 3D Printers..."
-                    value={mobileShopSearch}
-                    onChange={(e) => setMobileShopSearch(e.target.value)}
-                    className="w-full pl-8 pr-7 py-2 text-xs bg-white text-slate-900 rounded-xl border border-slate-300 focus:border-amber-500 focus:bg-white outline-none"
-                  />
-                  {mobileShopSearch && (
-                    <button
-                      onClick={() => setMobileShopSearch('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Category Pills (Touch Scrollable) */}
-                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2 text-[11px] font-semibold">
-                  {[
-                    { key: 'all', label: `All Products (${SHOP_FEATURED_PRODUCTS.length})` },
-                    { key: 'green-tech', label: 'Green Tech (5)' },
-                    { key: 'robotics', label: 'Robotics (8)' },
-                    { key: 'packages', label: 'ATL Packages (8)' },
-                    { key: 'categories', label: 'Departments (5)' }
-                  ].map(cat => (
-                    <button
-                      key={cat.key}
-                      onClick={() => setMobileShopCategory(cat.key as any)}
-                      className={`shrink-0 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
-                        mobileShopCategory === cat.key
-                          ? 'bg-slate-900 text-amber-400 font-bold shadow-2xs'
-                          : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
-                      }`}
-                    >
-                      {cat.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Scrollable Products List - Zero Overlap Layout */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/40">
-                {filteredMobileShopProducts.length === 0 ? (
-                  <div className="py-12 text-center text-slate-500 text-xs">
-                    No hardware found matching "{mobileShopSearch}".
+              {/* Dropdown Table Layout - 4 Distinct Structured Sections Matching Laptop Styling */}
+              <div className="space-y-4">
+                
+                {/* Table 1: Scientific & Green Tech */}
+                <div className="space-y-2 bg-slate-50/70 p-3 rounded-2xl border border-slate-100/90">
+                  <div className="flex items-center gap-1.5 text-amber-700 font-bold uppercase tracking-wider text-[11px] pb-1.5 border-b border-amber-200/60">
+                    <Compass className="w-3.5 h-3.5" />
+                    <span>Scientific & Green Tech</span>
                   </div>
-                ) : (
-                  filteredMobileShopProducts.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleMobileProductSelect(item)}
-                      className="w-full text-left bg-white hover:bg-amber-50/50 p-2.5 sm:p-3 rounded-xl border border-slate-200/90 hover:border-amber-400 shadow-2xs transition-all flex items-center justify-between gap-3 group cursor-pointer"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                          <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-md ${item.badgeBg} ${item.badgeText}`}>
-                            {item.tag}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            {item.categoryLabel}
-                          </span>
-                        </div>
-                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-amber-700 transition-colors leading-snug truncate">
-                          {item.name}
-                        </h4>
-                        <p className="text-[10px] sm:text-[11px] text-slate-500 line-clamp-1 mt-0.5">
-                          {item.spec}
-                        </p>
-                      </div>
-
-                      <div className="shrink-0 flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 group-hover:bg-amber-100 border border-amber-200/60 px-2 py-1 rounded-lg transition-colors">
-                        <span>View</span>
-                        <ChevronRight className="w-3.5 h-3.5 text-amber-600 group-hover:translate-x-0.5 transition-transform" />
-                      </div>
-                    </button>
-                  ))
-                )}
-              </div>
-
-              {/* Action Footer */}
-              <div className="p-3 bg-white border-t border-slate-200 shrink-0 space-y-2">
-                <button
-                  onClick={() => {
-                    setIsMobileShopDrawerOpen(false);
-                    setActiveTab('quotations');
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
-                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
-                >
-                  <Boxes className="w-3.5 h-3.5" />
-                  <span>View Complete 169-Item ATL Quotations Dossier</span>
-                </button>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => {
-                      setIsMobileShopDrawerOpen(false);
-                      setActiveTab('store');
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold text-center cursor-pointer transition-colors"
-                  >
-                    Full Store Catalog
-                  </button>
-                  <button
-                    onClick={() => {
-                      setIsMobileShopDrawerOpen(false);
-                      setActiveTab('rentals');
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }}
-                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-xl text-xs font-semibold text-center cursor-pointer transition-colors"
-                  >
-                    Equipment Rentals
-                  </button>
+                  <ul className="space-y-1.5 font-normal text-slate-600">
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('physics-lab');
+                        }}
+                        className="w-full text-left hover:text-amber-600 hover:bg-amber-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Solar Tracking System</span>
+                        <span className="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60 shrink-0">LDR Sun-Sync</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('biology-anatomy');
+                        }}
+                        className="w-full text-left hover:text-amber-600 hover:bg-amber-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Smart Soil Irrigation</span>
+                        <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">Moisture Pump</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('sensors');
+                        }}
+                        className="w-full text-left hover:text-amber-600 hover:bg-amber-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Air Quality Analyzer</span>
+                        <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">OLED AQI</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('sensors');
+                        }}
+                        className="w-full text-left hover:text-amber-600 hover:bg-amber-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Smart Automatic Dustbin</span>
+                        <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">Sonar SG90</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('sensors');
+                        }}
+                        className="w-full text-left hover:text-amber-600 hover:bg-amber-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Touchless Sanitizer Kit</span>
+                        <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">IR Mist</span>
+                      </button>
+                    </li>
+                  </ul>
                 </div>
+
+                {/* Table 2: ATL & Problem Solving */}
+                <div className="space-y-2 bg-slate-50/70 p-3 rounded-2xl border border-slate-100/90">
+                  <div className="flex items-center gap-1.5 text-blue-700 font-bold uppercase tracking-wider text-[11px] pb-1.5 border-b border-blue-200/60">
+                    <GraduationCap className="w-3.5 h-3.5" />
+                    <span>ATL & Problem Solving</span>
+                  </div>
+                  <ul className="space-y-1.5 font-normal text-slate-600">
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('atl-packages');
+                        }}
+                        className="w-full text-left hover:text-blue-600 hover:bg-blue-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Maze Solving Robot</span>
+                        <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full shrink-0">Hackathon</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('drone-3d');
+                        }}
+                        className="w-full text-left hover:text-blue-600 hover:bg-blue-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Q250 Quadcopter Drone</span>
+                        <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full shrink-0">DGCA Aligned</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('grade-kits');
+                        }}
+                        className="w-full text-left hover:text-blue-600 hover:bg-blue-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Primary STEM (Classes 3–5)</span>
+                        <span className="text-[10px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50 shrink-0">NEP Foundational</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('grade-kits');
+                        }}
+                        className="w-full text-left hover:text-blue-600 hover:bg-blue-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Middle School Rovers (Classes 6–8)</span>
+                        <span className="text-[10px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50 shrink-0">NEP Middle</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('grade-kits');
+                        }}
+                        className="w-full text-left hover:text-blue-600 hover:bg-blue-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Senior Secondary Mechatronics</span>
+                        <span className="text-[10px] text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/50 shrink-0">Classes 9–12</span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Table 3: Pro-Range Robotics */}
+                <div className="space-y-2 bg-slate-50/70 p-3 rounded-2xl border border-slate-100/90">
+                  <div className="flex items-center gap-1.5 text-emerald-700 font-bold uppercase tracking-wider text-[11px] pb-1.5 border-b border-emerald-200/60">
+                    <Cpu className="w-3.5 h-3.5" />
+                    <span>Pro-Range Robotics</span>
+                  </div>
+                  <ul className="space-y-1.5 font-normal text-slate-600">
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('robotics-mechanics');
+                        }}
+                        className="w-full text-left hover:text-emerald-600 hover:bg-emerald-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Bluetooth Car Control</span>
+                        <span className="text-[10px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">UNO R3</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('robotics-mechanics');
+                        }}
+                        className="w-full text-left hover:text-emerald-600 hover:bg-emerald-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Gesture Controlled Robot</span>
+                        <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 shrink-0">MPU6050</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('robotics-mechanics');
+                        }}
+                        className="w-full text-left hover:text-emerald-600 hover:bg-emerald-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Obstacle Avoiding Rover</span>
+                        <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60 shrink-0">Sonar Radar</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('robotics-mechanics');
+                        }}
+                        className="w-full text-left hover:text-emerald-600 hover:bg-emerald-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Line Follower Robot</span>
+                        <span className="text-[10px] text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200/60 shrink-0">Dual IR</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('robotics-mechanics');
+                        }}
+                        className="w-full text-left hover:text-emerald-600 hover:bg-emerald-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Self Balancing Robot</span>
+                        <span className="text-[10px] text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200/60 shrink-0">PID Balance</span>
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        onClick={() => {
+                          setIsMobileShopDrawerOpen(false);
+                          handleCategoryClick('robotics-mechanics');
+                        }}
+                        className="w-full text-left hover:text-emerald-600 hover:bg-emerald-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
+                      >
+                        <span className="font-semibold text-slate-800 text-xs truncate">Web Controlled Robotic Arm</span>
+                        <span className="text-[10px] text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded-full border border-cyan-200/60 shrink-0">ESP32 WiFi</span>
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+
+                {/* Table 4: Quick Overview Card */}
+                <div className="relative overflow-hidden bg-slate-50 rounded-2xl p-4 border border-slate-200/80 space-y-3 flex flex-col justify-between group">
+                  <img
+                    src="https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80"
+                    alt="Scientific Laboratory Equipment Overview"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    className="absolute inset-0 w-full h-full object-cover opacity-12 mix-blend-multiply pointer-events-none"
+                  />
+                  <div className="relative z-10 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100/60 px-2 py-0.5 rounded-full">
+                      AIM ATL Packages (169 Items)
+                    </span>
+                    <h4 className="font-bold text-slate-900 text-sm">Official Lab Hardware & Quotations</h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      Turnkey Packages A, B, C, D & E approved under NITI Aayog guidelines with 12-month warranty.
+                    </p>
+                  </div>
+
+                  <div className="relative z-10 space-y-2 pt-2 border-t border-slate-200">
+                    <button
+                      onClick={() => {
+                        setIsMobileShopDrawerOpen(false);
+                        setActiveTab('quotations');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black transition-colors text-center cursor-pointer flex items-center justify-center gap-1.5 shadow-2xs"
+                    >
+                      <Boxes className="w-3.5 h-3.5" />
+                      <span>View 169-Item Quotations Dossier</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsMobileShopDrawerOpen(false);
+                        handleCategoryClick('all');
+                      }}
+                      className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors text-center cursor-pointer"
+                    >
+                      View Full Store Catalog
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsMobileShopDrawerOpen(false);
+                        setActiveTab('rentals');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="w-full py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors text-center cursor-pointer"
+                    >
+                      Lab Equipment Rentals
+                    </button>
+                  </div>
+                </div>
+
               </div>
             </div>
           </>
