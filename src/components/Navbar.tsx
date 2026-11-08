@@ -34,7 +34,11 @@ import {
   Boxes,
   Trophy,
   LogOut,
-  User
+  User,
+  MoreHorizontal,
+  Sun,
+  Bot,
+  Zap
 } from 'lucide-react';
 import { CartItem, Product, Course, RentalEquipment, ProductCategory, NavTab } from '../types';
 import { downloadCurriculumGuide } from '../utils/downloadHelpers';
@@ -77,6 +81,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileSearchActive, setIsMobileSearchActive] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileShopDrawerOpen, setIsMobileShopDrawerOpen] = useState(false);
+  const [mobileShopCategory, setMobileShopCategory] = useState<'all' | 'green-tech' | 'robotics' | 'packages' | 'categories'>('all');
+  const [mobileShopSearch, setMobileShopSearch] = useState('');
   const [isShopMenuOpen, setIsShopMenuOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [mobileShopExpanded, setMobileShopExpanded] = useState(false);
@@ -90,6 +97,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const shopMenuRef = useRef<HTMLDivElement>(null);
   const moreMenuRef = useRef<HTMLDivElement>(null);
   const cornerMenuRef = useRef<HTMLDivElement>(null);
+  const mobileShopDrawerRef = useRef<HTMLDivElement>(null);
 
   const totalCartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -108,10 +116,378 @@ export const Navbar: React.FC<NavbarProps> = ({
       if (cornerMenuRef.current && !cornerMenuRef.current.contains(event.target as Node)) {
         setIsMobileMenuOpen(false);
       }
+      if (mobileShopDrawerRef.current && !mobileShopDrawerRef.current.contains(event.target as Node)) {
+        const target = event.target as HTMLElement;
+        if (!target.closest('#btn-mobile-shop-dots') && !target.closest('#btn-corner-menu') && !target.closest('#nav-tab-mobile-shop')) {
+          setIsMobileShopDrawerOpen(false);
+        }
+      }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Complete List of Products & Packages mentioned in the Shop section
+  const SHOP_FEATURED_PRODUCTS = [
+    // 1. Scientific & Green Tech
+    {
+      id: 'solar-tracker',
+      name: 'SRROBOTICS Single Axis Solar Tracking System',
+      tag: 'LDR Sun-Sync',
+      spec: 'Dual LDR Photocell Sun-Tracking with SG90 Micro Servo (100% Hands-On)',
+      category: 'green-tech' as const,
+      categoryLabel: 'Scientific & Green Tech',
+      badgeBg: 'bg-amber-100',
+      badgeText: 'text-amber-800',
+      searchQuery: 'solar tracking',
+      productCategory: 'physics-lab' as ProductCategory
+    },
+    {
+      id: 'soil-irrigation',
+      name: 'Smart Soil Moisture Automatic Irrigation System',
+      tag: 'Moisture Pump',
+      spec: 'Capacitive Soil Probe + 5V Submersible Pump + 5V Relay Module',
+      category: 'green-tech' as const,
+      categoryLabel: 'Scientific & Green Tech',
+      badgeBg: 'bg-emerald-100',
+      badgeText: 'text-emerald-800',
+      searchQuery: 'soil',
+      productCategory: 'biology-anatomy' as ProductCategory
+    },
+    {
+      id: 'aqi-analyzer',
+      name: 'Smart Air Quality & Pollution Analyzer',
+      tag: 'OLED AQI',
+      spec: 'MQ-135 Gas Sensor + DHT11 Temp/Humidity + 0.96" I2C OLED Display',
+      category: 'green-tech' as const,
+      categoryLabel: 'Scientific & Green Tech',
+      badgeBg: 'bg-blue-100',
+      badgeText: 'text-blue-800',
+      searchQuery: 'air quality',
+      productCategory: 'sensors' as ProductCategory
+    },
+    {
+      id: 'auto-dustbin',
+      name: 'Smart Automatic Touchless Dustbin',
+      tag: 'Sonar SG90',
+      spec: 'Ultrasonic HC-SR04 Proximity Sensor + SG90 Servo Actuated Lid',
+      category: 'green-tech' as const,
+      categoryLabel: 'Scientific & Green Tech',
+      badgeBg: 'bg-purple-100',
+      badgeText: 'text-purple-800',
+      searchQuery: 'dustbin',
+      productCategory: 'sensors' as ProductCategory
+    },
+    {
+      id: 'sanitizer-kit',
+      name: 'Touchless IR Sanitizer Dispenser Kit',
+      tag: 'IR Mist',
+      spec: 'Infrared Proximity Module + Transistor Switch + Mini Mist Pump',
+      category: 'green-tech' as const,
+      categoryLabel: 'Scientific & Green Tech',
+      badgeBg: 'bg-teal-100',
+      badgeText: 'text-teal-800',
+      searchQuery: 'sanitizer',
+      productCategory: 'sensors' as ProductCategory
+    },
+
+    // 2. ATL & Robotics
+    {
+      id: 'maze-robot',
+      name: 'Maze Solving Autonomous Robot',
+      tag: 'Hackathon Winner',
+      spec: 'Multi-Sensor Array + Microcontroller + Wall Follow Algorithm',
+      category: 'robotics' as const,
+      categoryLabel: 'ATL & Robotics',
+      badgeBg: 'bg-blue-100',
+      badgeText: 'text-blue-800',
+      searchQuery: 'maze',
+      productCategory: 'atl-packages' as ProductCategory
+    },
+    {
+      id: 'q250-drone',
+      name: 'Q250 Quadcopter Drone Kit (DGCA Aligned)',
+      tag: 'DGCA Aligned',
+      spec: 'Carbon Fiber Frame + 2204 BLDC Motors + SimonK ESCs + Flight Board',
+      category: 'robotics' as const,
+      categoryLabel: 'ATL & Robotics',
+      badgeBg: 'bg-cyan-100',
+      badgeText: 'text-cyan-800',
+      searchQuery: 'drone',
+      productCategory: 'drone-3d' as ProductCategory
+    },
+    {
+      id: 'bluetooth-car',
+      name: 'Bluetooth Smartphone Controlled Car',
+      tag: 'UNO R3 + HC-05',
+      spec: '4WD Chassis + L298N Motor Driver + HC-05 Bluetooth + Android App',
+      category: 'robotics' as const,
+      categoryLabel: 'Pro-Range Robotics',
+      badgeBg: 'bg-indigo-100',
+      badgeText: 'text-indigo-800',
+      searchQuery: 'bluetooth',
+      productCategory: 'robotics-mechanics' as ProductCategory
+    },
+    {
+      id: 'gesture-robot',
+      name: 'Gesture Controlled Smart Robot',
+      tag: 'MPU6050 Gyro',
+      spec: 'Hand Motion Accelerometer Glove + NRF24L01 Wireless Radio Link',
+      category: 'robotics' as const,
+      categoryLabel: 'Pro-Range Robotics',
+      badgeBg: 'bg-emerald-100',
+      badgeText: 'text-emerald-800',
+      searchQuery: 'gesture',
+      productCategory: 'robotics-mechanics' as ProductCategory
+    },
+    {
+      id: 'obstacle-rover',
+      name: 'Obstacle Avoiding Ultrasonic Rover',
+      tag: 'Sonar Radar',
+      spec: 'Ultrasonic HC-SR04 on SG90 Servo Scanning Radar + 4WD Gearbox',
+      category: 'robotics' as const,
+      categoryLabel: 'Pro-Range Robotics',
+      badgeBg: 'bg-amber-100',
+      badgeText: 'text-amber-800',
+      searchQuery: 'obstacle',
+      productCategory: 'robotics-mechanics' as ProductCategory
+    },
+    {
+      id: 'line-follower',
+      name: 'Precision Dual-IR Line Follower Robot',
+      tag: 'Track Sensor',
+      spec: 'High-Speed Optical Comparator Sensors + BO Motors & Rubber Wheels',
+      category: 'robotics' as const,
+      categoryLabel: 'Pro-Range Robotics',
+      badgeBg: 'bg-rose-100',
+      badgeText: 'text-rose-800',
+      searchQuery: 'line follower',
+      productCategory: 'robotics-mechanics' as ProductCategory
+    },
+    {
+      id: 'self-balancing',
+      name: 'Self Balancing Two-Wheel Robot',
+      tag: 'PID Balance',
+      spec: 'Inverted Pendulum 6-Axis Gyro Stabilization + Stepper/DC Drivers',
+      category: 'robotics' as const,
+      categoryLabel: 'Pro-Range Robotics',
+      badgeBg: 'bg-purple-100',
+      badgeText: 'text-purple-800',
+      searchQuery: 'balancing',
+      productCategory: 'robotics-mechanics' as ProductCategory
+    },
+    {
+      id: 'robotic-arm',
+      name: 'Web / WiFi Controlled Robotic Arm',
+      tag: 'ESP32 WiFi',
+      spec: '4-DOF High-Torque Servo Gripper with Live Browser Joystick Dashboard',
+      category: 'robotics' as const,
+      categoryLabel: 'Pro-Range Robotics',
+      badgeBg: 'bg-cyan-100',
+      badgeText: 'text-cyan-800',
+      searchQuery: 'robotic arm',
+      productCategory: 'robotics-mechanics' as ProductCategory
+    },
+
+    // 3. ATL Curriculum & Package Sets
+    {
+      id: 'stem-primary',
+      name: 'Primary STEM Innovation Kits (Classes 3–5)',
+      tag: 'Foundational NEP',
+      spec: 'Paper Circuits, Magnetic Snap Blocks, Creative Maker Tinkering',
+      category: 'packages' as const,
+      categoryLabel: 'Curriculum & Packages',
+      badgeBg: 'bg-blue-100',
+      badgeText: 'text-blue-800',
+      searchQuery: 'grade 3',
+      productCategory: 'grade-kits' as ProductCategory
+    },
+    {
+      id: 'stem-middle',
+      name: 'Middle School Autonomous Rovers (Classes 6–8)',
+      tag: 'Classes 6–8',
+      spec: 'Scratch & Block Coding, Ultrasonic Sensing, Mechanical Assembly',
+      category: 'packages' as const,
+      categoryLabel: 'Curriculum & Packages',
+      badgeBg: 'bg-emerald-100',
+      badgeText: 'text-emerald-800',
+      searchQuery: 'grade 6',
+      productCategory: 'grade-kits' as ProductCategory
+    },
+    {
+      id: 'stem-senior',
+      name: 'Senior Secondary Mechatronics (Classes 9–12)',
+      tag: 'Classes 9–12',
+      spec: 'Embedded C++/Python, ESP32 IoT, Computer Vision & Edge AI',
+      category: 'packages' as const,
+      categoryLabel: 'Curriculum & Packages',
+      badgeBg: 'bg-purple-100',
+      badgeText: 'text-purple-800',
+      searchQuery: 'grade 9',
+      productCategory: 'grade-kits' as ProductCategory
+    },
+    {
+      id: 'pkg-a',
+      name: 'AIM ATL Package A: Electronics, Dev & Sensors (65 Items)',
+      tag: 'NITI Approved',
+      spec: 'Arduino UNO R4 Minima, ESP32, Breadboards, Sensor Suites, Power Units',
+      category: 'packages' as const,
+      categoryLabel: 'Official ATL Packages',
+      badgeBg: 'bg-amber-100',
+      badgeText: 'text-amber-800',
+      searchQuery: 'Package A',
+      productCategory: 'atl-packages' as ProductCategory
+    },
+    {
+      id: 'pkg-b',
+      name: 'AIM ATL Package B: Rapid Prototyping & Tools (35 Items)',
+      tag: 'NITI Approved',
+      spec: 'EV Educational Prototyping Kit, Soldering Stations, Rotary Toolsets',
+      category: 'packages' as const,
+      categoryLabel: 'Official ATL Packages',
+      badgeBg: 'bg-teal-100',
+      badgeText: 'text-teal-800',
+      searchQuery: 'Package B',
+      productCategory: 'atl-packages' as ProductCategory
+    },
+    {
+      id: 'pkg-c',
+      name: 'AIM ATL Package C: Advanced Robotics & IoT (25 Items)',
+      tag: 'NITI Approved',
+      spec: 'Meta Quest 3S VR Headset 128GB, LiteWing Drone Board, Advanced IoT',
+      category: 'packages' as const,
+      categoryLabel: 'Official ATL Packages',
+      badgeBg: 'bg-indigo-100',
+      badgeText: 'text-indigo-800',
+      searchQuery: 'Package C',
+      productCategory: 'atl-packages' as ProductCategory
+    },
+    {
+      id: 'pkg-d',
+      name: 'AIM ATL Package D: 3D Printers & Power Supplies (15 Items)',
+      tag: 'NITI Approved',
+      spec: 'Creality K1C High-Speed 3D Printer, Wanptek WPS305H Bench DC Supply',
+      category: 'packages' as const,
+      categoryLabel: 'Official ATL Packages',
+      badgeBg: 'bg-rose-100',
+      badgeText: 'text-rose-800',
+      searchQuery: 'Package D',
+      productCategory: 'atl-packages' as ProductCategory
+    },
+    {
+      id: 'pkg-e',
+      name: 'AIM ATL Turnkey Package E: Complete 169-Item Turnkey Lab',
+      tag: 'Complete Lab',
+      spec: 'Full 169-Hardware setup with 12-Month Onsite Warranty & Teacher Training',
+      category: 'packages' as const,
+      categoryLabel: 'Official ATL Packages',
+      badgeBg: 'bg-amber-100',
+      badgeText: 'text-amber-800',
+      searchQuery: '169 items',
+      productCategory: 'atl-packages' as ProductCategory
+    },
+
+    // 4. Lab Department Categories
+    {
+      id: 'cat-bio',
+      name: 'Biology & Anatomy 3D Lab Models',
+      tag: 'Medical Grade',
+      spec: 'Human Torso, Heart, Brain, Complete Skeleton & Dissection Sets',
+      category: 'categories' as const,
+      categoryLabel: 'Lab Departments',
+      badgeBg: 'bg-emerald-100',
+      badgeText: 'text-emerald-800',
+      searchQuery: 'biology',
+      productCategory: 'biology-anatomy' as ProductCategory
+    },
+    {
+      id: 'cat-micro',
+      name: 'Microscopes & Precision Optical Benches',
+      tag: 'Precision Optics',
+      spec: 'Monocular & Binocular Medical Microscopes, He-Ne Laser Benches, Prisms',
+      category: 'categories' as const,
+      categoryLabel: 'Lab Departments',
+      badgeBg: 'bg-blue-100',
+      badgeText: 'text-blue-800',
+      searchQuery: 'microscope',
+      productCategory: 'microscopes-optics' as ProductCategory
+    },
+    {
+      id: 'cat-chem',
+      name: 'Chemistry Borosilicate Glassware & Reagent Kits',
+      tag: 'Class-A Borosilicate',
+      spec: 'Beakers, Titration Burettes, Distillation Condensers & Safety Reagents',
+      category: 'categories' as const,
+      categoryLabel: 'Lab Departments',
+      badgeBg: 'bg-purple-100',
+      badgeText: 'text-purple-800',
+      searchQuery: 'chemistry',
+      productCategory: 'chemistry-lab' as ProductCategory
+    },
+    {
+      id: 'cat-phy',
+      name: 'Physics Laboratory Demonstration Apparatus',
+      tag: 'NEP Aligned',
+      spec: 'Ohm’s Law, Wheatstone Bridge, Optical Benches & Resonance Kits',
+      category: 'categories' as const,
+      categoryLabel: 'Lab Departments',
+      badgeBg: 'bg-amber-100',
+      badgeText: 'text-amber-800',
+      searchQuery: 'physics',
+      productCategory: 'physics-lab' as ProductCategory
+    },
+    {
+      id: 'cat-math',
+      name: 'Mathematics Manipulatives & Geometry Labs',
+      tag: 'Hands-On Math',
+      spec: 'Trigonometry Circles, Coordinate Geo-Boards, Algebraic Shape Tiles',
+      category: 'categories' as const,
+      categoryLabel: 'Lab Departments',
+      badgeBg: 'bg-teal-100',
+      badgeText: 'text-teal-800',
+      searchQuery: 'mathematics',
+      productCategory: 'mathematics-lab' as ProductCategory
+    }
+  ];
+
+  // Filtered list of products for the Mobile Shop Drawer
+  const filteredMobileShopProducts = SHOP_FEATURED_PRODUCTS.filter(item => {
+    const matchesCategory = mobileShopCategory === 'all' || item.category === mobileShopCategory;
+    const filterQuery = mobileShopSearch.trim().toLowerCase();
+    const matchesSearch = !filterQuery || 
+      item.name.toLowerCase().includes(filterQuery) ||
+      item.tag.toLowerCase().includes(filterQuery) ||
+      item.spec.toLowerCase().includes(filterQuery) ||
+      item.categoryLabel.toLowerCase().includes(filterQuery);
+    return matchesCategory && matchesSearch;
+  });
+
+  // Action when a product is clicked in the Mobile Shop Drawer
+  const handleMobileProductSelect = (shopItem: typeof SHOP_FEATURED_PRODUCTS[0]) => {
+    setIsMobileShopDrawerOpen(false);
+    setIsMobileMenuOpen(false);
+
+    // Look for a match in products prop
+    const matched = products.find(p => 
+      p.name.toLowerCase().includes(shopItem.searchQuery.toLowerCase()) ||
+      shopItem.name.toLowerCase().includes(p.name.toLowerCase()) ||
+      p.sku.toLowerCase() === shopItem.id.toLowerCase()
+    );
+
+    if (matched && onSelectProduct) {
+      setActiveTab('store');
+      onSelectProduct(matched);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (shopItem.productCategory && onSelectCategory) {
+      setActiveTab('store');
+      onSelectCategory(shopItem.productCategory);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setActiveTab('store');
+      setSearchQuery(shopItem.searchQuery);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   // Filter items based on searchQuery
   const query = searchQuery.trim().toLowerCase();
@@ -588,23 +964,26 @@ export const Navbar: React.FC<NavbarProps> = ({
               )}
             </button>
 
-            {/* Corner 3-Line Menu Trigger & Dedicated Flyout Panel */}
+            {/* Corner 3-Dots Menu Trigger for Shop & Hardware Products */}
             <div className="relative" ref={cornerMenuRef}>
               <button
                 id="btn-corner-menu"
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                onClick={() => {
+                  setIsMobileShopDrawerOpen(!isMobileShopDrawerOpen);
+                  setIsMobileMenuOpen(false);
+                }}
                 className={`min-w-[42px] min-h-[42px] p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-center ${
-                  isMobileMenuOpen
+                  isMobileShopDrawerOpen
                     ? 'bg-slate-900 text-amber-400 border-slate-900 shadow-md ring-2 ring-amber-500/25'
                     : 'bg-slate-100 text-slate-800 hover:bg-slate-200 border-slate-200 hover:border-slate-300'
                 }`}
-                aria-label="Toggle All Sections Menu"
-                title="All Sections & Navigation Menu"
+                aria-label="Toggle Shop & Catalog Explorer"
+                title="Shop Products in 3 Dots"
               >
-                {isMobileMenuOpen ? (
+                {isMobileShopDrawerOpen ? (
                   <X className="w-5 h-5 text-amber-400" />
                 ) : (
-                  <Menu className="w-5 h-5 text-slate-800" />
+                  <MoreHorizontal className="w-5 h-5 text-slate-800" />
                 )}
               </button>
 
@@ -962,6 +1341,366 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             </div>
           </div>
+        )}
+
+        {/* Mobile Horizontal Scrolling Navigation List - Permanently anchored to top of mobile screen */}
+        <div 
+          className="lg:hidden border-t border-slate-200/90 bg-white/95 backdrop-blur-md px-2 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth touch-pan-x select-none"
+          aria-label="Mobile Horizontal Navigation"
+        >
+          {/* HOME */}
+          <button
+            id="nav-mobile-home"
+            onClick={() => {
+              setActiveTab('home');
+              setIsMobileShopDrawerOpen(false);
+              setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'home' && !isMobileShopDrawerOpen
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-700 bg-slate-100/80 hover:bg-slate-200 hover:text-slate-950'
+            }`}
+          >
+            <Home className="w-3.5 h-3.5" />
+            <span>HOME</span>
+          </button>
+
+          {/* SHOP */}
+          <button
+            id="nav-tab-mobile-shop"
+            onClick={() => {
+              setIsMobileShopDrawerOpen(!isMobileShopDrawerOpen);
+              setIsMobileMenuOpen(false);
+            }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              isMobileShopDrawerOpen || activeTab === 'store'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-700 bg-slate-100/80 hover:bg-slate-200 hover:text-slate-950'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5" />
+            <span>SHOP</span>
+            <ChevronDown className={`w-3 h-3 transition-transform ${isMobileShopDrawerOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* ROBOCUP 2027 */}
+          <button
+            id="nav-mobile-hackathon"
+            onClick={() => {
+              setActiveTab('hackathon');
+              setIsMobileShopDrawerOpen(false);
+              setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all cursor-pointer ${
+              activeTab === 'hackathon' && !isMobileShopDrawerOpen
+                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-xs'
+                : 'bg-cyan-50 text-cyan-900 border border-cyan-200'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-500" />
+            <span>ROBOCUP 2027</span>
+            <span className="text-[9px] px-1 py-0.2 bg-amber-400 text-slate-950 rounded-full font-black">₹10K</span>
+          </button>
+
+          {/* 169 QUOTES */}
+          <button
+            id="nav-mobile-quotations"
+            onClick={() => {
+              setActiveTab('quotations');
+              setIsMobileShopDrawerOpen(false);
+              setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'quotations' && !isMobileShopDrawerOpen
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-700 bg-slate-100/80 hover:bg-slate-200'
+            }`}
+          >
+            <Boxes className="w-3.5 h-3.5 text-amber-600" />
+            <span>169 QUOTES</span>
+          </button>
+
+          {/* COURSES */}
+          <button
+            id="nav-mobile-courses"
+            onClick={() => {
+              setActiveTab('courses');
+              setIsMobileShopDrawerOpen(false);
+              setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'courses' && !isMobileShopDrawerOpen
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-700 bg-slate-100/80 hover:bg-slate-200'
+            }`}
+          >
+            <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
+            <span>COURSES</span>
+          </button>
+
+          {/* RENTALS */}
+          <button
+            id="nav-mobile-rentals"
+            onClick={() => {
+              setActiveTab('rentals');
+              setIsMobileShopDrawerOpen(false);
+              setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'rentals' && !isMobileShopDrawerOpen
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-700 bg-slate-100/80 hover:bg-slate-200'
+            }`}
+          >
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <span>RENTALS</span>
+          </button>
+
+          {/* ABOUT */}
+          <button
+            id="nav-mobile-about"
+            onClick={() => {
+              setActiveTab('about');
+              setIsMobileShopDrawerOpen(false);
+              setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'about' && !isMobileShopDrawerOpen
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-700 bg-slate-100/80 hover:bg-slate-200'
+            }`}
+          >
+            <Info className="w-3.5 h-3.5" />
+            <span>ABOUT</span>
+          </button>
+
+          {/* CONTACT */}
+          <button
+            id="nav-mobile-contact"
+            onClick={() => {
+              setActiveTab('contact');
+              setIsMobileShopDrawerOpen(false);
+              setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'contact' && !isMobileShopDrawerOpen
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-amber-800 bg-amber-50 hover:bg-amber-100'
+            }`}
+          >
+            <LifeBuoy className="w-3.5 h-3.5" />
+            <span>CONTACT</span>
+          </button>
+
+          {/* BLOG */}
+          <button
+            id="nav-mobile-blog"
+            onClick={() => {
+              setActiveTab('blog');
+              setIsMobileShopDrawerOpen(false);
+              setIsMobileMenuOpen(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'blog' && !isMobileShopDrawerOpen
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'text-slate-700 bg-slate-100/80 hover:bg-slate-200'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5" />
+            <span>BLOG</span>
+          </button>
+
+          {/* 3-DOTS BUTTON AT THE END FOR MOBILE VIEWERS TO OPEN SHOP & PRODUCTS */}
+          <button
+            id="btn-mobile-shop-dots"
+            onClick={() => {
+              setIsMobileShopDrawerOpen(true);
+              setIsMobileMenuOpen(false);
+            }}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 border border-amber-600/70 shadow-xs cursor-pointer hover:brightness-105 active:scale-95 transition-all"
+            title="Open Complete Shop & Hardware Products in 3 Dots"
+            aria-label="Shop and Hardware Products in 3 dots"
+          >
+            <MoreHorizontal className="w-4 h-4 text-slate-950 stroke-[2.5]" />
+            <span className="tracking-wide">••• SHOP</span>
+          </button>
+        </div>
+
+        {/* MOBILE SHOP & PRODUCTS DRAWER - Clean, Non-Overlapping & Anchored */}
+        {isMobileShopDrawerOpen && (
+          <>
+            {/* Backdrop Overlay */}
+            <div 
+              className="fixed inset-0 top-[88px] sm:top-[96px] z-40 bg-slate-950/40 backdrop-blur-xs transition-opacity lg:hidden"
+              onClick={() => setIsMobileShopDrawerOpen(false)}
+            />
+
+            {/* Mobile Shop Drawer Container */}
+            <div 
+              ref={mobileShopDrawerRef}
+              className="fixed inset-x-0 top-[88px] sm:top-[96px] bottom-0 z-50 bg-white shadow-2xl flex flex-col border-t border-slate-200 animate-in fade-in slide-in-from-top-2 duration-200 lg:hidden overflow-hidden"
+              style={{ maxHeight: 'calc(100vh - 88px)' }}
+            >
+              {/* Drawer Top Strip */}
+              <div className="px-3.5 py-2.5 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 text-white shrink-0 border-b border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+                    <Package className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-extrabold text-xs sm:text-sm tracking-wide text-amber-400 truncate">
+                        BALKI HARDWARE SHOP
+                      </span>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 font-bold px-1.5 py-0.2 rounded-full border border-amber-400/30 shrink-0">
+                        169 Items
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 block truncate">
+                      Tap any product to view details & procure
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsMobileShopDrawerOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer shrink-0 ml-2"
+                  aria-label="Close Shop Drawer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* In-Drawer Search & Category Filter */}
+              <div className="px-3 pt-2.5 pb-2 bg-slate-50 border-b border-slate-200 shrink-0">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Search Solar, Drones, Arduino, 3D Printers..."
+                    value={mobileShopSearch}
+                    onChange={(e) => setMobileShopSearch(e.target.value)}
+                    className="w-full pl-8 pr-7 py-2 text-xs bg-white text-slate-900 rounded-xl border border-slate-300 focus:border-amber-500 focus:bg-white outline-none"
+                  />
+                  {mobileShopSearch && (
+                    <button
+                      onClick={() => setMobileShopSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Category Pills (Touch Scrollable) */}
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2 text-[11px] font-semibold">
+                  {[
+                    { key: 'all', label: `All Products (${SHOP_FEATURED_PRODUCTS.length})` },
+                    { key: 'green-tech', label: 'Green Tech (5)' },
+                    { key: 'robotics', label: 'Robotics (8)' },
+                    { key: 'packages', label: 'ATL Packages (8)' },
+                    { key: 'categories', label: 'Departments (5)' }
+                  ].map(cat => (
+                    <button
+                      key={cat.key}
+                      onClick={() => setMobileShopCategory(cat.key as any)}
+                      className={`shrink-0 px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                        mobileShopCategory === cat.key
+                          ? 'bg-slate-900 text-amber-400 font-bold shadow-2xs'
+                          : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+                      }`}
+                    >
+                      {cat.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Scrollable Products List - Zero Overlap Layout */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/40">
+                {filteredMobileShopProducts.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 text-xs">
+                    No hardware found matching "{mobileShopSearch}".
+                  </div>
+                ) : (
+                  filteredMobileShopProducts.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleMobileProductSelect(item)}
+                      className="w-full text-left bg-white hover:bg-amber-50/50 p-2.5 sm:p-3 rounded-xl border border-slate-200/90 hover:border-amber-400 shadow-2xs transition-all flex items-center justify-between gap-3 group cursor-pointer"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-md ${item.badgeBg} ${item.badgeText}`}>
+                            {item.tag}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">
+                            {item.categoryLabel}
+                          </span>
+                        </div>
+                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm group-hover:text-amber-700 transition-colors leading-snug truncate">
+                          {item.name}
+                        </h4>
+                        <p className="text-[10px] sm:text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                          {item.spec}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 flex items-center gap-1 text-[11px] font-bold text-amber-700 bg-amber-50 group-hover:bg-amber-100 border border-amber-200/60 px-2 py-1 rounded-lg transition-colors">
+                        <span>View</span>
+                        <ChevronRight className="w-3.5 h-3.5 text-amber-600 group-hover:translate-x-0.5 transition-transform" />
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+
+              {/* Action Footer */}
+              <div className="p-3 bg-white border-t border-slate-200 shrink-0 space-y-2">
+                <button
+                  onClick={() => {
+                    setIsMobileShopDrawerOpen(false);
+                    setActiveTab('quotations');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer active:scale-98 transition-all"
+                >
+                  <Boxes className="w-3.5 h-3.5" />
+                  <span>View Complete 169-Item ATL Quotations Dossier</span>
+                </button>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    onClick={() => {
+                      setIsMobileShopDrawerOpen(false);
+                      setActiveTab('store');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold text-center cursor-pointer transition-colors"
+                  >
+                    Full Store Catalog
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsMobileShopDrawerOpen(false);
+                      setActiveTab('rentals');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 rounded-xl text-xs font-semibold text-center cursor-pointer transition-colors"
+                  >
+                    Equipment Rentals
+                  </button>
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
         {/* 3. Primary Navigation Bar - HOME, SHOP (with Mega Menu), BLOG, ABOUT US, CONTACT US, and MORE */}
