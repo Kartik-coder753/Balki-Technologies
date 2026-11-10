@@ -152,7 +152,7 @@ export interface TrackingDetails {
 
 export type PaymentMethod = 'UPI' | 'Card' | 'NetBanking' | 'SchoolPO' | 'Razorpay';
 
-export type OrderApprovalStatus = 'pending_approval' | 'approved' | 'rejected';
+export type OrderApprovalStatus = 'PENDING' | 'pending_approval' | 'approved' | 'rejected' | 'auto_approved';
 
 export interface Order {
   id: string;
@@ -198,7 +198,9 @@ export interface Order {
   rejectionReason?: string;
   razorpayOrderId?: string;
   razorpayPaymentId?: string;
+  razorpaySignature?: string;
   razorpayPaymentLinkId?: string;
+  paidAt?: string;
   courierName?: string;
   trackingNumber: string;
   trackingDetails?: TrackingDetails;
@@ -209,6 +211,7 @@ export interface Order {
 
 export interface OrderRequest {
   requestId: string;
+  id?: string;
   customerId: string;
   customerDetails: {
     name: string;
@@ -217,6 +220,12 @@ export interface OrderRequest {
     schoolName?: string;
     gstin?: string;
     address?: string;
+    shippingAddress?: {
+      street: string;
+      city: string;
+      state: string;
+      pincode: string;
+    };
   };
   requestedProducts: {
     productId: string;
@@ -224,15 +233,39 @@ export interface OrderRequest {
     quantity: number;
     estimatedUnitPrice: number;
   }[];
+  subtotal?: number;
+  taxAmount?: number;
+  finalAmount?: number;
+  currency?: string;
   requestedAmount: number;
   approvalStatus: OrderApprovalStatus;
   rejectionReason?: string | null;
   finalQuotedAmount?: number | null;
   shippingCharges: number;
-  paymentStatus: 'Pending' | 'Paid' | 'PO Approved (Net 30)';
+  paymentStatus: 'NOT_STARTED' | 'Pending' | 'Paid' | 'PO Approved (Net 30)' | 'LINK_GENERATED' | 'Payment Pending';
+  razorpayPaymentLinkId?: string;
+  razorpayPaymentLinkUrl?: string;
+  paymentReference?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface RazorpayOrderResponse {
+  success: boolean;
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  keyId: string;
+  orderId: string;
+}
+
+export interface RazorpayPaymentVerificationPayload {
+  orderId: string;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  razorpaySignature: string;
+}
+
 
 export interface PaymentTransaction {
   transactionId: string;

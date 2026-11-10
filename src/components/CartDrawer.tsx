@@ -219,10 +219,30 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </div>
               )}
               <div className="flex justify-between text-sm font-bold text-slate-900 pt-2 border-t border-slate-200">
-                <span>Total Amount</span>
+                <span>Total Amount (INR)</span>
                 <span className="text-base text-amber-700">₹{finalTotal.toLocaleString('en-IN')}</span>
               </div>
             </div>
+
+            {/* Threshold Order Category Notification */}
+            {finalTotal >= 5000 ? (
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/80 text-[11px] text-amber-900 flex items-start gap-2">
+                <Building className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block text-amber-950">High-Value Lab Order (≥ ₹5,000)</span>
+                  <span className="text-amber-800/90 text-[10px]">
+                    Requires Owner Approval prior to payment. Verification of hardware availability will be conducted.
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200/80 text-[11px] text-emerald-900 flex items-center gap-2">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="text-[10px]">
+                  <strong>Small Order (&lt; ₹5,000)</strong> • Instant Automatic Payment Checkout.
+                </span>
+              </div>
+            )}
 
             {/* Checkout Button */}
             <button
@@ -231,15 +251,19 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 onProceedToCheckout();
                 onClose();
               }}
-              className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all"
+              className={`w-full py-3 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer ${
+                finalTotal >= 5000 
+                  ? 'bg-amber-600 hover:bg-amber-700' 
+                  : 'bg-emerald-600 hover:bg-emerald-700'
+              }`}
             >
-              <span>Proceed to Secure Checkout</span>
+              <span>{finalTotal >= 5000 ? 'Proceed to Request Approval (≥ ₹5,000)' : 'Proceed to Payment Checkout (< ₹5,000)'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
 
             <div className="flex items-center justify-center gap-2 text-[10px] text-slate-400">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>UPI • Credit/Debit Cards • Net Banking • School PO (Net 30)</span>
+              <span>Razorpay Integration Ready • PCI-DSS Certified • Institutional Safe</span>
             </div>
           </div>
         )}

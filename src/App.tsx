@@ -526,6 +526,7 @@ function AppContent() {
         onClose={() => setIsCheckoutOpen(false)}
         cartItems={cartItems}
         couponDiscount={couponDiscount}
+        appliedCoupon={appliedCoupon}
         onOrderPlaced={handleOrderSuccess}
         onTrackOrder={(order) => handleOpenTracking(order)}
       />

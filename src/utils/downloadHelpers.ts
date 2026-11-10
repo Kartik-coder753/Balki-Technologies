@@ -581,3 +581,116 @@ export function downloadRentalAgreement(booking: RentalBooking) {
   triggerFileDownload(html, `Rental_Agreement_${booking.id}.html`, 'text/html;charset=utf-8');
 }
 
+/**
+ * Download Official High-Value Order Approval Request Summary
+ */
+export function downloadOrderRequestSummary(request: any) {
+  const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Balki Technologies - High-Value Order Approval Request ${request.requestId}</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; color: #0f172a; max-width: 800px; margin: 0 auto; padding: 30px 20px; font-size: 13px; }
+    .header { border-bottom: 2px solid #0f172a; padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
+    .brand { font-size: 22px; font-weight: 900; color: #0f172a; }
+    .brand span { color: #d97706; }
+    .invoice-tag { font-size: 16px; font-weight: 800; color: #d97706; text-align: right; }
+    .company-details { font-size: 11px; color: #475569; margin-top: 4px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; background: #f8fafc; padding: 15px; border-radius: 8px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    th { background: #0f172a; color: #fff; padding: 8px; text-align: left; font-size: 11px; font-weight: 700; }
+    td { padding: 8px; border-bottom: 1px solid #e2e8f0; font-size: 12px; }
+    .totals { width: 320px; margin-left: auto; margin-bottom: 30px; }
+    .totals-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; }
+    .grand-total { border-top: 2px solid #0f172a; padding-top: 8px; font-size: 14px; font-weight: 800; color: #b45309; }
+    .footer { border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 11px; color: #64748b; text-align: center; }
+    .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 10px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="brand">BALKI <span>TECHNOLOGIES</span></div>
+      <div class="company-details">
+        Balki Technologies Pvt. Ltd. • Financial District, Hyderabad, Telangana<br>
+        STEM & ATL Lab Engineering Division • Phone: +91-9071199139
+      </div>
+    </div>
+    <div>
+      <div class="invoice-tag">APPROVAL REQUEST</div>
+      <div style="font-size: 12px; color: #475569; text-align: right; margin-top: 4px;">
+        Request ID: <strong>${request.requestId}</strong><br>
+        Date: <strong>${new Date(request.createdAt).toLocaleDateString('en-IN')}</strong><br>
+        Status: <span class="badge" style="background: #fef3c7; color: #92400e;">${request.approvalStatus || 'PENDING'}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <strong style="color: #0f172a;">Client & Institution Details:</strong><br>
+      ${request.customerDetails?.name || 'Educator'}<br>
+      ${request.customerDetails?.schoolName ? `${request.customerDetails.schoolName}<br>` : ''}
+      ${request.customerDetails?.address || 'India'}<br>
+      Phone: ${request.customerDetails?.phone} • Email: ${request.customerDetails?.email}
+    </div>
+    <div>
+      <strong style="color: #0f172a;">Request & Payment State:</strong><br>
+      Category: <strong>High-Value Lab Order (≥ ₹5,000)</strong><br>
+      Approval Status: <strong style="color: #b45309;">${request.approvalStatus || 'PENDING'}</strong><br>
+      Payment Status: <strong style="color: #475569;">${request.paymentStatus || 'NOT_STARTED'}</strong><br>
+      Payment Collected: <strong>₹0 (Zero - Awaiting Approval)</strong>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Requested STEM Hardware / Package</th>
+        <th style="text-align: center;">Qty</th>
+        <th style="text-align: right;">Unit Price (INR)</th>
+        <th style="text-align: right;">Amount (INR)</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${(request.requestedProducts || []).map((item: any) => `
+        <tr>
+          <td><strong>${item.productName || item.name}</strong></td>
+          <td style="text-align: center;">${item.quantity}</td>
+          <td style="text-align: right;">₹${(item.estimatedUnitPrice || item.price || 0).toLocaleString('en-IN')}</td>
+          <td style="text-align: right;">₹${((item.estimatedUnitPrice || item.price || 0) * item.quantity).toLocaleString('en-IN')}</td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div class="totals-row">
+      <span>Subtotal (Excl. Tax):</span>
+      <span>₹${(request.subtotal || 0).toLocaleString('en-IN')}</span>
+    </div>
+    <div class="totals-row">
+      <span>18% GST (Indian Standard):</span>
+      <span>₹${(request.taxAmount || 0).toLocaleString('en-IN')}</span>
+    </div>
+    <div class="totals-row">
+      <span>Insured School Delivery:</span>
+      <span>${request.shippingCharges === 0 ? 'FREE' : `₹${request.shippingCharges}`}</span>
+    </div>
+    <div class="totals-row grand-total">
+      <span>Total Requested Amount:</span>
+      <span>₹${(request.requestedAmount || request.finalAmount || 0).toLocaleString('en-IN')}</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    Notice: Your order request has been successfully submitted. Our team will verify product availability and contact you shortly regarding pricing and payment.<br>
+    Balki Technologies Pvt. Ltd. • Hyderabad Central Hub & Pan-India Distribution
+  </div>
+</body>
+</html>`;
+
+  triggerFileDownload(htmlContent, `Balki_Order_Request_${request.requestId}.html`, 'text/html;charset=utf-8');
+}
+

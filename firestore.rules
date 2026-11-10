@@ -79,8 +79,8 @@ service cloud.firestore {
              data.requestId is string && data.requestId.size() <= 128 &&
              data.customerId == request.auth.uid &&
              data.requestedAmount is number && data.requestedAmount >= 0 &&
-             data.approvalStatus in ['pending_approval', 'approved', 'rejected'] &&
-             data.paymentStatus in ['Pending', 'Paid', 'PO Approved (Net 30)'];
+             data.approvalStatus in ['PENDING', 'pending_approval', 'approved', 'rejected'] &&
+             data.paymentStatus in ['NOT_STARTED', 'Pending', 'Paid', 'PO Approved (Net 30)'];
     }
 
     // Validation for Payment Transaction
@@ -180,7 +180,7 @@ service cloud.firestore {
       );
       allow create: if isSignedIn() && isValidId(requestId) && isValidOrderRequest(incoming()) &&
                    incoming().customerId == request.auth.uid &&
-                   incoming().approvalStatus == 'pending_approval';
+                   incoming().approvalStatus in ['PENDING', 'pending_approval'];
       allow update: if isAdmin() || (
         isSignedIn() &&
         existing().customerId == request.auth.uid &&

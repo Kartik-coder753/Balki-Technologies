@@ -16,7 +16,8 @@ import {
   Check,
   X,
   CreditCard,
-  UserCheck
+  UserCheck,
+  ExternalLink
 } from 'lucide-react';
 import { Order, OrderRequest, PaymentTransaction, OrderStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -510,24 +511,47 @@ export const AdminOrderManager: React.FC = () => {
                     </ul>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-700 flex items-center justify-between">
+                  <div className="mt-4 pt-3 border-t border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <div className="text-[11px] text-slate-400">Total Estimated:</div>
+                      <div className="text-[11px] text-slate-400">
+                        {req.approvalStatus === 'approved' && req.finalQuotedAmount ? 'Approved Final Quotation:' : 'Total Estimated:'}
+                      </div>
                       <div className="text-sm font-bold text-white">
-                        INR {req.requestedAmount?.toLocaleString('en-IN')}
+                        INR {(req.finalQuotedAmount || req.requestedAmount)?.toLocaleString('en-IN')}
                       </div>
                     </div>
 
-                    {req.approvalStatus === 'pending_approval' && (
+                    {(req.approvalStatus === 'pending_approval' || (req.approvalStatus as string) === 'PENDING') && (
                       <button
                         onClick={() => {
                           setApprovingRequestId(req.requestId);
                           setQuotedAmount(Math.round(req.requestedAmount * 0.9)); // default 10% institutional discount
                         }}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition"
+                        className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold transition cursor-pointer"
                       >
                         Review & Quote
                       </button>
+                    )}
+
+                    {req.approvalStatus === 'approved' && (
+                      <div className="flex items-center gap-2">
+                        {req.razorpayPaymentLinkUrl ? (
+                          <a
+                            href={req.razorpayPaymentLinkUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2.5 py-1 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 text-xs font-semibold flex items-center gap-1 transition"
+                          >
+                            <ExternalLink className="w-3 h-3" />
+                            <span>Razorpay Link</span>
+                          </a>
+                        ) : (
+                          <span className="text-[10px] text-amber-400 font-medium">Link Generating...</span>
+                        )}
+                        <span className="text-[10px] px-2 py-0.5 rounded font-mono font-bold bg-slate-800 text-slate-300">
+                          {req.paymentStatus || 'LINK_GENERATED'}
+                        </span>
+                      </div>
                     )}
                   </div>
                 </div>
