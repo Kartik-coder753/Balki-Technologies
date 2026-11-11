@@ -1,0 +1,13 @@
+# Robots.txt for BALKI TECHNOLOGIES
+# Production Domain: https://www.balkitechnologies.com/
+
+User-agent: *
+Allow: /
+Allow: /assets/
+Allow: /products/
+
+# Disallow internal backend API endpoints
+Disallow: /api/
+
+# XML Sitemap Location
+Sitemap: https://www.balkitechnologies.com/sitemap.xml

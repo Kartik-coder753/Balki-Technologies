@@ -294,6 +294,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       onOrderPlaced(data.order);
       setStep('small_order_ready');
 
+      // Automatically launch Razorpay checkout modal so customer is taken directly to payment
+      setTimeout(() => {
+        handleOpenRazorpay(data.order, data.razorpay);
+      }, 100);
+
       try {
         confetti({
           particleCount: 70,
@@ -471,23 +476,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   };
 
   // Launch official Razorpay Checkout SDK
-  const handleOpenRazorpay = async () => {
-    if (!createdOrder) return;
+  const handleOpenRazorpay = async (customOrder?: Order, customRzp?: any) => {
+    const orderToUse = customOrder || createdOrder;
+    if (!orderToUse) return;
     setPaymentProcessingState('opening');
     setPaymentErrorMessage('');
 
     try {
-      let rzpOrderId = razorpayData?.orderId || createdOrder.razorpayOrderId;
-      let rzpKeyId = razorpayData?.keyId;
+      let rzpOrderId = customRzp?.orderId || razorpayData?.orderId || orderToUse.razorpayOrderId;
+      let rzpKeyId = customRzp?.keyId || razorpayData?.keyId;
 
       if (!rzpOrderId || !rzpKeyId) {
         const createRes = await fetch('/api/razorpay/create-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            orderId: createdOrder.id,
-            customerEmail: createdOrder.customerEmail,
-            customerPhone: createdOrder.customerPhone
+            orderId: orderToUse.id,
+            customerEmail: orderToUse.customerEmail,
+            customerPhone: orderToUse.customerPhone
           })
         });
         const createData = await createRes.json();
@@ -503,20 +509,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       if (typeof (window as any).Razorpay === 'function') {
         const options = {
           key: rzpKeyId,
-          amount: Math.round(createdOrder.totalAmount * 100), // paise
+          amount: Math.round(orderToUse.totalAmount * 100), // paise
           currency: 'INR',
           name: 'BALKI Technologies',
-          description: `Order ${createdOrder.id} - ${createdOrder.items.length} STEM Kits`,
-          image: 'https://balki-technologies.vercel.app/logo.png',
+          description: `Order ${orderToUse.id} - ${orderToUse.items?.length || 1} STEM Hardware Items`,
+          image: '/balki-logo.jpg',
           order_id: rzpOrderId,
           prefill: {
-            name: createdOrder.customerName,
-            email: createdOrder.customerEmail,
-            contact: createdOrder.customerPhone
+            name: orderToUse.customerName,
+            email: orderToUse.customerEmail,
+            contact: orderToUse.customerPhone
           },
           notes: {
-            internalOrderId: createdOrder.id,
-            schoolName: createdOrder.schoolName || 'STEM Lab',
+            internalOrderId: orderToUse.id,
+            schoolName: orderToUse.schoolName || 'STEM Lab',
             testMode: 'true'
           },
           theme: {
@@ -525,7 +531,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           handler: async function (response: any) {
             // Receive cryptographic signature from Razorpay Checkout modal
             await verifyPaymentOnBackend({
-              orderId: createdOrder.id,
+              orderId: orderToUse.id,
               razorpay_order_id: response.razorpay_order_id || rzpOrderId,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature
@@ -539,12 +545,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           }
         };
 
-        const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', function (resp: any) {
+        try {
+          const rzp = new (window as any).Razorpay(options);
+          rzp.on('payment.failed', function (resp: any) {
+            setPaymentProcessingState('failed');
+            const desc = resp.error?.description || 'Transaction declined by bank/network. In development test mode, use the Instant Test Payment simulation below or configure live test keys.';
+            setPaymentErrorMessage(desc);
+          });
+          rzp.open();
+        } catch (openErr: any) {
+          console.warn('Razorpay open warning:', openErr);
           setPaymentProcessingState('failed');
-          setPaymentErrorMessage(resp.error?.description || 'Transaction declined by bank/network. Please try again.');
-        });
-        rzp.open();
+          setPaymentErrorMessage(openErr.message || 'Razorpay checkout window could not be opened. You can complete verification using Instant Test Payment below.');
+        }
       } else {
         // Fallback for sandboxes without external script loading: run test mode simulated flow
         await handleSimulateTestPayment();

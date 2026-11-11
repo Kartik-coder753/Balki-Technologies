@@ -1,6 +1,7 @@
 import http from 'http';
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 import { createServer as createViteServer } from 'vite';
@@ -258,6 +259,51 @@ async function startServer() {
       service: 'Balki Technologies STEM Platform API',
       timestamp: new Date().toISOString()
     });
+  });
+
+  // SEO & Web Crawler Endpoints
+  app.get('/sitemap.xml', (req, res) => {
+    const sitemapPublic = path.join(process.cwd(), 'public', 'sitemap.xml');
+    const sitemapDist = path.join(process.cwd(), 'dist', 'sitemap.xml');
+    const target = fs.existsSync(sitemapPublic) ? sitemapPublic : sitemapDist;
+
+    if (fs.existsSync(target)) {
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      return res.sendFile(target);
+    }
+
+    // Direct fallback if files are building
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.balkitechnologies.com/</loc>
+    <lastmod>2026-11-10</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>`);
+  });
+
+  app.get('/robots.txt', (req, res) => {
+    const robotsPublic = path.join(process.cwd(), 'public', 'robots.txt');
+    const robotsDist = path.join(process.cwd(), 'dist', 'robots.txt');
+    const target = fs.existsSync(robotsPublic) ? robotsPublic : robotsDist;
+
+    if (fs.existsSync(target)) {
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+      return res.sendFile(target);
+    }
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.send(`# Robots.txt for BALKI TECHNOLOGIES
+User-agent: *
+Allow: /
+Allow: /assets/
+Allow: /products/
+Disallow: /api/
+
+Sitemap: https://www.balkitechnologies.com/sitemap.xml\n`);
   });
 
   // Official ATL Quotation Packages API
