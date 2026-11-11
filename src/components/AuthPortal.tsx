@@ -18,16 +18,40 @@ import {
   ExternalLink,
   Copy,
   Check,
-  Globe
+  Globe,
+  X
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { parseAuthError } from '../lib/firebase';
 import { BalkiLogo } from './BalkiLogo';
 
-export const AuthPortal: React.FC = () => {
+export interface AuthPortalProps {
+  initialMode?: 'login' | 'register';
+  contextMessage?: string;
+  onClose?: () => void;
+  onSuccess?: () => void;
+  isModal?: boolean;
+  isOpen?: boolean;
+}
+
+export const AuthPortal: React.FC<AuthPortalProps> = ({
+  initialMode = 'login',
+  contextMessage,
+  onClose,
+  onSuccess,
+  isModal = false,
+  isOpen = true
+}) => {
   const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   
+  // Sync mode with prop changes
+  React.useEffect(() => {
+    if (initialMode) {
+      setMode(initialMode);
+    }
+  }, [initialMode, isOpen]);
+
   // Login form state
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -75,6 +99,7 @@ export const AuthPortal: React.FC = () => {
 
     try {
       await signInWithEmail(loginEmail.trim(), loginPassword);
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Login error:', err);
       const parsed = parseAuthError(err);
@@ -112,6 +137,7 @@ export const AuthPortal: React.FC = () => {
         role: regRole,
         phone: regPhone.trim()
       });
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Registration error:', err);
       const parsed = parseAuthError(err);
@@ -131,6 +157,7 @@ export const AuthPortal: React.FC = () => {
 
     try {
       await signInWithGoogle();
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       console.error('Google sign-in error:', err);
       const parsed = parseAuthError(err);
@@ -144,43 +171,46 @@ export const AuthPortal: React.FC = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans">
-      {/* Background Glow Accents */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.06),transparent_50%)] pointer-events-none" />
+  if (isModal && !isOpen) return null;
 
-      {/* Top Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-4 sm:px-6 py-3.5 sm:py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            <BalkiLogo type="full" variant="dark" className="h-8 sm:h-10 w-auto max-w-[160px] sm:max-w-[240px]" />
-            <div className="hidden sm:block">
-              <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider block">
-                Official AIM ATL & NEP 2020 Hardware Partner
-              </span>
-            </div>
+  const cardContent = (
+    <div className="w-full max-w-xl bg-slate-900/95 border border-slate-800 rounded-3xl shadow-2xl p-4 sm:p-8 backdrop-blur-xl relative my-auto">
+      {/* Modal Close Button */}
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full bg-slate-800/80 hover:bg-slate-700 transition-colors z-20 cursor-pointer"
+          aria-label="Close"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Context Message Banner (from protected action access like Checkout or Dashboard) */}
+      {contextMessage && (
+        <div className="mb-5 p-3.5 sm:p-4 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs flex items-start gap-3 shadow-inner animate-in fade-in">
+          <div className="p-1.5 rounded-lg bg-amber-500/25 text-amber-400 shrink-0 mt-0.5">
+            <Lock className="w-4 h-4" />
           </div>
-
-          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
-            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
-            <span className="hidden min-[380px]:inline">Encrypted Client Database</span>
+          <div className="space-y-0.5 flex-1">
+            <span className="font-bold text-amber-300 block text-xs">
+              Account Authentication Required
+            </span>
+            <p className="text-amber-100/90 leading-relaxed text-xs">
+              {contextMessage}
+            </p>
           </div>
         </div>
-      </header>
+      )}
 
-      {/* Main Authentication Card */}
-      <main className="flex-1 flex items-center justify-center p-3 sm:p-6 my-2 sm:my-6">
-        <div className="w-full max-w-xl bg-slate-900/90 border border-slate-800 rounded-3xl shadow-2xl p-4 sm:p-8 backdrop-blur-xl relative">
-          
-          {/* Header Banner */}
-          <div className="text-center space-y-2 mb-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Authorized Client & Institutional Access</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+      {/* Header Banner */}
+      <div className="text-center space-y-2 mb-6">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <span>Authorized Client & Institutional Access</span>
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
               {mode === 'login' ? 'Sign In to Your Account' : 'Register Institutional Client Account'}
             </h1>
             <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
@@ -552,7 +582,64 @@ export const AuthPortal: React.FC = () => {
               <span>NEP 2020 Aligned</span>
             </div>
           </div>
+
+          {/* Return to website link if modal or onClose is provided */}
+          {onClose && (
+            <div className="mt-5 pt-3.5 border-t border-slate-800/60 text-center">
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-xs text-slate-400 hover:text-amber-400 transition-colors font-medium inline-flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>← Continue browsing BALKI TECHNOLOGIES as guest</span>
+              </button>
+            </div>
+          )}
         </div>
+  );
+
+  if (isModal) {
+    return (
+      <div 
+        className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/80 backdrop-blur-md p-3 sm:p-6 flex items-center justify-center animate-in fade-in duration-150"
+        aria-modal="true"
+        role="dialog"
+      >
+        <div className="fixed inset-0 -z-10" onClick={onClose} />
+        {cardContent}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden font-sans">
+      {/* Background Glow Accents */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.06),transparent_50%)] pointer-events-none" />
+
+      {/* Top Header */}
+      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md px-4 sm:px-6 py-3.5 sm:py-4">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <BalkiLogo type="full" variant="dark" className="h-8 sm:h-10 w-auto max-w-[160px] sm:max-w-[240px]" />
+            <div className="hidden sm:block">
+              <span className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider block">
+                Official AIM ATL & NEP 2020 Hardware Partner
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-xs text-slate-400">
+            <ShieldCheck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+            <span className="hidden min-[380px]:inline">Encrypted Client Database</span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Authentication Content */}
+      <main className="flex-1 flex items-center justify-center p-3 sm:p-6 my-2 sm:my-6">
+        {cardContent}
       </main>
 
       {/* Footer */}

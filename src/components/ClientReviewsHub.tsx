@@ -284,9 +284,15 @@ export const ClientReviewsHub: React.FC<ClientReviewsHubProps> = ({
           </button>
         </div>
 
-        <div className="text-xs text-slate-500 font-medium">
-          Logged in as: <span className="font-bold text-slate-800">{userProfile?.displayName || currentUser?.email}</span>
-        </div>
+        {currentUser ? (
+          <div className="text-xs text-slate-500 font-medium">
+            Logged in as: <span className="font-bold text-slate-800">{userProfile?.displayName || currentUser?.email}</span>
+          </div>
+        ) : (
+          <div className="text-xs text-slate-500 font-medium">
+            <span>Verified Reviews from Certified ATL Educators</span>
+          </div>
+        )}
       </div>
 
       {/* Reviews Content */}
@@ -454,21 +460,45 @@ export const ClientReviewsHub: React.FC<ClientReviewsHubProps> = ({
                 </div>
               )}
 
-              <form onSubmit={handleSubmitReview} className="space-y-4 text-xs">
-                {/* Verified User Details Header */}
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-slate-900">
-                      {userProfile?.displayName || currentUser?.displayName || 'Registered Client'}
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      {userProfile?.institution || 'Atal Tinkering Partner'} • {currentUser?.email}
+              {!currentUser ? (
+                <div className="p-5 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-4 text-white">
+                  <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-white text-sm">Need to Login First</h4>
+                    <p className="text-xs text-slate-300">
+                      You must be signed in to submit a client review and rating. Please log in or register your account to continue.
                     </p>
                   </div>
-                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-full">
-                    Authenticated
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModalOpen(false);
+                      const loginBtn = document.getElementById('btn-nav-login') || document.getElementById('nav-mobile-login');
+                      if (loginBtn) loginBtn.click();
+                    }}
+                    className="w-full py-2.5 px-4 bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black rounded-xl text-xs hover:from-amber-600 transition-colors cursor-pointer"
+                  >
+                    Open Login / Registration Portal
+                  </button>
                 </div>
+              ) : (
+                <form onSubmit={handleSubmitReview} className="space-y-4 text-xs">
+                  {/* Verified User Details Header */}
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-slate-900">
+                        {userProfile?.displayName || currentUser?.displayName || 'Registered Client'}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {userProfile?.institution || 'Atal Tinkering Partner'} • {currentUser?.email}
+                      </p>
+                    </div>
+                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold text-[10px] rounded-full">
+                      Authenticated
+                    </span>
+                  </div>
 
                 {/* Review Target Type */}
                 <div className="space-y-1.5">
@@ -616,6 +646,7 @@ export const ClientReviewsHub: React.FC<ClientReviewsHubProps> = ({
                   </button>
                 </div>
               </form>
+              )}
             </div>
           </div>
         </div>

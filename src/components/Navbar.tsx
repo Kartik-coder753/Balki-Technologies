@@ -59,6 +59,7 @@ interface NavbarProps {
   onSelectProduct?: (product: Product) => void;
   onSelectCategory?: (category: ProductCategory) => void;
   onOpenTracking?: () => void;
+  onOpenAuth?: (mode: 'login' | 'register') => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -75,7 +76,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   rentals = [],
   onSelectProduct,
   onSelectCategory,
-  onOpenTracking
+  onOpenTracking,
+  onOpenAuth
 }) => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileSearchActive, setIsMobileSearchActive] = useState(false);
@@ -909,37 +911,66 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
             )}
 
-            {/* Client Dashboard / My Account & Purchases */}
-            <button
-              id="btn-client-dashboard"
-              onClick={() => setActiveTab('dashboard')}
-              className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === 'dashboard'
-                  ? 'bg-amber-600 text-white shadow-xs'
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
-              }`}
-              title="Client Profile, Credentials & Purchase History"
-            >
-              <User className="w-3.5 h-3.5 text-amber-600" />
-              <span className="font-bold">
-                {userProfile?.displayName ? userProfile.displayName.split(' ')[0] : 'My Account'}
-              </span>
-              <span className="hidden md:inline px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-900 font-bold">
-                {userProfile?.hasPurchased ? 'Buyer' : 'Client'}
-              </span>
-            </button>
+            {/* Authenticated: Client Dashboard / My Account & Purchases */}
+            {currentUser ? (
+              <>
+                <button
+                  id="btn-client-dashboard"
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    activeTab === 'dashboard'
+                      ? 'bg-amber-600 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                  title="Client Profile, Credentials & Purchase History"
+                >
+                  <User className="w-3.5 h-3.5 text-amber-600" />
+                  <span className="font-bold">
+                    {userProfile?.displayName ? userProfile.displayName.split(' ')[0] : 'My Account'}
+                  </span>
+                  <span className="hidden md:inline px-1.5 py-0.5 rounded-full text-[10px] bg-amber-500/20 text-amber-900 font-bold">
+                    {userProfile?.hasPurchased ? 'Buyer' : 'Client'}
+                  </span>
+                </button>
 
-            {/* Logout Action */}
-            {currentUser && (
-              <button
-                id="btn-nav-logout"
-                onClick={() => logout()}
-                className="hidden xl:inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer"
-                title="Sign Out"
-              >
-                <LogOut className="w-3.5 h-3.5 shrink-0" />
-                <span>Sign Out</span>
-              </button>
+                {/* Logout Action */}
+                <button
+                  id="btn-nav-logout"
+                  onClick={async () => {
+                    await logout();
+                    setActiveTab('home');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  className="hidden md:inline-flex items-center gap-1 px-2.5 py-2 rounded-xl text-xs font-semibold bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer"
+                  title="Sign Out to Public Homepage"
+                >
+                  <LogOut className="w-3.5 h-3.5 shrink-0" />
+                  <span>Sign Out</span>
+                </button>
+              </>
+            ) : (
+              /* Unauthenticated: Clearly visible Login and Sign Up in top-right header */
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  id="btn-nav-login"
+                  onClick={() => onOpenAuth?.('login')}
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 rounded-xl text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-200 hover:border-slate-300 transition-all cursor-pointer shadow-2xs"
+                  title="Sign In to Your Account"
+                >
+                  <User className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Login</span>
+                </button>
+
+                <button
+                  id="btn-nav-signup"
+                  onClick={() => onOpenAuth?.('register')}
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-black text-slate-950 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 transition-all cursor-pointer shadow-xs shadow-amber-500/25"
+                  title="Create Registered Account"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-slate-950" />
+                  <span>Sign Up</span>
+                </button>
+              </div>
             )}
 
             {/* Shopping Cart Drawer Trigger */}
@@ -1146,7 +1177,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             onClick={() => {
               setActiveTab('blog');
               setIsMobileShopDrawerOpen(false);
-                            window.scrollTo({ top: 0, behavior: 'smooth' });
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }}
             className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'blog' && !isMobileShopDrawerOpen
@@ -1157,6 +1188,65 @@ export const Navbar: React.FC<NavbarProps> = ({
             <BookOpen className="w-3.5 h-3.5" />
             <span>BLOG</span>
           </button>
+
+          {/* AUTH OPTIONS IN MOBILE MENU */}
+          {!currentUser ? (
+            <>
+              <button
+                id="nav-mobile-login"
+                onClick={() => {
+                  setIsMobileShopDrawerOpen(false);
+                  onOpenAuth?.('login');
+                }}
+                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5 text-amber-600" />
+                <span>LOGIN</span>
+              </button>
+              <button
+                id="nav-mobile-signup"
+                onClick={() => {
+                  setIsMobileShopDrawerOpen(false);
+                  onOpenAuth?.('register');
+                }}
+                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-black text-slate-950 bg-gradient-to-r from-amber-500 to-amber-600 shadow-xs transition-all cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>SIGN UP</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                id="nav-mobile-account"
+                onClick={() => {
+                  setActiveTab('dashboard');
+                  setIsMobileShopDrawerOpen(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className={`shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  activeTab === 'dashboard'
+                    ? 'bg-amber-600 text-white shadow-xs'
+                    : 'text-slate-700 bg-slate-100/80 hover:bg-slate-200'
+                }`}
+              >
+                <User className="w-3.5 h-3.5 text-amber-600" />
+                <span>ACCOUNT</span>
+              </button>
+              <button
+                id="nav-mobile-signout"
+                onClick={async () => {
+                  await logout();
+                  setActiveTab('home');
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200/60 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>SIGN OUT</span>
+              </button>
+            </>
+          )}
 
         </div>
 
@@ -2063,22 +2153,36 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span className="text-[10px] tracking-tight mt-0.5">Cart</span>
         </button>
 
-        {/* Client Dashboard / Profile */}
+        {/* Client Dashboard / Profile / Login */}
         <button
           onClick={() => {
-            setActiveTab('dashboard');
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (currentUser) {
+              setActiveTab('dashboard');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else {
+              onOpenAuth?.('login');
+            }
           }}
           className={`flex flex-col items-center justify-center h-full transition-colors cursor-pointer ${
             activeTab === 'dashboard' ? 'text-amber-600 font-bold' : 'text-slate-500 hover:text-slate-900'
           }`}
         >
           <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-            activeTab === 'dashboard' ? 'bg-amber-600 text-white' : 'bg-slate-200 text-slate-700'
+            activeTab === 'dashboard'
+              ? 'bg-amber-600 text-white'
+              : currentUser
+                ? 'bg-slate-200 text-slate-700'
+                : 'bg-amber-100 text-amber-800'
           }`}>
-            {(userProfile?.displayName || currentUser?.email || 'U').charAt(0).toUpperCase()}
+            {currentUser ? (
+              (userProfile?.displayName || currentUser?.email || 'U').charAt(0).toUpperCase()
+            ) : (
+              <User className="w-3 h-3 text-amber-700" />
+            )}
           </div>
-          <span className="text-[10px] tracking-tight mt-0.5 truncate max-w-[50px]">Account</span>
+          <span className="text-[10px] tracking-tight mt-0.5 truncate max-w-[50px]">
+            {currentUser ? 'Account' : 'Login'}
+          </span>
         </button>
       </div>
     </nav>

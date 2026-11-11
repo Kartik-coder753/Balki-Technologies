@@ -22,7 +22,8 @@ import {
   ExternalLink,
   ChevronRight,
   Sparkles,
-  FileText
+  FileText,
+  Lock
 } from 'lucide-react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError } from '../lib/firebase';
@@ -38,6 +39,7 @@ interface ClientDashboardProps {
   userProgress: UserProgress;
   setActiveTab: (tab: NavTab) => void;
   onTrackOrder?: (order: Order) => void;
+  onOpenAuth?: (mode: 'login' | 'register') => void;
 }
 
 export const ClientDashboard: React.FC<ClientDashboardProps> = ({
@@ -46,7 +48,8 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   courses,
   userProgress,
   setActiveTab,
-  onTrackOrder
+  onTrackOrder,
+  onOpenAuth
 }) => {
   const { currentUser, userProfile, updateProfileData } = useAuth();
   const isAdmin = currentUser?.email?.toLowerCase() === 'kartikks1205@gmail.com' || userProfile?.role === 'Admin';
@@ -170,6 +173,93 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const registrationDate = userProfile?.createdAt 
     ? new Date(userProfile.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     : 'Active';
+
+  // PROTECTED ACCESS GUARD: If visitor is not authenticated, show professional login-required message
+  if (!currentUser) {
+    return (
+      <div className="max-w-3xl mx-auto py-10 px-3 sm:px-6 animate-in fade-in duration-200">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl text-center space-y-6 relative overflow-hidden">
+          <div className="absolute top-0 right-1/4 w-72 h-72 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto shadow-inner">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2 max-w-lg mx-auto">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>Protected Client Portal</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Sign In to Access Your Client Dashboard
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+              Create an account or log in to continue. Join BALKI TECHNOLOGIES to manage your orders, access your account and enjoy a seamless shopping experience.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => onOpenAuth?.('login')}
+              className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black rounded-xl text-xs sm:text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
+            >
+              <User className="w-4 h-4" />
+              <span>Log In to Your Account</span>
+            </button>
+            <button
+              onClick={() => onOpenAuth?.('register')}
+              className="w-full sm:w-auto px-6 py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all border border-slate-700 cursor-pointer flex items-center justify-center gap-2"
+            >
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span>Create New Client Account</span>
+            </button>
+          </div>
+
+          {/* Key Benefits of Client Account */}
+          <div className="pt-8 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-3 gap-3.5 text-left text-xs">
+            <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 space-y-1">
+              <div className="flex items-center gap-2 text-amber-400 font-bold">
+                <Truck className="w-4 h-4" />
+                <span>Live Consignments</span>
+              </div>
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                Live delivery milestones, carrier OTP verification, and GPS logistics updates.
+              </p>
+            </div>
+
+            <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 space-y-1">
+              <div className="flex items-center gap-2 text-blue-400 font-bold">
+                <FileText className="w-4 h-4" />
+                <span>GST Tax Invoices</span>
+              </div>
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                Download formal GST invoices, Net-30 purchase orders, and official receipts.
+              </p>
+            </div>
+
+            <div className="bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80 space-y-1">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                <Award className="w-4 h-4" />
+                <span>Tinkering Passport</span>
+              </div>
+              <p className="text-slate-400 text-[11px] leading-relaxed">
+                Accumulate STEM lab hours, download certificates, and record faculty training.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 text-center">
+            <button
+              onClick={() => setActiveTab('home')}
+              className="text-xs text-slate-400 hover:text-white transition-colors cursor-pointer"
+            >
+              ← Back to Homepage
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-12 sm:pb-16 px-3 sm:px-6">

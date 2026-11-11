@@ -72,6 +72,36 @@ function AppContent() {
   const [isTrackingOpen, setIsTrackingOpen] = useState(false);
   const [trackingTargetId, setTrackingTargetId] = useState('');
 
+  // Authentication Modal & Protected Flow State
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'login' | 'register'>('login');
+  const [authContextMessage, setAuthContextMessage] = useState<string | undefined>(undefined);
+  const [pendingPostAuthAction, setPendingPostAuthAction] = useState<(() => void) | null>(null);
+
+  const handleOpenAuth = (
+    mode: 'login' | 'register' = 'login', 
+    message?: string, 
+    onAfterAuth?: () => void
+  ) => {
+    setAuthModalMode(mode);
+    setAuthContextMessage(message);
+    if (onAfterAuth) {
+      setPendingPostAuthAction(() => onAfterAuth);
+    } else {
+      setPendingPostAuthAction(null);
+    }
+    setIsAuthModalOpen(true);
+  };
+
+  const handleAuthSuccess = () => {
+    setIsAuthModalOpen(false);
+    if (pendingPostAuthAction) {
+      const action = pendingPostAuthAction;
+      setPendingPostAuthAction(null);
+      action();
+    }
+  };
+
   // Sync userProgress with authenticated client profile dynamically
   useEffect(() => {
     if (userProfile || currentUser) {
@@ -116,7 +146,52 @@ function AppContent() {
     }
   }, [currentUser]);
 
+  const handleSelectTab = (tab: NavTab) => {
+    if (currentUser) {
+      setActiveTab(tab);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Protected sections that require login first
+    if (tab === 'dashboard') {
+      handleOpenAuth(
+        'login',
+        'Need to login first to access the Client Dashboard. Create an account or log in to manage your orders and credentials.',
+        () => {
+          setActiveTab('dashboard');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      );
+      return;
+    }
+
+    if (tab === 'inventory') {
+      handleOpenAuth(
+        'login',
+        'Need to login first to access the Inventory Lab Portal. Please sign in or create an account to manage institutional equipment.',
+        () => {
+          setActiveTab('inventory');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      );
+      return;
+    }
+
+    setActiveTab(tab);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleOpenTracking = (orderOrId?: Order | string) => {
+    if (!currentUser && !orderOrId) {
+      handleOpenAuth(
+        'login',
+        'Need to login first to access your personal order tracking and consignment history. Create an account or log in to continue.',
+        () => setIsTrackingOpen(true)
+      );
+      return;
+    }
+
     if (typeof orderOrId === 'string') {
       setTrackingTargetId(orderOrId);
     } else if (orderOrId && typeof orderOrId === 'object') {
@@ -184,7 +259,16 @@ function AppContent() {
       return [...prev, { product, quantity }];
     });
     setIsCartOpen(false);
-    setIsCheckoutOpen(true);
+
+    if (!currentUser) {
+      handleOpenAuth(
+        'login',
+        "Create an account or log in to continue. Join BALKI TECHNOLOGIES to manage your orders, access your account and enjoy a seamless shopping experience.",
+        () => setIsCheckoutOpen(true)
+      );
+    } else {
+      setIsCheckoutOpen(true);
+    }
   };
 
   const handleApplyCoupon = (code: string): boolean => {
@@ -336,17 +420,12 @@ function AppContent() {
     );
   }
 
-  // MANDATORY LOGIN WALL: If not signed in, show AuthPortal
-  if (!currentUser) {
-    return <AuthPortal />;
-  }
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-amber-500 selection:text-white overflow-x-hidden">
       {/* Global Navigation Bar */}
       <Navbar
         activeTab={activeTab}
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSelectTab}
         cartItems={cartItems}
         setIsCartOpen={setIsCartOpen}
         searchQuery={searchQuery}
@@ -362,6 +441,7 @@ function AppContent() {
           setActiveTab('store');
         }}
         onOpenTracking={() => handleOpenTracking()}
+        onOpenAuth={handleOpenAuth}
       />
 
       {/* Main Routed Content */}
@@ -481,6 +561,7 @@ function AppContent() {
             userProgress={userProgress}
             setActiveTab={setActiveTab}
             onTrackOrder={(order) => handleOpenTracking(order)}
+            onOpenAuth={handleOpenAuth}
           />
         )}
 
@@ -501,7 +582,7 @@ function AppContent() {
 
       {/* Global Footer */}
       <Footer
-        setActiveTab={setActiveTab}
+        setActiveTab={handleSelectTab}
         openB2BModal={() => setIsB2BOpen(true)}
       />
 
@@ -513,8 +594,19 @@ function AppContent() {
         onUpdateQuantity={handleUpdateQuantity}
         onRemoveItem={handleRemoveItem}
         onProceedToCheckout={() => {
-          setIsCartOpen(false);
-          setIsCheckoutOpen(true);
+          if (!currentUser) {
+            handleOpenAuth(
+              'login',
+              "Create an account or log in to continue. Join BALKI TECHNOLOGIES to manage your orders, access your account and enjoy a seamless shopping experience.",
+              () => {
+                setIsCartOpen(false);
+                setIsCheckoutOpen(true);
+              }
+            );
+          } else {
+            setIsCartOpen(false);
+            setIsCheckoutOpen(true);
+          }
         }}
         couponDiscount={couponDiscount}
         appliedCoupon={appliedCoupon}
@@ -551,6 +643,16 @@ function AppContent() {
         onOrderUpdated={(updated) => {
           setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
         }}
+      />
+
+      {/* Authentication Modal Popup for Login & Registration */}
+      <AuthPortal
+        isModal={true}
+        isOpen={isAuthModalOpen}
+        initialMode={authModalMode}
+        contextMessage={authContextMessage}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
       />
     </div>
   );
