@@ -78,12 +78,12 @@ export const HACKATHON_METADATA = {
     {
       place: '1st Place Champion',
       cash: '₹10,000 Cash Prize',
-      hardware: 'Balki Q250 Quadcopter Drone Kit',
+      hardware: 'Balki Autonomous AI Smart Rover Kit',
       badge: 'NATIONAL CHAMPION · 1ST PRIZE',
-      perks: '₹10,000 Direct Cash Transfer + Complete Balki Q250 DIY Drone Flight Kit + Official National Gold Champion Trophy & Accreditation.',
+      perks: '₹10,000 Direct Cash Transfer + Complete Balki Autonomous AI Smart Rover Kit + Official National Gold Champion Trophy & Accreditation.',
       detailedBenefits: [
         'Direct cash award of ₹10,000 to the winning student or duo team',
-        'Balki Q250 DIY Quadcopter Drone Kit with flight controller, brushless motors & ESCs',
+        'Balki Autonomous AI Smart Rover Kit with motor drivers, LiDAR sensors & ESP32 controller',
         'National Champion Trophy & Certificates recognized across India',
         'Spotlight interview featured on Balki Technologies National STEM Network'
       ],
@@ -219,7 +219,7 @@ export const HACKATHON_DOCUMENTS: HackathonDoc[] = [
     filename: 'RoboCup_Hackathon_2027_Official_Brochure.pdf',
     size: '986 KB PDF',
     badge: 'Updated Official Brochure',
-    description: 'Updated 8-page official brochure: "Build it. Code it. Win it!", eligibility (Grades 8-12), ₹10,000 + drone kit, early bird pricing ending 25 Nov 2026, 5-stop roadmap, and Balki founder mentorship.',
+    description: 'Updated 8-page official brochure: "Build it. Code it. Win it!", eligibility (Grades 8-12), ₹10,000 + robotics kit, early bird pricing ending 25 Nov 2026, 5-stop roadmap, and Balki founder mentorship.',
     path: '/hackathon/RoboCup_Hackathon_2027_Official_Brochure.pdf'
   },
   {
@@ -774,7 +774,7 @@ export const HACKATHON_TIMELINE: HackathonTimelineStep[] = [
   {
     date: '16th – 17th Jan 2027',
     title: 'Grand Awards & Winner Declaration',
-    subtitle: 'National ceremony stream. Winners announced! ₹10,000 cash prize, drone kits, R&D internships, and founder mentorships awarded.',
+    subtitle: 'National ceremony stream. Winners announced! ₹10,000 cash prize, robotics hardware kits, R&D internships, and founder mentorships awarded.',
     iconName: 'Award',
     status: 'upcoming'
   }

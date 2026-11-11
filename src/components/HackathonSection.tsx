@@ -126,8 +126,8 @@ export const HackathonSection: React.FC<HackathonSectionProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-slate-800/80">
             <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-sm">
               <div className="text-xs text-slate-400 font-medium">Champion Cash</div>
-              <div className="text-lg sm:text-xl font-black text-amber-400">₹10,000 + Drone</div>
-              <div className="text-[11px] text-slate-400">Q250 Quadcopter Kit</div>
+              <div className="text-lg sm:text-xl font-black text-amber-400">₹10,000 + Rover</div>
+              <div className="text-[11px] text-slate-400">Autonomous AI Rover Kit</div>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 backdrop-blur-sm">
@@ -322,7 +322,7 @@ export const HackathonSection: React.FC<HackathonSectionProps> = ({
                 </div>
                 <h3 className="font-bold text-slate-900 text-base">Execute & Win Prizes</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Deploy your robot across the 3 official tasks on the 2400x1200mm mat. Compete for ₹10,000 cash, drones, internships & keep your kit!
+                  Deploy your robot across the 3 official tasks on the 2400x1200mm mat. Compete for ₹10,000 cash, robotics hardware, internships & keep your kit!
                 </p>
               </div>
             </div>
@@ -339,7 +339,7 @@ export const HackathonSection: React.FC<HackathonSectionProps> = ({
                 Grand 1st Prize, Founder Mentorship & R&D Internships
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                Beyond certificates: a national platform designed to accelerate student engineering careers through real cash rewards, industrial UAV hardware, direct founder incubation, and verified R&D laboratory internships.
+                Beyond certificates: a national platform designed to accelerate student engineering careers through real cash rewards, industrial autonomous robotics hardware, direct founder incubation, and verified R&D laboratory internships.
               </p>
             </div>
 
@@ -361,12 +361,12 @@ export const HackathonSection: React.FC<HackathonSectionProps> = ({
                     <div className="text-3xl sm:text-4xl font-black text-white tracking-tight">₹10,000</div>
                     <div className="text-sm font-black text-amber-400 mt-1 flex items-center gap-1.5">
                       <Sparkles className="w-4 h-4" />
-                      <span>+ Balki Q250 DIY Quadcopter Drone Kit</span>
+                      <span>+ Balki Autonomous AI Smart Rover Kit</span>
                     </div>
                   </div>
 
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    The highest national honor. Complete cash award combined with an advanced quadcopter avionics kit and national gold trophy.
+                    The highest national honor. Complete cash award combined with an advanced autonomous mobile robotics kit and national gold trophy.
                   </p>
 
                   <div className="space-y-2 pt-3 border-t border-slate-800">
@@ -380,7 +380,7 @@ export const HackathonSection: React.FC<HackathonSectionProps> = ({
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
-                        <span><strong>Balki Q250 DIY Drone Kit</strong> with flight controller, brushless motors & ESCs</span>
+                        <span><strong>Balki Autonomous AI Smart Rover Kit</strong> with motor drivers, LiDAR sensors & ESP32 controller</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <CheckCircle2 className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />

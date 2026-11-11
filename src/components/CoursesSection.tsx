@@ -67,7 +67,7 @@ export const CoursesSection: React.FC<CoursesSectionProps> = ({
             Grade-Progressive Interactive Course Modules
           </h1>
           <p className="text-sm md:text-base text-amber-50 leading-relaxed">
-            Hands-on learning tailored to every stage of Indian schooling (Classes 3–12). Master circuits, obstacle-avoiding rovers, IoT telemetry, and autonomous drones with our built-in virtual circuit simulators, live quizzes, and verifiable certificates.
+            Hands-on learning tailored to every stage of Indian schooling (Classes 3–12). Master circuits, obstacle-avoiding rovers, IoT telemetry, and autonomous robotics with our built-in virtual circuit simulators, live quizzes, and verifiable certificates.
           </p>
           <div className="pt-2 flex flex-wrap items-center gap-4 sm:gap-6 text-xs text-amber-100 font-medium">
             <span>✓ Aligned with Atal Tinkering Labs (AIM)</span>

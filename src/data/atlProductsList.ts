@@ -31,7 +31,7 @@ export const ATL_PRODUCTS: Product[] = [
     ],
     whatsInBox: [
       'Package A: 111 Items (Microcontrollers, Sensors, Displays, Power Supplies, Wires)',
-      'Package B: 29 Items (Motors, Motor Drivers, Chassis, Wheels, Relays, Drones, EV Kit)',
+      'Package B: 29 Items (Motors, Motor Drivers, Chassis, Wheels, Relays, EV Kit, Autonomous Rover)',
       'Package C: 7 Items (Raspberry Pi 5 8GB, Meta Quest 3S VR, TinyML Kit, ESP32-CAMs)',
       'Package D: 22 Items (Creality K1C 3D Printer, Artis UPS, 3D Pens, Filaments, Tools)'
     ],
@@ -93,19 +93,19 @@ export const ATL_PRODUCTS: Product[] = [
       'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1200&q=80',
       '/src/assets/images/robotics_automation_kit_1792018814223.jpg'
     ],
-    shortDesc: 'Comprehensive 29-item robotics hardware suite: NEMA17 steppers, BO geared motors, chassis, drone & EV kits.',
-    description: 'Powers school robotics programs with 20x NEMA17 Stepper Motors (JK42HS48) with A4988 drivers, 72x BO geared motors, 10x aluminum 2WD robot chassis, LiteWing ESP32 programmable drone kit, WitBlox AI Robotics kit, Mechanix steel modular kit, and an educational Electric Vehicle (EV) kit.',
+    shortDesc: 'Comprehensive 29-item robotics hardware suite: NEMA17 steppers, BO geared motors, chassis, autonomous rovers & EV kits.',
+    description: 'Powers school robotics programs with 20x NEMA17 Stepper Motors (JK42HS48) with A4988 drivers, 72x BO geared motors, 10x aluminum 2WD robot chassis, Balki Smart 4WD Autonomous Navigation Kit, WitBlox AI Robotics kit, Mechanix steel modular kit, and an educational Electric Vehicle (EV) kit.',
     features: [
       '29 High-grade mechanical & electromechanical line items',
       'Sub-total: ₹1,00,951.25 | GST @ 18%: ₹18,171.23 | Grand Total: ₹1,19,122.00',
-      'Covers mobile rovers, automated conveyor systems, aerial drones, and EV physics',
+      'Covers mobile rovers, automated conveyor systems, industrial automation, and EV physics',
       '12-Month replacement warranty on non-consumable robotics kits'
     ],
     whatsInBox: [
       '20x JK42HS48 NEMA17 Stepper Motors with A4988 Drivers',
       '72x BO Geared Motors & 20x 65mm High-Grip Robot Wheels',
       '10x Red 2WD Aluminum Smart Robot Car Chassis Kits',
-      '1x LiteWing ESP32 Drone Kit + 1x WitBlox AI Kit + 1x EV Prototyping Kit'
+      '1x Autonomous 4WD Smart Rover Kit + 1x WitBlox AI Kit + 1x EV Prototyping Kit'
     ],
     nepAligned: true,
     atlCertified: true,
@@ -440,7 +440,7 @@ export const ATL_PRODUCTS: Product[] = [
     warrantyMonths: 12
   },
 
-  // --- 5. 3D PRINTING & DRONES ('drone-3d') ---
+  // --- 5. 3D PRINTING & FABRICATION ('drone-3d') ---
   {
     id: 'mat-prod-148',
     name: 'Creality K1C High-Speed 3D Printer (Item 148, Package D)',
@@ -487,22 +487,22 @@ export const ATL_PRODUCTS: Product[] = [
   },
   {
     id: 'mat-prod-134',
-    name: 'LiteWing - ESP32 based Programmable Drone Development Board (Item 134, Package B)',
-    category: 'drone-3d',
+    name: 'Balki Smart 4WD Autonomous Navigation & Obstacle Avoidance Kit (Item 134, Package B)',
+    category: 'robotics-mechanics',
     gradeLevel: 'Class 9-10',
     price: 4113,
     originalPrice: 5500,
-    rating: 4.91,
+    rating: 4.95,
     reviewsCount: 78,
     stock: 45,
     minStockAlert: 6,
-    sku: 'BALKI-ATL-B23-LITEWING',
+    sku: 'BALKI-ATL-B23-AUTOROBOT',
     warehouseLocation: 'Bengaluru Depot',
-    image: '/products/litewing_esp32_drone.png',
-    shortDesc: 'ESP32 programmable micro-drone flight controller board with built-in Wi-Fi telemetry and battery.',
-    description: 'An open-source aerial robotics teaching platform. Students program PID stabilization, optical altitude hold, and autonomous maneuvers in C++ Arduino IDE or Python, controlling the drone via smartphone Wi-Fi app.',
-    features: ['Onboard ESP32 dual-core flight computer with 6-DOF IMU sensor', 'Directly programmable via Arduino IDE with pre-tuned flight algorithms', 'Smartphone Wi-Fi companion app for virtual joystick control', 'High-discharge 1S LiPo battery with USB charging protection'],
-    whatsInBox: ['1x LiteWing ESP32 Drone Flight Controller Core', '4x Coreless High-Speed Micro Motors & Propellers', '1x Rechargeable LiPo Battery with USB Charger'],
+    image: '/src/assets/images/robotics_automation_kit_1792018814223.jpg',
+    shortDesc: 'ESP32 programmable 4WD smart rover robot with ultrasonic obstacle avoidance, line tracking, and Wi-Fi telemetry.',
+    description: 'A modular autonomous ground robotics development platform. Students program PID trajectory stabilization, ultrasonic navigation, and obstacle avoidance maneuvers in C++ Arduino IDE or Python, controlling the robot via smartphone Wi-Fi app.',
+    features: ['Onboard ESP32 dual-core robotics controller with IMU balance sensor', 'Directly programmable via Arduino IDE with pre-tuned motor control algorithms', 'Smartphone Wi-Fi companion app for virtual telemetry & steering', 'Rechargeable Li-Ion battery pack with USB charging protection'],
+    whatsInBox: ['1x 4WD Aluminum Robot Chassis with High-Torque Geared Motors', '1x ESP32 Dual-Core Robotics Motherboard', '1x Ultrasonic Distance Radar & 8-Ch Line Follower Array', '1x Rechargeable Battery Pack with Charger'],
     nepAligned: true,
     atlCertified: true,
     warrantyMonths: 12
@@ -825,8 +825,8 @@ export const ATL_PRODUCTS: Product[] = [
   },
   {
     id: 'test-item-5500',
-    name: 'Autonomous Flight Controller & Avionics Station (₹5,500 High-Value Order)',
-    category: 'drone-3d',
+    name: 'Autonomous Robotics Navigation & Lidar Station (₹5,500 High-Value Order)',
+    category: 'robotics-mechanics',
     gradeLevel: 'Class 11-12',
     price: 4661.02,
     originalPrice: 6500,
@@ -836,11 +836,11 @@ export const ATL_PRODUCTS: Product[] = [
     minStockAlert: 3,
     sku: 'BALKI-TEST-5500',
     warehouseLocation: 'Hyderabad Central Logistics Hub',
-    image: 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=800&q=80',
+    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
     shortDesc: 'Calibrated benchmark product resulting in exactly ₹5,500.00 order total with 18% GST and free insured shipping.',
     description: 'Precision test bundle for verifying Large Order approval workflow above threshold (₹5,500).',
     features: ['Evaluates to exact ₹5,500.00 final amount', 'Requires owner approval with zero payment collected', 'Displays confirmation screen with team review notification'],
-    whatsInBox: ['1x Flight avionics controller', '1x GPS compass module', '1x Telemetry transceiver'],
+    whatsInBox: ['1x Autonomous robotic controller', '1x 2D Lidar navigation sensor', '1x Telemetry transceiver'],
     nepAligned: true,
     atlCertified: true,
     warrantyMonths: 12

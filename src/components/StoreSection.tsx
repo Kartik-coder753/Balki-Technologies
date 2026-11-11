@@ -86,7 +86,7 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
     { id: 'microcontrollers', label: `Microcontrollers & IoT (${products.filter(p => p.category === 'microcontrollers').length})` },
     { id: 'sensors', label: `Sensors & Measurement (${products.filter(p => p.category === 'sensors').length})` },
     { id: 'robotics-mechanics', label: `Robotics & Actuators (${products.filter(p => p.category === 'robotics-mechanics').length})` },
-    { id: 'drone-3d', label: `3D Printing & Drones (${products.filter(p => p.category === 'drone-3d').length})` },
+    { id: 'drone-3d', label: `3D Printing & Fabrication (${products.filter(p => p.category === 'drone-3d').length})` },
     { id: 'physics-lab', label: `Physics & Solar Systems (${products.filter(p => p.category === 'physics-lab').length})` },
     { id: 'biology-anatomy', label: `Biotech & Smart Agri (${products.filter(p => p.category === 'biology-anatomy').length})` },
     { id: 'grade-kits', label: `Grade-Progressive Kits (${products.filter(p => p.category === 'grade-kits').length})` },
@@ -167,7 +167,7 @@ export const StoreSection: React.FC<StoreSectionProps> = ({
           </h1>
 
           <p className="mt-3 sm:mt-4 text-xs sm:text-sm md:text-base text-slate-300 max-w-2xl leading-relaxed">
-            From Junior magnetic circuits in Classes 3–5 to Autonomous Quadcopters and 3D CAD in Classes 11–12. Standardizing hands-on engineering across India's 50,000+ Atal Tinkering Labs with free installation, teacher training, and warranty.
+            From Junior magnetic circuits in Classes 3–5 to Autonomous AI Robotics and 3D CAD in Classes 11–12. Standardizing hands-on engineering across India's 50,000+ Atal Tinkering Labs with free installation, teacher training, and warranty.
           </p>
 
           <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">

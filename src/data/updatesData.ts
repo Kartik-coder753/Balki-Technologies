@@ -10,11 +10,11 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
     badgeColor: 'amber',
     date: 'Finals: 9–10 Jan 2027 (Reg: 1 Nov – 15 Dec 2026)',
     image: '/hackathon/Screenshot_2026-10-30_142603_66930140.png',
-    description: 'Balki Technologies officially unveils the Balki RoboCup Hackathon 2027! For students in Grades 8 to 12 competing Solo or Duo. Receive a tamper-evident sealed kit delivered to your doorstep with components to build any of 10 championship robots. Join a live 1-on-1 Google Meet proctored slot, unbox on camera, build in 35 minutes, code, and execute on the 2400x1200mm arena mat! 1st Place wins ₹10,000 Cash + Q250 Drone Kit, Top 5 get founder mentorship, Top 20 get R&D internships, and all participants keep their kit forever!',
+    description: 'Balki Technologies officially unveils the Balki RoboCup Hackathon 2027! For students in Grades 8 to 12 competing Solo or Duo. Receive a tamper-evident sealed kit delivered to your doorstep with components to build any of 10 championship robots. Join a live 1-on-1 Google Meet proctored slot, unbox on camera, build in 35 minutes, code, and execute on the 2400x1200mm arena mat! 1st Place wins ₹10,000 Cash + Autonomous AI Smart Rover Kit, Top 5 get founder mentorship, Top 20 get R&D internships, and all participants keep their kit forever!',
     highlights: [
       '10 Possible Robotics Experiments inside 1 tamper-evident mystery sealed kit',
       'Live 1-on-1 Google Meet Proctored 60-Minute Slot with certified robotics judges',
-      '1st Place Champion: ₹10,000 Cash Prize + Balki Q250 DIY Quadcopter Drone Kit',
+      '1st Place Champion: ₹10,000 Cash Prize + Balki Autonomous AI Smart Rover Kit',
       'Top 5 Teams: 1-Month 1-on-1 Mentorship directly with Founder Phanindra Balki',
       'Top 20 Teams: 1-Month Remote R&D Internship with Balki Technologies Engineering Lab',
       'Grades 8–12: Solo (₹1,800 Early Bird / ₹2,500 Regular) or Duo (₹2,500 Early Bird / ₹3,000 Regular)',
@@ -53,7 +53,7 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
     description: 'Balki Technologies has officially published the comprehensive 2026-27 Atal Tinkering Lab equipment quotations. Covering 169 verified materials across Electronics & IoT (111 items), Robotics & Automation (29 items), AI/ML & Computer Vision (7 items), 3D Printing & Prototyping (22 items), and the Master Turnkey Package E (₹6,97,334 incl. 18% GST).',
     highlights: [
       'Package A: 111 Items · Electronics, Microcontrollers & IoT (₹2,25,414 incl. GST)',
-      'Package B: 29 Items · Motors, Steppers, Drones, Relays & EV Kit (₹1,19,122 incl. GST)',
+      'Package B: 29 Items · Motors, Steppers, Autonomous Rovers, Relays & EV Kit (₹1,19,122 incl. GST)',
       'Package C: 7 Items · Raspberry Pi 5 8GB, Meta Quest 3S VR & TinyML Kits (₹2,14,766 incl. GST)',
       'Package D: 22 Items · Creality K1C CoreXY 3D Printer, Artis UPS, 3D Pens & Tools (₹1,38,031 incl. GST)',
       'Package E: Turnkey 169-Item Master Lab Consignment with 2-day onsite educator training'
@@ -83,38 +83,38 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
   {
     id: 'upd-1',
     type: 'product',
-    title: 'Autonomous AI Edge Drone Lab Kit (Classes 11–12)',
-    subtitle: 'NITI Aayog & DGCA Compliant Autonomous Quadcopter Prototyping Platform',
+    title: 'Autonomous AI Edge Mobile Robotics Lab Kit (Classes 11–12)',
+    subtitle: 'NITI Aayog & NEP Compliant Autonomous Ground Robotics & Computer Vision Platform',
     badge: 'NEW HARDWARE LAUNCH',
     badgeColor: 'amber',
     date: 'September 2026',
-    image: 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=800&q=80',
-    description: 'Equipped with open-source ArduPilot avionics, 4K low-latency FPV telemetry, optical flow hovering, and obstacle sensing. Built specifically for high school and senior secondary students diving into aerial robotics and computer vision.',
+    image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=800&q=80',
+    description: 'Equipped with dual-core ESP32 and edge AI vision, 2D LiDAR navigation, ultrasonic distance mapping, and closed-loop motor telemetry. Built specifically for high school and senior secondary students diving into autonomous robotics and smart edge engineering.',
     highlights: [
-      'Carbon-fiber crash-resilient modular quadcopter airframe',
-      'ArduPilot & Mission Planner autonomous waypoint programming',
-      'Includes USB flight simulator dongle & RC 10-channel transmitter',
+      'Anodized aluminum alloy crash-resilient modular rover chassis',
+      'ROS & Python autonomous waypoint trajectory navigation',
+      'Includes high-resolution LiDAR scanner and wireless telemetry module',
       'Accompanied by a 60-page bilingual teacher practical manual'
     ],
-    productId: 'prod-7',
+    productId: 'mat-prod-134',
     courseId: 'course-4',
-    actionText: 'View Drone Kit Specs & Pricing',
+    actionText: 'View Autonomous Rover Specs & Pricing',
     featured: true,
     announcementDetails: {
-      fullStory: 'Balki Technologies is proud to announce the commercial release of the Autonomous AI Edge Drone Lab Kit. Designed in response to the growing demand for drone technology education in senior secondary schools under NEP 2020 vocational skills frameworks. Unlike toy drones, this kit provides direct hands-on access to ESC motor telemetry, IMU sensor calibration, telemetry transceivers, and autonomous waypoint navigation.',
+      fullStory: 'Balki Technologies is proud to announce the commercial release of the Autonomous AI Edge Mobile Robotics Lab Kit. Designed in response to the growing demand for hands-on artificial intelligence and mechatronics education in senior secondary schools under NEP 2020 vocational skills frameworks. Unlike toy robotics sets, this kit provides direct hands-on access to closed-loop motor telemetry, IMU orientation calibration, LiDAR mapping, and autonomous obstacle navigation.',
       impactOnSchools: [
-        'Enables schools to launch a certified Drone & Aeronautics Club within 48 hours of kit delivery',
+        'Enables schools to launch a certified AI Robotics & Automation Club within 48 hours of kit delivery',
         'Includes 2-day onsite training for school physics and computer science educators',
         'Fully covered under Balki Technologies 12-month zero-hassle replacement warranty'
       ],
       technicalHighlights: [
-        'Avionics: STM32F4-based flight controller with ArduCopter firmware',
-        'Telemetry: 915MHz telemetry link with 1.2km ground range',
-        'Power: Dual 3S 2200mAh LiPo batteries with balance safety charger',
-        'Sensors: Dual barometers, optical flow camera, and ultrasonic altimeter'
+        'Compute: Dual-Core 240MHz ESP32-S3 with edge AI machine vision module',
+        'Telemetry: Wi-Fi and Bluetooth BLE real-time sensor telemetry dashboard',
+        'Power: High-capacity rechargeable lithium battery pack with smart BMS protection',
+        'Sensors: 2D 360° LiDAR, dual ultrasonic sonar rangefinders, and 9-DOF IMU motion sensor'
       ],
       officialQuote: {
-        text: 'Our goal with this kit is to transform Indian school students from mere consumer drone operators into real aerial aeronautical engineers and firmware programmers.',
+        text: 'Our goal with this kit is to transform Indian school students from passive technology consumers into real autonomous robotics and control systems engineers.',
         author: 'Er. R. Balki',
         designation: 'Head of Lab Engineering, Balki Technologies'
       }
@@ -123,27 +123,27 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
   {
     id: 'upd-2',
     type: 'course',
-    title: 'NEP 2020 Interactive Course: Autonomous Quadcopters & Drone Avionics',
-    subtitle: 'Hands-on Aerodynamics, Waypoint Navigation & Safe Flight Dynamics',
+    title: 'NEP 2020 Interactive Course: Autonomous Robotics & Kinematics Control',
+    subtitle: 'Hands-on Closed-Loop Control, IMU Feedback & Dynamic Balance Dynamics',
     badge: 'NEW NEP 2020 COURSE',
     badgeColor: 'blue',
     date: 'September 2026',
     image: 'https://images.unsplash.com/photo-1506947411487-a56738267384?auto=format&fit=crop&w=800&q=80',
-    description: 'A structured 6-week curriculum with virtual aerodynamic simulations, interactive wiring diagrams, step-by-step ArduPilot tuning, and automated student certification.',
+    description: 'A structured 6-week curriculum with virtual kinematics simulations, interactive wiring diagrams, step-by-step PID motor tuning, and automated student certification.',
     highlights: [
-      'Interactive Flight Simulator integrated directly in browser',
-      'Step-by-step PID controller tuning and flight physics theory',
+      'Interactive Robotics Simulator integrated directly in browser',
+      'Step-by-step PID controller tuning and balance physics theory',
       'Earns verified Tinkering Passport certification upon quiz completion',
       'Approved for Classes 11–12 vocational STEM elective credits'
     ],
     courseId: 'course-4',
-    productId: 'prod-7',
+    productId: 'mat-prod-134',
     actionText: 'Enroll in Course & Start Lesson',
     featured: false,
     announcementDetails: {
-      fullStory: 'To support the physical Drone Lab Kit, Balki Technologies has launched a fully digital, self-paced interactive course. Students learn lift-to-drag ratios, gyroscopic precession, and fail-safe return-to-launch procedures before ever flying outdoors.',
+      fullStory: 'To support hands-on robotics education, Balki Technologies has launched a fully digital, self-paced interactive course. Students learn kinematic degrees of freedom, IMU sensor fusion, and closed-loop motor control algorithms.',
       impactOnSchools: [
-        'Empowers teachers without prior drone experience to guide students with confidence',
+        'Empowers teachers without prior robotics experience to guide students with confidence',
         'Provides instant objective grading on flight physics quizzes and safety protocols',
         'Tracks Tinkering Hours automatically into each student\'s Passport'
       ],
@@ -214,7 +214,7 @@ export const INITIAL_COMPANY_UPDATES: CompanyUpdate[] = [
         'Students get hands-on experience with professional-grade test & measurement gear'
       ],
       technicalHighlights: [
-        'Available instruments: CoreXY 3D Printers, 100MHz DSOs, Drone Rigs, Thermal Cameras, Bipedal Robots',
+        'Available instruments: CoreXY 3D Printers, 100MHz DSOs, Desktop CNC Rigs, Thermal Cameras, Bipedal Robots',
         'Full insurance coverage and transit damage protection included'
       ]
     }
@@ -308,7 +308,7 @@ export const LIVE_TICKER_ITEMS = [
   {
     id: 'tick-robocup-hackathon',
     badge: 'ROBOCUP 2027',
-    text: '🏆 Balki RoboCup Hackathon 2027: "Build it. Code it. Win it!" 10 Robots • 1 Sealed Box • 60 Mins. ₹10,000 + Drone Kit. Registrations Open!',
+    text: '🏆 Balki RoboCup Hackathon 2027: "Build it. Code it. Win it!" 10 Robots • 1 Sealed Box • 60 Mins. ₹10,000 + Rover Kit. Registrations Open!',
     actionTab: 'hackathon'
   },
   {
@@ -335,14 +335,14 @@ export const LIVE_TICKER_ITEMS = [
   {
     id: 'tick-1',
     badge: 'NEW HARDWARE',
-    text: 'Autonomous AI Edge Drone Lab Kit (Classes 11–12) now shipping with ArduPilot avionics & 4K FPV link.',
+    text: 'Autonomous AI Edge Mobile Robotics Lab Kit (Classes 11–12) now shipping with ROS navigation & LiDAR scanner.',
     actionTab: 'store',
-    targetCategory: 'drone-3d'
+    targetCategory: 'robotics-mechanics'
   },
   {
     id: 'tick-2',
     badge: 'NEP 2020 COURSE',
-    text: 'Interactive Drone Avionics & Waypoint Navigation course unlocked with virtual flight simulator.',
+    text: 'Interactive Robotics Kinematics & Dynamic Balance course unlocked with virtual simulator.',
     actionTab: 'courses',
     targetCourseId: 'course-4'
   },

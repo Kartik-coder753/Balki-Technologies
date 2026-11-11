@@ -271,11 +271,11 @@ A team of three 8th-grade girls from Medak designed an ultrasonic borewell child
       },
       {
         id: 'prod-7',
-        name: 'Pro-Range Q250 Quadcopter DIY Drone Kit for Beginner',
-        sku: 'BALKI-EXP-07-Q250DRONE',
-        category: 'drone-3d',
-        image: 'https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=600&q=80',
-        price: 5499
+        name: 'Balki Autonomous 4WD AI Smart Rover Kit',
+        sku: 'BALKI-EXP-07-ROVER',
+        category: 'robotics-mechanics',
+        image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=600&q=80',
+        price: 4999
       }
     ],
     keyMetrics: [

@@ -106,15 +106,15 @@ export function downloadCurriculumGuide() {
 
   <div class="grade-card">
     <div class="grade-header">
-      <span class="grade-title">Phase 4: Autonomous Drones & 3D Prototyping (Classes 11–12)</span>
-      <span class="grade-badge">Aerodynamics • PID Control • CAD</span>
+      <span class="grade-title">Phase 4: Autonomous Robotics & 3D Prototyping (Classes 11–12)</span>
+      <span class="grade-badge">Kinematics • PID Control • CAD</span>
     </div>
-    <p style="font-size: 12px; color: #64748b; margin: 0 0 8px 0;"><strong>Core Goal:</strong> Industrial prototyping, flight avionics, and computer-aided design for science fairs.</p>
+    <p style="font-size: 12px; color: #64748b; margin: 0 0 8px 0;"><strong>Core Goal:</strong> Industrial prototyping, autonomous robotics kinematics, and computer-aided design for science fairs.</p>
     <ul>
-      <li><strong>Module 1:</strong> Aerodynamics & Quadcopter Dynamics — Brushless ESC timing and reactive torque cancellation.</li>
-      <li><strong>Module 2:</strong> PID Flight Stabilization — Gyroscope/accelerometer sensor fusion algorithms.</li>
+      <li><strong>Module 1:</strong> Kinematics & Multi-Axis Dynamics — Motor drivers and closed-loop velocity control.</li>
+      <li><strong>Module 2:</strong> Dynamic Balance PID Control — Gyroscope/accelerometer sensor fusion algorithms.</li>
       <li><strong>Module 3:</strong> Parametric 3D CAD — Designing custom brackets and slicing for FDM rapid prototyping.</li>
-      <li><strong>Module 4:</strong> Capstone Innovation — Autonomous GPS waypoint navigation drone for disaster relief simulation.</li>
+      <li><strong>Module 4:</strong> Capstone Innovation — Autonomous LiDAR waypoint navigation rover for industrial automation simulation.</li>
     </ul>
   </div>
 
@@ -438,9 +438,9 @@ Innovation Mission (AIM) and NEP 2020 standards across 50,000+ school labs.
   - 15x 2WD Robotics chassis with high-torque DC motors and wheels
   - ESD-safe temperature controlled soldering & safety station
 
-* Package 3 (Aeronautics & Drone Prototyping):
-  - 1x Autonomous Quadcopter flight testing rig with telemetry
-  - 6-Channel 2.4GHz radio transmitter and optical flow sensor
+* Package 3 (Autonomous Mobile Robotics & Navigation):
+  - 1x Autonomous 4WD Smart Rover with LiDAR & telemetry
+  - 6-Channel 2.4GHz radio transmitter and ultrasonic distance sensor
 
 3. VALUE-ADDED TURNKEY SERVICES (ZERO EXTRA COST)
 --------------------------------------------------------------------------------

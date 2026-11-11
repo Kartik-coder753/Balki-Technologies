@@ -51,8 +51,8 @@ export const FeaturedProductSpotlight: React.FC<FeaturedProductSpotlightProps> =
       badge: 'Green Energy'
     },
     {
-      pkg: 'Series 3: Advanced Mechatronics & Drone Avionics',
-      desc: 'Inverted pendulum self-balancing robots, 4-DOF web-controlled robotic arms, and Q250 quadcopter DIY drone packages.',
+      pkg: 'Series 3: Advanced Mechatronics & Autonomous Robotics',
+      desc: 'Inverted pendulum self-balancing robots, 4-DOF web-controlled robotic arms, and autonomous LiDAR navigation rovers.',
       badge: 'Classes 9–12'
     },
     {

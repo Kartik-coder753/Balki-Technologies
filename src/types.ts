@@ -78,7 +78,7 @@ export interface CourseLesson {
   theoryContent: string;
   codeSnippet?: string;
   codeLanguage?: string;
-  simulationType?: 'led_blink' | 'ultrasonic_radar' | 'servo_sweep' | 'drone_telemetry';
+  simulationType?: 'led_blink' | 'ultrasonic_radar' | 'servo_sweep' | 'drone_telemetry' | 'balance_pid';
   quiz: {
     question: string;
     options: string[];

@@ -48,7 +48,7 @@ export const InteractiveCoursePlayer: React.FC<InteractiveCoursePlayerProps> = (
   // 3. Servo / Motor
   const [servoAngle, setServoAngle] = useState(90);
 
-  // 4. Drone PID
+  // 4. Robotics Balance / Telemetry PID
   const [targetAltitude, setTargetAltitude] = useState(5.0);
   const [currentAltitude, setCurrentAltitude] = useState(4.2);
 
@@ -105,13 +105,13 @@ export const InteractiveCoursePlayer: React.FC<InteractiveCoursePlayerProps> = (
       logs.push(`⚙️ PWM Signal Pulse Width: ${pulseWidthUs} µs`);
       logs.push(`H-Bridge Channel A & B: Activated`);
       logs.push(`Steering angle locked at: ${servoAngle}° relative to center`);
-    } else if (currentLesson.simulationType === 'drone_telemetry') {
+    } else if (currentLesson.simulationType === 'drone_telemetry' || currentLesson.simulationType === 'balance_pid') {
       const error = targetAltitude - currentAltitude;
       const throttleAdjustment = (error * 1.2).toFixed(2);
-      logs.push(`🛸 IMU Accelerometer + Barometer Altitude: ${currentAltitude.toFixed(1)}m`);
-      logs.push(`Target Altitude: ${targetAltitude.toFixed(1)}m | Error: ${error.toFixed(2)}m`);
-      logs.push(`PID Throttle Correction: ${throttleAdjustment}% thrust vector applied to ESCs.`);
-      logs.push(`Flight Status: HOVER STABILIZED`);
+      logs.push(`🤖 IMU Accelerometer + Tilt Angle Sensor: ${currentAltitude.toFixed(1)}°`);
+      logs.push(`Target Setpoint: ${targetAltitude.toFixed(1)}° | Error: ${error.toFixed(2)}°`);
+      logs.push(`PID Counter-Torque Correction: ${throttleAdjustment}% dynamic drive applied to motor controller.`);
+      logs.push(`Motion State: DYNAMIC EQUILIBRIUM MAINTAINED`);
     } else {
       logs.push(`Execution completed with exit code 0.`);
     }
@@ -408,29 +408,29 @@ export const InteractiveCoursePlayer: React.FC<InteractiveCoursePlayerProps> = (
                   </div>
                 )}
 
-                {/* 4. Drone Telemetry Simulator */}
-                {currentLesson.simulationType === 'drone_telemetry' && (
+                {/* 4. Closed-Loop Robotics Balance / PID Simulator */}
+                {(currentLesson.simulationType === 'drone_telemetry' || currentLesson.simulationType === 'balance_pid') && (
                   <div className="space-y-4 py-2">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <span className="text-xs text-slate-400 block mb-1">Target Flight Altitude: {targetAltitude}m</span>
+                        <span className="text-xs text-slate-400 block mb-1">Target Balance Angle: {targetAltitude}°</span>
                         <input
                           type="range"
-                          min={1}
-                          max={15}
-                          step={0.5}
+                          min={-30}
+                          max={30}
+                          step={1}
                           value={targetAltitude}
                           onChange={(e) => setTargetAltitude(Number(e.target.value))}
                           className="w-full accent-amber-500"
                         />
                       </div>
                       <div>
-                        <span className="text-xs text-slate-400 block mb-1">Barometer Real Altitude: {currentAltitude}m</span>
+                        <span className="text-xs text-slate-400 block mb-1">Current IMU Tilt: {currentAltitude}°</span>
                         <input
                           type="range"
-                          min={1}
-                          max={15}
-                          step={0.1}
+                          min={-30}
+                          max={30}
+                          step={0.5}
                           value={currentAltitude}
                           onChange={(e) => setCurrentAltitude(Number(e.target.value))}
                           className="w-full accent-amber-500"
@@ -438,7 +438,7 @@ export const InteractiveCoursePlayer: React.FC<InteractiveCoursePlayerProps> = (
                       </div>
                     </div>
                     <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 text-xs font-mono text-amber-300">
-                      PID Output: Throttle adjust = {((targetAltitude - currentAltitude) * 1.2).toFixed(2)}% • Gyro Roll: 0.0° • Pitch: 0.0°
+                      PID Output: Motor Counter-Torque PWM = {((targetAltitude - currentAltitude) * 1.2).toFixed(2)}% • Gyro Angular Velocity: 0.0°/s • Balance: Stabilized
                     </div>
                   </div>
                 )}

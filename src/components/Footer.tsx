@@ -94,7 +94,7 @@ export const Footer: React.FC<FooterProps> = ({ setActiveTab, openB2BModal }) =>
                   onClick={() => setActiveTab('store')} 
                   className="hover:text-amber-400 transition-colors text-left"
                 >
-                  Drone Programming & 3D Printing (Classes 11–12)
+                  Autonomous Robotics & 3D Printing (Classes 11–12)
                 </button>
               </li>
               <li>

@@ -80,7 +80,7 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
     ? updates 
     : updates.filter(u => u.type === activeFilter);
 
-  // Identify featured launch (drone kit) and secondary stream
+  // Identify featured launch (hardware kit) and secondary stream
   const featuredLaunch = updates.find(u => u.featured) || updates[0];
   const streamUpdates = filteredUpdates.filter(u => u.id !== (activeFilter === 'all' ? featuredLaunch.id : ''));
 
@@ -294,8 +294,8 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
             <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 sm:gap-3 shrink-0 text-xs font-semibold">
               <div className="relative overflow-hidden px-3 py-2 rounded-2xl bg-white border border-amber-200/80 shadow-2xs text-slate-700 flex items-center gap-2 group flex-1 sm:flex-initial">
                 <img
-                  src="https://images.unsplash.com/photo-1508614589041-895b88991e3e?auto=format&fit=crop&w=400&q=80"
-                  alt="Drone Rig Background"
+                  src="https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=400&q=80"
+                  alt="AI Robotics Background"
                   referrerPolicy="no-referrer"
                   onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   className="absolute inset-0 w-full h-full object-cover opacity-10 mix-blend-multiply pointer-events-none group-hover:scale-105 transition-transform"
@@ -305,7 +305,7 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
                 </div>
                 <div className="relative z-10">
                   <p className="text-[9px] sm:text-[10px] text-slate-400 uppercase font-bold">Latest Hardware</p>
-                  <p className="text-xs font-extrabold text-slate-900">Drone Lab Kit</p>
+                  <p className="text-xs font-extrabold text-slate-900">AI Robotics Kit</p>
                 </div>
               </div>
 
@@ -322,7 +322,7 @@ export const LatestUpdatesCorner: React.FC<LatestUpdatesCornerProps> = ({
                 </div>
                 <div className="relative z-10">
                   <p className="text-[10px] text-slate-400 uppercase font-bold">New NEP Course</p>
-                  <p className="text-xs font-extrabold text-slate-900">Drone Avionics</p>
+                  <p className="text-xs font-extrabold text-slate-900">Robotics & CAD</p>
                 </div>
               </div>
             </div>

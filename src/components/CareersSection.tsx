@@ -174,7 +174,7 @@ export const CareersSection: React.FC = () => {
                 About Balki Technologies
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Balki Technologies is building India's most complete STEM education ecosystem — a single, grade-progressive robotics and electronics kit line (Classes 3–12) designed to meet ATL (Atal Tinkering Lab) and NEP 2020 requirements across India's 50,000+ mandated ATL Labs. Our kits span Junior Experiment Kits through Advanced Robotics, AI, Drone Programming, and 3D Printing & Design — bundled with free installation, teacher training, and warranty support.
+                Balki Technologies is building India's most complete STEM education ecosystem — a single, grade-progressive robotics and electronics kit line (Classes 3–12) designed to meet ATL (Atal Tinkering Lab) and NEP 2020 requirements across India's 50,000+ mandated ATL Labs. Our kits span Junior Experiment Kits through Advanced Robotics, AI, Smart Sensors, and 3D Printing & Design — bundled with free installation, teacher training, and warranty support.
               </p>
             </div>
 

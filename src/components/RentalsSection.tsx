@@ -124,7 +124,7 @@ export const RentalsSection: React.FC<RentalsSectionProps> = ({
             High-Value STEM Equipment Rentals
           </h1>
           <p className="text-sm md:text-base text-slate-300 leading-relaxed">
-            Equip your school or tinkering lab with industrial-grade 3D printers, autonomous drone rigs, digital oscilloscopes, and humanoid robots on flexible weekly or monthly rental terms. 100% calibrated hardware with full insurance and technical setup assistance.
+            Equip your school or tinkering lab with industrial-grade 3D printers, precision desktop CNC rigs, digital oscilloscopes, and humanoid robots on flexible weekly or monthly rental terms. 100% calibrated hardware with full insurance and technical setup assistance.
           </p>
           <div className="pt-2 flex flex-wrap gap-4 text-xs text-slate-300">
             <span className="flex items-center gap-1.5">

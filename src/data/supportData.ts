@@ -101,7 +101,7 @@ export const SUPPORT_FAQS: FaqItem[] = [
   {
     id: 'faq-5',
     category: 'Equipment Rentals',
-    question: 'How are security deposits refunded when renting 3D printers, DSOs, or Drones?',
+    question: 'How are security deposits refunded when renting 3D printers, DSOs, or CNC rigs?',
     answer: 'Rental security deposits are 100% refundable. Once the equipment is returned in its protective shockproof flight case and checked by our inbound calibration engineers (within 48 hours of receipt), the entire deposit is credited back directly to your school bank account or original payment method.'
   },
   {
@@ -165,15 +165,15 @@ export const DIAGNOSTIC_GUIDES: DiagnosticGuide[] = [
   },
   {
     id: 'diag-4',
-    title: 'Quadcopter Drone Gyroscope Drift & Motor Imbalance',
-    category: 'Aeronautics & Drones',
-    symptoms: 'Quadcopter tilts aggressively to one side upon takeoff or flight controller beeps continuously.',
+    title: 'Autonomous Rover Sensor Telemetry & Heading Drift',
+    category: 'Autonomous Systems & Robotics',
+    symptoms: 'Autonomous rover veers off path or IMU heading angle drifts during straight-line navigation.',
     solutionSteps: [
-      'Place drone on a perfectly level tabletop and perform 6-axis accelerometer calibration in Mission Planner.',
-      'Verify propeller CW vs CCW placement: leading edge of curved blade must face forward direction of spin.',
-      'Perform ESC throttle range calibration (Full throttle on transmitter -> power on ESC -> beep -> lower throttle to zero).',
-      'Check motor mount screws for loosening or motor shaft vibration.'
+      'Place rover on a flat, level surface and run the 6-axis IMU gyro zero-offset calibration routine.',
+      'Keep magnetic motors and high-current battery wires at least 5cm away from the magnetometer/compass module.',
+      'Check wheel encoder disc slots for dust or misaligned optical pickup sensors.',
+      'Verify that left and right motor PWM speed calibration coefficients are balanced in firmware.'
     ],
-    recommendedTool: 'Digital Pitch Gauge & Mission Planner Telemetry Suite'
+    recommendedTool: 'Balki Robot Serial Telemetry Monitor & Calibrator'
   }
 ];

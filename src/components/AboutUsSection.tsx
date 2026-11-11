@@ -143,7 +143,7 @@ export const AboutUsSection: React.FC<AboutUsSectionProps> = ({
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">Our Mission</h2>
             <p className="text-sm text-slate-600 leading-relaxed">
-              To supply high-grade, reliable, and student-proof hardware to schools, researchers, educators, and makers. We eliminate vendor fragmentation by offering a standardized end-to-end catalogue—from borosilicate chemistry glassware and optical benches to autonomous quadcopters and cloud-connected IoT microcontrollers—supported by on-site teacher training and rapid component replacement.
+              To supply high-grade, reliable, and student-proof hardware to schools, researchers, educators, and makers. We eliminate vendor fragmentation by offering a standardized end-to-end catalogue—from borosilicate chemistry glassware and optical benches to autonomous smart rovers and cloud-connected IoT microcontrollers—supported by on-site teacher training and rapid component replacement.
             </p>
           </div>
           <div className="relative z-10 mt-6 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs font-semibold text-blue-700">
@@ -269,7 +269,7 @@ export const AboutUsSection: React.FC<AboutUsSectionProps> = ({
               </span>
             </div>
             <p className="relative z-10 text-xs text-slate-300 leading-relaxed">
-              Dedicated to microcontroller firmware flashing, drone assembly, 3D printing filament validation, and South India express logistics for institutional orders and rental equipment calibrations.
+              Dedicated to microcontroller firmware flashing, autonomous robotics testing, 3D printing filament validation, and South India express logistics for institutional orders and rental equipment calibrations.
             </p>
             <div className="relative z-10 pt-2 text-xs text-slate-400 space-y-1">
               <p>📍 Tech Park Hub, Electronic City & Hitec City Innovation Depot</p>

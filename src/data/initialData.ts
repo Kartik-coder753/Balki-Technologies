@@ -32,28 +32,28 @@ export const INITIAL_RENTALS: RentalEquipment[] = [
   },
   {
     id: 'rent-2',
-    name: 'Autonomous Drone Flight & Telemetry Testing Rig',
-    category: 'Aeronautics & Robotics',
+    name: 'Precision Desktop CNC Milling & PCB Prototyping Rig',
+    category: 'Rapid Prototyping & CNC',
     dailyRate: 850,
     weeklyRate: 4800,
     securityDeposit: 12000,
     totalUnits: 5,
     availableUnits: 3,
-    image: 'https://images.unsplash.com/photo-1527977966376-1c8408f9f108?auto=format&fit=crop&w=800&q=80',
+    image: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=800&q=80',
     condition: 'Brand New',
     specs: [
-      'Open-source ArduPilot / PX4 flight avionics system',
-      'Full HD low-latency FPV video streaming system',
-      'Telemetry transceiver (915MHz) for laptop mission planner',
-      'Optical flow & Sonar precision indoor hovering'
+      'High-speed 12,000 RPM ER11 spindle motor with PWM speed control',
+      'GRBL 3-axis motion controller with offline touchscreen pendant',
+      'Precision lead screw drive with 0.01mm repeatability',
+      'Emergency stop switch, limit switches, and acrylic safety enclosure'
     ],
     includes: [
-      'Complete quadcopter drone with carbon fiber frame',
-      'FlySky 10-channel RC transmitter with telemetry screen',
-      '3x High-capacity LiPo flight batteries & smart multi-charger',
-      'Flight training simulator software USB dongle'
+      'Complete desktop CNC router with aluminum T-slot bed',
+      '10-piece tungsten carbide engraving bit set & collet wrench',
+      'Offline controller with USB SD card reader',
+      'Balki CAM & G-Code generator starter software pack'
     ],
-    description: 'Rent our verified autonomous flight test system for school drone workshops, AI vision aerial research, or STEM aviation camps.',
+    description: 'Rent our verified desktop CNC router for school circuit prototyping, acrylic engraving, wood carving, and robotics chassis fabrication.',
     minRentalDays: 3
   },
   {
@@ -323,40 +323,40 @@ export const INITIAL_COURSES: Course[] = [
   },
   {
     id: 'course-4',
-    title: 'Autonomous Drone Flight & 3D CAD Prototyping (Classes 11–12)',
+    title: 'Advanced Robotics Kinematics & 3D CAD Prototyping (Classes 11–12)',
     gradeLevel: 'Class 11-12',
-    targetAudience: 'Senior secondary students mastering aerodynamics, PID flight controllers, and parametric CAD.',
+    targetAudience: 'Senior secondary students mastering robotic kinematics, PID motion controllers, and parametric CAD.',
     nepCompetencies: ['Advanced Engineering Design', 'Control Systems Physics', 'Rapid Prototyping'],
     durationWeeks: 8,
     totalHours: 28,
     enrolledStudents: 940,
     rating: 4.98,
     thumbnail: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=600&q=80',
-    overview: 'Dive deep into aerospace engineering, quadcopter dynamics, brushless ESC pulse timing, and design custom drone mounts using 3D parametric CAD modeling.',
-    certificateTitle: 'Advanced UAV & Prototyping Engineer',
+    overview: 'Dive deep into mechatronics engineering, multi-axis servo kinematics, closed-loop PID velocity control, and design custom robotic linkages using 3D parametric CAD modeling.',
+    certificateTitle: 'Advanced Robotics & Prototyping Engineer',
     isLiked: true,
     likesCount: 264,
     lessons: [
       {
         id: 'c4-l1',
-        title: 'Quadcopter Physics: Gyroscope Fusion, PID Loops, and Hover Stability',
+        title: 'Robotics Kinematics: IMU Feedback, PID Loops, and Dynamic Balance Control',
         durationMinutes: 50,
-        videoSnippetTitle: 'How Drones Stay Level: Proportional-Integral-Derivative Control',
-        summary: 'Analyze Roll, Pitch, and Yaw dynamics and adjust PID gains for wind resistance.',
-        theoryContent: 'A quadcopter uses two clockwise (CW) and two counter-clockwise (CCW) propellers to cancel torque. Angular orientation is continuously measured by an Inertial Measurement Unit (IMU) combining an accelerometer and a gyroscope. A PID controller calculates the error between desired angle and actual angle hundreds of times per second to vary motor speeds smoothly.',
-        codeSnippet: '// PID Controller Simulation for Quadcopter Altitude Hold\nclass DronePID {\n  constructor(kp, ki, kd) {\n    this.kp = kp; this.ki = ki; this.kd = kd;\n    this.integral = 0; this.prevError = 0;\n  }\n  compute(setpoint, currentAlt, dt = 0.05) {\n    const error = setpoint - currentAlt;\n    this.integral += error * dt;\n    const derivative = (error - this.prevError) / dt;\n    this.prevError = error;\n    return (this.kp * error) + (this.ki * this.integral) + (this.kd * derivative);\n  }\n}\nconst controller = new DronePID(1.2, 0.05, 0.4);\nconsole.log("Motor Throttle Adjustment:", controller.compute(5.0, 4.2).toFixed(2));',
+        videoSnippetTitle: 'How Autonomous Robots Maintain Dynamic Equilibrium: Proportional-Integral-Derivative Control',
+        summary: 'Analyze angular orientation and tilt dynamics to adjust PID motor gains for instantaneous balance recovery.',
+        theoryContent: 'An autonomous two-wheel self-balancing robot or multi-axis manipulator continuously measures tilt angle and angular velocity using an Inertial Measurement Unit (IMU). A closed-loop PID controller calculates the error between the vertical setpoint and actual angle hundreds of times per second, commanding counter-torque to wheels or actuators to maintain perfect equilibrium.',
+        codeSnippet: '// PID Controller Simulation for Two-Wheel Self-Balancing Robot\nclass RobotBalancePID {\n  constructor(kp, ki, kd) {\n    this.kp = kp; this.ki = ki; this.kd = kd;\n    this.integral = 0; this.prevError = 0;\n  }\n  compute(setpointAngle, currentAngle, dt = 0.02) {\n    const error = setpointAngle - currentAngle;\n    this.integral += error * dt;\n    const derivative = (error - this.prevError) / dt;\n    this.prevError = error;\n    return (this.kp * error) + (this.ki * this.integral) + (this.kd * derivative);\n  }\n}\nconst controller = new RobotBalancePID(18.5, 0.4, 2.1);\nconsole.log("Motor Drive Correction PWM:", controller.compute(0.0, 3.4).toFixed(2));',
         codeLanguage: 'javascript',
-        simulationType: 'drone_telemetry',
+        simulationType: 'servo_sweep',
         quiz: {
-          question: 'What happens to a quadcopter if all four propellers spin in the same direction?',
+          question: 'What is the primary role of the derivative (D) term in an inverted pendulum self-balancing robot PID controller?',
           options: [
-            'It will fly twice as fast',
-            'The body of the drone will spin uncontrollably in the opposite direction due to reactive torque',
-            'The battery will recharge itself',
-            'It will glide silently like a plane'
+            'It prevents steady-state error accumulation',
+            'It dampens oscillations by predicting future error based on rate of tilt change',
+            'It inverts the direction of motor rotation at all times',
+            'It doubles the maximum battery voltage'
           ],
           correctIndex: 1,
-          explanation: 'Newton\'s Third Law dictates that spinning propellers exert an equal and opposite torque on the frame. Diagonal pairs must spin in opposite directions to cancel net angular torque.'
+          explanation: 'The derivative component acts as a predictive damper, applying opposing torque proportional to the velocity of tilt to eliminate overshoot and prevent violent oscillations.'
         }
       }
     ]

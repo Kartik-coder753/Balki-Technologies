@@ -201,16 +201,16 @@ export const Navbar: React.FC<NavbarProps> = ({
       productCategory: 'atl-packages' as ProductCategory
     },
     {
-      id: 'q250-drone',
-      name: 'Q250 Quadcopter Drone Kit (DGCA Aligned)',
-      tag: 'DGCA Aligned',
-      spec: 'Carbon Fiber Frame + 2204 BLDC Motors + SimonK ESCs + Flight Board',
+      id: 'smart-rover',
+      name: 'Autonomous 4WD AI Smart Rover Kit',
+      tag: 'ESP32 + LiDAR Ready',
+      spec: 'Aluminum 4WD Chassis + L298N + Ultrasonic Radar + ESP32 IoT Board',
       category: 'robotics' as const,
       categoryLabel: 'ATL & Robotics',
-      badgeBg: 'bg-cyan-100',
-      badgeText: 'text-cyan-800',
-      searchQuery: 'drone',
-      productCategory: 'drone-3d' as ProductCategory
+      badgeBg: 'bg-emerald-100',
+      badgeText: 'text-emerald-800',
+      searchQuery: 'rover',
+      productCategory: 'robotics-mechanics' as ProductCategory
     },
     {
       id: 'bluetooth-car',
@@ -350,7 +350,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       id: 'pkg-c',
       name: 'AIM ATL Package C: Advanced Robotics & IoT (25 Items)',
       tag: 'NITI Approved',
-      spec: 'Meta Quest 3S VR Headset 128GB, LiteWing Drone Board, Advanced IoT',
+      spec: 'Meta Quest 3S VR Headset 128GB, AI Edge Neural Board, Advanced IoT',
       category: 'packages' as const,
       categoryLabel: 'Official ATL Packages',
       badgeBg: 'bg-indigo-100',
@@ -1384,12 +1384,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <button 
                         onClick={() => {
                           setIsMobileShopDrawerOpen(false);
-                          handleCategoryClick('drone-3d');
+                          handleCategoryClick('robotics-mechanics');
                         }}
                         className="w-full text-left hover:text-blue-600 hover:bg-blue-50/80 p-2 rounded-xl transition-colors flex items-center justify-between gap-2 cursor-pointer bg-white border border-slate-100 shadow-2xs"
                       >
-                        <span className="font-semibold text-slate-800 text-xs truncate">Q250 Quadcopter Drone</span>
-                        <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full shrink-0">DGCA Aligned</span>
+                        <span className="font-semibold text-slate-800 text-xs truncate">Autonomous 4WD AI Rover</span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full shrink-0">ESP32 LiDAR</span>
                       </button>
                     </li>
                     <li>
@@ -1698,11 +1698,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </li>
                         <li>
                           <button 
-                            onClick={() => handleCategoryClick('drone-3d')}
+                            onClick={() => handleCategoryClick('robotics-mechanics')}
                             className="w-full text-left hover:text-blue-600 hover:bg-blue-50/60 p-1.5 rounded-lg transition-colors flex items-center justify-between"
                           >
-                            <span>Q250 Quadcopter Drone</span>
-                            <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.2 rounded-full">DGCA Aligned</span>
+                            <span>Autonomous 4WD AI Rover</span>
+                            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded-full">ESP32 LiDAR</span>
                           </button>
                         </li>
                         <li>
@@ -1864,7 +1864,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Trophy className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
               <span>ROBOCUP 2027</span>
               <span className="text-[10px] px-1.5 py-0.2 bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 font-black rounded-full shadow-2xs">
-                ₹10K + Drone
+                ₹10K Prize
               </span>
             </button>
 

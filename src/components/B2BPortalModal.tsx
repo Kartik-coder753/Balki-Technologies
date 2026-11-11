@@ -229,7 +229,7 @@ export const B2BPortalModal: React.FC<B2BPortalModalProps> = ({ isOpen, onClose 
                   {[
                     { id: 'Basic Starter', desc: 'Classes 3–8 Starter Kits & Sensors' },
                     { id: 'Comprehensive ATL Lab', desc: 'Full NITI Aayog AIM Standard Package' },
-                    { id: 'Advanced AI & Robotics', desc: 'Drones, 3D Printers & IoT Edge' }
+                    { id: 'Advanced AI & Robotics', desc: 'AI Edge, 3D Printers & IoT' }
                   ].map((tier) => (
                     <button
                       key={tier.id}

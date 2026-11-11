@@ -66,7 +66,7 @@ export const RobocupSpecialMentionSection: React.FC<RobocupSpecialMentionSection
     { num: 2, title: 'What is RoboCup?', tag: '02 · What is it?', highlight: 'Format, Skills & Parents' },
     { num: 3, title: '10 Robots Compendium', tag: '03 · Pick Your Robot', highlight: '4 Revealed + 6 Top Secret' },
     { num: 4, title: 'Journey to the Finals', tag: '04 · Your Journey', highlight: '5 Stops from Sign-Up' },
-    { num: 5, title: 'Prizes & Judges', tag: '05 · Prizes & Judges', highlight: '₹10,000 + Drone & Secret Judges' },
+    { num: 5, title: 'Prizes & Judges', tag: '05 · Prizes & Judges', highlight: '₹10,000 + STEM Kit & Secret Judges' },
     { num: 6, title: 'Join Now & Fees', tag: '06 · Join Now', highlight: 'Early Bird ends 25 Nov 2026' },
     { num: 7, title: 'About Balki Technologies', tag: '07 · About Us', highlight: 'Startup India & Founder' },
     { num: 8, title: 'For Schools & ATL', tag: '08 · For Schools', highlight: '3–12 Labs & Demo Booking' },
@@ -127,7 +127,7 @@ export const RobocupSpecialMentionSection: React.FC<RobocupSpecialMentionSection
             </div>
             <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-800">
               <span className="text-slate-400 block text-[10px] uppercase font-bold">1st Prize</span>
-              <strong className="text-amber-400 font-extrabold text-xs sm:text-sm">₹10,000 + drone kit</strong>
+              <strong className="text-amber-400 font-extrabold text-xs sm:text-sm">₹10,000 + STEM Kit</strong>
             </div>
             <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
               <span className="text-amber-300 block text-[10px] uppercase font-bold">Early Bird (Ends 25 Nov)</span>
@@ -573,7 +573,7 @@ export const RobocupSpecialMentionSection: React.FC<RobocupSpecialMentionSection
             </div>
             <h4 className="font-bold text-white text-sm">Every Team Takes Something Home</h4>
             <ul className="space-y-1.5 text-xs text-slate-300">
-              <li><strong>1st Place:</strong> ₹10,000 cash + drone kit</li>
+              <li><strong>1st Place:</strong> ₹10,000 cash + advanced robotics kit</li>
               <li><strong>Top 5 Teams:</strong> 1-month mentorship with founder</li>
               <li><strong>Top 20 Teams:</strong> 1-month R&D internship with lab</li>
               <li><strong>Everyone:</strong> Participation certificate & keep robot</li>
