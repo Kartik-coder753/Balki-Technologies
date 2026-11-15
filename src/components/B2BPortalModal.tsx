@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { downloadCurriculumGuide } from '../utils/downloadHelpers';
-import { safeFetchJson } from '../utils/apiClient';
+import { safeFetchJson, extractErrorMessage } from '../utils/apiClient';
 
 interface B2BPortalModalProps {
   isOpen: boolean;
@@ -67,7 +67,7 @@ export const B2BPortalModal: React.FC<B2BPortalModalProps> = ({ isOpen, onClose 
       });
 
       if (!res.ok) {
-        throw new Error(res.error || 'Failed to submit quote request');
+        throw new Error(extractErrorMessage(res.error || res.data, 'Failed to submit quote request'));
       }
       setQuoteSubmitted(true);
 
@@ -78,9 +78,9 @@ export const B2BPortalModal: React.FC<B2BPortalModalProps> = ({ isOpen, onClose 
           origin: { y: 0.6 }
         });
       } catch (e) {}
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSubmitError(
-        err?.message || 'Unable to submit request. Please reach out to balki.technologies@gmail.com directly.'
+        extractErrorMessage(err, 'Unable to submit request. Please reach out to balki.technologies@gmail.com directly.')
       );
     } finally {
       setIsSubmitting(false);

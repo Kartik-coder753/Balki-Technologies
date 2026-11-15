@@ -254,20 +254,75 @@ export function verifyRazorpayWebhookSignature(
   }
 }
 
-// ==========================================
-// STANDARDIZED RESPONSE HELPERS
-// ==========================================
+const SERVER_SENSITIVE_PATTERN =
+  /(rzp_(live|test)_[A-Za-z0-9]+|whsec_[A-Za-z0-9]+|-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----)/g;
+
+export function extractServerErrorMessage(
+  input: unknown,
+  fallback = 'An unexpected server error occurred.',
+  depth = 0
+): string {
+  if (depth > 5 || input === null || input === undefined) {
+    return fallback;
+  }
+  if (typeof input === 'string') {
+    const cleaned = input.replace(SERVER_SENSITIVE_PATTERN, '[REDACTED]').trim();
+    return cleaned && cleaned !== '[object Object]' ? cleaned : fallback;
+  }
+  if (typeof input === 'number' || typeof input === 'boolean') {
+    return String(input);
+  }
+  if (Array.isArray(input)) {
+    const parts = input.map(v => extractServerErrorMessage(v, '', depth + 1)).filter(Boolean);
+    return parts.length > 0 ? parts.join('; ') : fallback;
+  }
+  if (input instanceof Error) {
+    const errAny = input as any;
+    if (errAny?.error) {
+      const nested = extractServerErrorMessage(errAny.error, '', depth + 1);
+      if (nested) return nested;
+    }
+    if (errAny?.response?.data) {
+      const nested = extractServerErrorMessage(errAny.response.data, '', depth + 1);
+      if (nested) return nested;
+    }
+    return extractServerErrorMessage(input.message, '', depth + 1) || fallback;
+  }
+  if (typeof input === 'object') {
+    const obj = input as Record<string, unknown>;
+    const candidateKeys = ['error', 'description', 'message', 'reason', 'response', 'data', 'details'];
+    for (const key of candidateKeys) {
+      if (obj[key] !== undefined && obj[key] !== null) {
+        const extracted = extractServerErrorMessage(obj[key], '', depth + 1);
+        if (extracted) return extracted;
+      }
+    }
+  }
+  return fallback;
+}
+
+function logPaymentDiagnostic(stage: string, details: Record<string, unknown> = {}) {
+  const payload = {
+    stage,
+    env: process.env.VERCEL ? 'vercel' : (process.env.NODE_ENV || 'development'),
+    ...details,
+    ts: new Date().toISOString()
+  };
+  console.info('[PaymentDiagnostic]', JSON.stringify(payload));
+}
+
 function sendJsonError(
   res: express.Response,
   status: number,
-  message: string,
+  message: unknown,
   code: string,
   extra: Record<string, unknown> = {}
 ) {
+  const safeMessage = extractServerErrorMessage(message, 'Request could not be processed.');
   return res.status(status).json({
     success: false,
-    message,
-    error: message,
+    message: safeMessage,
+    error: safeMessage,
     code,
     ...extra
   });
@@ -694,6 +749,7 @@ export function createApiApp(): express.Express {
       try {
         const webhookSecret = getRazorpayWebhookSecret();
         if (!webhookSecret) {
+          logPaymentDiagnostic('webhook_secret_missing');
           return sendJsonError(
             res,
             503,
@@ -704,6 +760,7 @@ export function createApiApp(): express.Express {
 
         const signature = req.headers['x-razorpay-signature'];
         if (typeof signature !== 'string' || !signature.trim()) {
+          logPaymentDiagnostic('webhook_signature_missing');
           return sendJsonError(res, 400, 'Missing X-Razorpay-Signature header.', 'MISSING_WEBHOOK_SIGNATURE');
         }
 
@@ -719,6 +776,7 @@ export function createApiApp(): express.Express {
         }
 
         if (!rawBuffer) {
+          logPaymentDiagnostic('webhook_raw_body_missing', { bodyType: typeof req.body });
           return sendJsonError(
             res,
             400,
@@ -728,6 +786,7 @@ export function createApiApp(): express.Express {
         }
 
         if (!verifyRazorpayWebhookSignature(rawBuffer, signature, webhookSecret)) {
+          logPaymentDiagnostic('webhook_signature_invalid');
           return sendJsonError(res, 401, 'Invalid Razorpay webhook signature.', 'INVALID_WEBHOOK_SIGNATURE');
         }
 
@@ -923,6 +982,13 @@ export function createApiApp(): express.Express {
           }
 
           processedWebhookEvents.add(eventId);
+          logPaymentDiagnostic('webhook_capture_processed', {
+            event: eventName,
+            orderId: effectiveOrder?.id || balkiOrderId || null,
+            razorpayOrderId: rzpOrderId || null,
+            orderMatched: Boolean(effectiveOrder),
+            firestoreSynced: fsResult.handledByFirestore
+          });
           return sendJsonSuccess(res, 200, `Webhook event "${eventName}" processed`, {
             eventId,
             event: eventName,
@@ -932,8 +998,9 @@ export function createApiApp(): express.Express {
         }
 
         // Handle payment.failed — never downgrade an already-Paid order
-        const errorDesc = String(
-          paymentEntity?.error_description || paymentEntity?.error_reason || 'Payment failed at Razorpay gateway.'
+        const errorDesc = extractServerErrorMessage(
+          paymentEntity?.error_description || paymentEntity?.error_reason,
+          'Payment failed at Razorpay gateway.'
         );
         const errorCode = String(paymentEntity?.error_code || 'PAYMENT_FAILED');
 
@@ -983,6 +1050,13 @@ export function createApiApp(): express.Express {
         }
 
         processedWebhookEvents.add(eventId);
+        logPaymentDiagnostic('webhook_failure_processed', {
+          event: eventName,
+          orderId: matchingOrder?.id || balkiOrderId || null,
+          razorpayOrderId: rzpOrderId || null,
+          ignoredBecauseAlreadyPaid,
+          firestoreSynced: fsFail.handledByFirestore
+        });
         return sendJsonSuccess(res, 200, `Webhook event "${eventName}" processed`, {
           eventId,
           event: eventName,
@@ -991,7 +1065,9 @@ export function createApiApp(): express.Express {
           firestoreSynced: fsFail.handledByFirestore
         });
       } catch (err: any) {
-        console.error('Webhook processing error:', err);
+        logPaymentDiagnostic('webhook_error', {
+          reason: extractServerErrorMessage(err, 'Internal server error processing Razorpay webhook.')
+        });
         return sendJsonError(
           res,
           500,
@@ -1017,6 +1093,7 @@ export function createApiApp(): express.Express {
       razorpayMode: rzpStatus.mode,
       webhookConfigured: rzpStatus.webhookConfigured,
       firestoreAdminConfigured: fsStatus.configured,
+      firestoreAdminReason: fsStatus.reason,
       approvalThresholdInr: getApprovalThresholdInr(),
       timestamp: new Date().toISOString()
     });
@@ -1436,6 +1513,16 @@ export function createApiApp(): express.Express {
       }
 
       const amountInPaise = Math.round(finalAmount * 100);
+      if (!Number.isFinite(amountInPaise) || amountInPaise < 100) {
+        logPaymentDiagnostic('create_order_invalid_amount', { orderId: order?.id || null, amountInPaise });
+        return sendJsonError(
+          res,
+          400,
+          'Order payable amount must be at least ₹1.00 (100 paise) for Razorpay processing.',
+          'INVALID_ORDER_AMOUNT'
+        );
+      }
+
       const receiptId = order ? order.id : `rcpt_${Date.now().toString(36)}`;
 
       const rzpOrder = await razorpayClient.orders.create({
@@ -1456,6 +1543,13 @@ export function createApiApp(): express.Express {
         await syncRazorpayOrderIdToFirestore(order.id, rzpOrder.id);
       }
 
+      logPaymentDiagnostic('create_order_success', {
+        mode: rzpStatus.mode,
+        orderId: receiptId,
+        razorpayOrderId: rzpOrder.id,
+        amountInPaise
+      });
+
       return sendJsonSuccess(res, 200, 'Razorpay order created successfully', {
         configured: true,
         mode: rzpStatus.mode,
@@ -1471,12 +1565,30 @@ export function createApiApp(): express.Express {
         }
       });
     } catch (err: any) {
-      console.error('Error in /api/razorpay/create-order:', err?.error || err);
-      const message =
-        err?.error?.description ||
-        err?.message ||
-        'Unable to create Razorpay payment order right now. Please try again.';
-      return sendJsonError(res, 502, message, 'RAZORPAY_ORDER_FAILED');
+      const statusCode = Number(err?.statusCode || err?.error?.statusCode || 502);
+      const extracted = extractServerErrorMessage(
+        err,
+        'Unable to create Razorpay payment order right now. Please try again.'
+      );
+      const isAuthError =
+        statusCode === 401 ||
+        extracted.toLowerCase().includes('authentication failed') ||
+        extracted.toLowerCase().includes('key_id');
+      const clientMessage = isAuthError
+        ? 'Razorpay merchant authentication failed on the server. Please verify RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET in server environment variables.'
+        : extracted;
+
+      logPaymentDiagnostic('create_order_failed', {
+        statusCode,
+        isAuthError,
+        reason: clientMessage
+      });
+      return sendJsonError(
+        res,
+        502,
+        clientMessage,
+        isAuthError ? 'RAZORPAY_AUTH_FAILED' : 'RAZORPAY_ORDER_FAILED'
+      );
     }
   });
 
@@ -1514,6 +1626,10 @@ export function createApiApp(): express.Express {
       );
 
       if (!isSignatureValid) {
+        logPaymentDiagnostic('verify_payment_invalid_signature', {
+          orderId: orderId || null,
+          razorpayOrderId: String(razorpay_order_id)
+        });
         return sendJsonError(
           res,
           400,
@@ -1550,6 +1666,10 @@ export function createApiApp(): express.Express {
       }
 
       if (!order) {
+        logPaymentDiagnostic('verify_payment_order_not_found', {
+          orderId: orderId || null,
+          razorpayOrderId: String(razorpay_order_id)
+        });
         return sendJsonError(
           res,
           404,
@@ -1574,6 +1694,10 @@ export function createApiApp(): express.Express {
             }
           });
         }
+        logPaymentDiagnostic('verify_payment_duplicate_rejected', {
+          orderId: order.id,
+          razorpayOrderId: String(razorpay_order_id)
+        });
         return sendJsonError(
           res,
           409,
@@ -1596,6 +1720,11 @@ export function createApiApp(): express.Express {
 
           const expectedPaise = Math.round(order.totalAmount * 100);
           if (typeof fetchedPayment.amount === 'number' && fetchedPayment.amount !== expectedPaise) {
+            logPaymentDiagnostic('verify_payment_amount_mismatch', {
+              orderId: order.id,
+              paidPaise: fetchedPayment.amount,
+              expectedPaise
+            });
             return sendJsonError(
               res,
               400,
@@ -1616,7 +1745,10 @@ export function createApiApp(): express.Express {
           }
         }
       } catch (fetchErr: any) {
-        console.warn('Razorpay payment fetch check note:', fetchErr?.error?.description || fetchErr?.message);
+        logPaymentDiagnostic('verify_payment_fetch_note', {
+          orderId: order.id,
+          reason: extractServerErrorMessage(fetchErr, 'Unable to fetch remote payment details')
+        });
       }
 
       // Atomic Firestore capture transaction (if Admin SDK configured)
@@ -1729,6 +1861,13 @@ export function createApiApp(): express.Express {
         });
       }
 
+      logPaymentDiagnostic('verify_payment_success', {
+        orderId: order.id,
+        razorpayOrderId: String(razorpay_order_id),
+        mode: rzpStatus.mode,
+        firestoreSynced: fsCapture.handledByFirestore
+      });
+
       return sendJsonSuccess(res, 200, 'Razorpay payment successfully verified and order marked as paid.', {
         firestoreSynced: fsCapture.handledByFirestore,
         order: fsCapture.order || order,
@@ -1742,8 +1881,9 @@ export function createApiApp(): express.Express {
         }
       });
     } catch (err: any) {
-      console.error('Error in /api/razorpay/verify-payment:', err);
-      return sendJsonError(res, 500, err.message || 'Internal error verifying Razorpay payment.', 'PAYMENT_VERIFICATION_ERROR');
+      const safeMsg = extractServerErrorMessage(err, 'Internal error verifying Razorpay payment.');
+      logPaymentDiagnostic('verify_payment_error', { reason: safeMsg });
+      return sendJsonError(res, 500, safeMsg, 'PAYMENT_VERIFICATION_ERROR');
     }
   });
 
@@ -1783,7 +1923,7 @@ export function createApiApp(): express.Express {
       return sendJsonError(
         res,
         404,
-        err?.error?.description || err?.message || 'Payment record not found',
+        extractServerErrorMessage(err, 'Payment record not found'),
         'PAYMENT_NOT_FOUND'
       );
     }
@@ -1884,11 +2024,12 @@ export function createApiApp(): express.Express {
         status: 'created'
       });
     } catch (err: any) {
-      console.error('Error generating Razorpay payment link:', err);
+      const msg = extractServerErrorMessage(err, 'Error creating Razorpay payment link');
+      logPaymentDiagnostic('create_payment_link_failed', { reason: msg });
       return sendJsonError(
         res,
         502,
-        err?.error?.description || err?.message || 'Error creating Razorpay payment link',
+        msg,
         'RAZORPAY_PAYMENT_LINK_FAILED'
       );
     }
@@ -1949,12 +2090,12 @@ export function createApiApp(): express.Express {
         customerPhone: customerPhone || order.customerPhone || null
       });
     } catch (qrErr: any) {
-      return sendJsonError(
-        res,
-        502,
-        qrErr?.error?.description || qrErr?.message || 'Razorpay QR creation is unavailable on this merchant account. Please use Razorpay Checkout modal.',
-        'RAZORPAY_QR_UNAVAILABLE'
+      const msg = extractServerErrorMessage(
+        qrErr,
+        'Razorpay QR creation is unavailable on this merchant account. Please use Razorpay Checkout modal.'
       );
+      logPaymentDiagnostic('create_qr_failed', { orderId: order.id, reason: msg });
+      return sendJsonError(res, 502, msg, 'RAZORPAY_QR_UNAVAILABLE');
     }
   });
 
@@ -2296,24 +2437,46 @@ export function createApiApp(): express.Express {
     let razorpayErrorMessage: string | undefined = undefined;
 
     if (rzpStatus.configured && razorpayClient) {
-      try {
-        const rzpOrder: any = await razorpayClient.orders.create({
-          amount: Math.round(calc.data.finalAmount * 100),
-          currency: 'INR',
-          receipt: orderId,
-          notes: {
-            balkiOrderId: orderId,
-            customerEmail: customerEmail.trim(),
-            customerPhone: customerPhone.trim()
-          }
-        });
-        razorpayOrderId = rzpOrder.id;
-      } catch (sdkErr: any) {
-        console.warn('Razorpay orders.create failed during checkout-small:', sdkErr?.error || sdkErr);
-        razorpayErrorMessage =
-          sdkErr?.error?.description ||
-          sdkErr?.message ||
-          'Unable to initialize Razorpay order right now.';
+      const amountInPaise = Math.round(calc.data.finalAmount * 100);
+      if (!Number.isFinite(amountInPaise) || amountInPaise < 100) {
+        razorpayErrorMessage = 'Order payable amount must be at least ₹1.00 (100 paise) for Razorpay processing.';
+        logPaymentDiagnostic('checkout_small_invalid_amount', { orderId, amountInPaise });
+      } else {
+        try {
+          const rzpOrder: any = await razorpayClient.orders.create({
+            amount: amountInPaise,
+            currency: 'INR',
+            receipt: orderId,
+            notes: {
+              balkiOrderId: orderId,
+              customerEmail: customerEmail.trim(),
+              customerPhone: customerPhone.trim()
+            }
+          });
+          razorpayOrderId = rzpOrder.id;
+          logPaymentDiagnostic('checkout_small_rzp_order_created', {
+            orderId,
+            razorpayOrderId,
+            amountInPaise,
+            mode: rzpStatus.mode
+          });
+        } catch (sdkErr: any) {
+          const statusCode = Number(sdkErr?.statusCode || sdkErr?.error?.statusCode || 502);
+          const extracted = extractServerErrorMessage(sdkErr, 'Unable to initialize Razorpay order right now.');
+          const isAuthError =
+            statusCode === 401 ||
+            extracted.toLowerCase().includes('authentication failed') ||
+            extracted.toLowerCase().includes('key_id');
+          razorpayErrorMessage = isAuthError
+            ? 'Razorpay merchant authentication failed on the server. Please verify server RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.'
+            : extracted;
+          logPaymentDiagnostic('checkout_small_rzp_order_failed', {
+            orderId,
+            statusCode,
+            isAuthError,
+            reason: razorpayErrorMessage
+          });
+        }
       }
     }
 
@@ -3197,11 +3360,12 @@ export function createApiApp(): express.Express {
       if (err instanceof SyntaxError && 'body' in err) {
         return sendJsonError(res, 400, 'Malformed JSON request payload.', 'INVALID_JSON_PAYLOAD');
       }
-      console.error('Unhandled API Error:', err);
+      const safeErr = extractServerErrorMessage(err, 'Unexpected internal server error.');
+      logPaymentDiagnostic('unhandled_api_error', { path: req.originalUrl, reason: safeErr });
       return sendJsonError(
         res,
         err?.status || 500,
-        err?.message || 'Unexpected internal server error.',
+        safeErr,
         'INTERNAL_SERVER_ERROR'
       );
     }

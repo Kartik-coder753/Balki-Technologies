@@ -34,36 +34,72 @@ function loadFirebaseConfig(): { projectId: string; firestoreDatabaseId?: string
   };
 }
 
-function parseServiceAccountFromEnv(): ServiceAccount | null {
-  const rawJson = (process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '').trim();
+function stripWrappingQuotes(value: string): string {
+  const trimmed = value.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
+function parseServiceAccountFromEnv(): {
+  account: ServiceAccount | null;
+  diagnosticReason: string | null;
+} {
+  const rawJson = stripWrappingQuotes(process.env.FIREBASE_SERVICE_ACCOUNT_JSON || '');
   if (rawJson) {
     try {
       const decoded = rawJson.startsWith('{') ? rawJson : Buffer.from(rawJson, 'base64').toString('utf8');
       const parsed = JSON.parse(decoded);
-      if (parsed.client_email && parsed.private_key) {
-        return {
-          projectId: parsed.project_id,
-          clientEmail: parsed.client_email,
-          privateKey: String(parsed.private_key).replace(/\\n/g, '\n')
-        };
+      if (!parsed || typeof parsed !== 'object') {
+        return { account: null, diagnosticReason: 'invalid_service_account_json' };
       }
-    } catch (err) {
-      console.warn('Invalid FIREBASE_SERVICE_ACCOUNT_JSON format:', err instanceof Error ? err.message : err);
+      if (!parsed.client_email || !parsed.private_key) {
+        return { account: null, diagnosticReason: 'missing_client_email_or_private_key' };
+      }
+      const privateKey = String(parsed.private_key).replace(/\\n/g, '\n');
+      if (!privateKey.includes('BEGIN PRIVATE KEY') && !privateKey.includes('BEGIN RSA PRIVATE KEY')) {
+        return { account: null, diagnosticReason: 'invalid_private_key_pem_format' };
+      }
+      return {
+        account: {
+          projectId: parsed.project_id || loadFirebaseConfig().projectId,
+          clientEmail: parsed.client_email,
+          privateKey
+        },
+        diagnosticReason: null
+      };
+    } catch {
+      console.warn('[FirebaseAdmin] FIREBASE_SERVICE_ACCOUNT_JSON is malformed and could not be parsed.');
+      return { account: null, diagnosticReason: 'invalid_service_account_json' };
     }
   }
 
-  const clientEmail = (process.env.FIREBASE_CLIENT_EMAIL || '').trim();
-  const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').trim();
-  const projectId = (process.env.FIREBASE_PROJECT_ID || '').trim();
-  if (clientEmail && privateKey) {
+  const clientEmail = stripWrappingQuotes(process.env.FIREBASE_CLIENT_EMAIL || '');
+  const privateKeyRaw = stripWrappingQuotes(process.env.FIREBASE_PRIVATE_KEY || '');
+  const projectId = stripWrappingQuotes(process.env.FIREBASE_PROJECT_ID || '');
+  if (clientEmail || privateKeyRaw) {
+    if (!clientEmail || !privateKeyRaw) {
+      return { account: null, diagnosticReason: 'missing_client_email_or_private_key' };
+    }
+    const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
+    if (!privateKey.includes('BEGIN PRIVATE KEY') && !privateKey.includes('BEGIN RSA PRIVATE KEY')) {
+      return { account: null, diagnosticReason: 'invalid_private_key_pem_format' };
+    }
     return {
-      projectId: projectId || loadFirebaseConfig().projectId,
-      clientEmail,
-      privateKey: privateKey.replace(/\\n/g, '\n')
+      account: {
+        projectId: projectId || loadFirebaseConfig().projectId,
+        clientEmail,
+        privateKey
+      },
+      diagnosticReason: null
     };
   }
 
-  return null;
+  return { account: null, diagnosticReason: null };
 }
 
 export function getAdminFirestore(): Firestore | null {
@@ -72,7 +108,13 @@ export function getAdminFirestore(): Firestore | null {
   adminInitAttempted = true;
 
   const cfg = loadFirebaseConfig();
-  const serviceAccount = parseServiceAccountFromEnv();
+  const { account: serviceAccount, diagnosticReason } = parseServiceAccountFromEnv();
+
+  if (diagnosticReason) {
+    adminInitReason = diagnosticReason;
+    console.warn(`[FirebaseAdmin] Initialization skipped: ${adminInitReason}`);
+    return null;
+  }
 
   // Only initialize Admin SDK when explicit service account credentials or GOOGLE_APPLICATION_CREDENTIALS are configured
   const hasExplicitCreds = Boolean(serviceAccount || process.env.GOOGLE_APPLICATION_CREDENTIALS);
@@ -98,10 +140,11 @@ export function getAdminFirestore(): Firestore | null {
       ? getFirestore(firebaseApp, cfg.firestoreDatabaseId)
       : getFirestore(firebaseApp);
     adminInitReason = 'configured';
+    console.info(`[FirebaseAdmin] Initialized for project=${cfg.projectId}, db=${cfg.firestoreDatabaseId || '(default)'}`);
     return cachedAdminDb;
   } catch (err) {
     adminInitReason = err instanceof Error ? err.message : 'init_failed';
-    console.warn('Firebase Admin initialization skipped:', adminInitReason);
+    console.warn('[FirebaseAdmin] Initialization failed:', adminInitReason);
     return null;
   }
 }

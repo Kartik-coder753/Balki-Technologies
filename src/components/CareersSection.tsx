@@ -16,7 +16,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { safeFetchJson } from '../utils/apiClient';
+import { safeFetchJson, extractErrorMessage } from '../utils/apiClient';
 
 export const CareersSection: React.FC = () => {
   const [fullName, setFullName] = useState('');
@@ -55,7 +55,7 @@ export const CareersSection: React.FC = () => {
       });
 
       if (!res.ok) {
-        throw new Error(res.error || 'Failed to submit application');
+        throw new Error(extractErrorMessage(res.error || res.data, 'Failed to submit application'));
       }
       setApplicationSuccess(true);
 
@@ -66,9 +66,9 @@ export const CareersSection: React.FC = () => {
           origin: { y: 0.6 }
         });
       } catch (e) {}
-    } catch (err: any) {
+    } catch (err: unknown) {
       setApplicationError(
-        err?.message || 'Unable to send application. Please email balki.technologies@gmail.com directly.'
+        extractErrorMessage(err, 'Unable to send application. Please email balki.technologies@gmail.com directly.')
       );
     } finally {
       setIsSubmitting(false);

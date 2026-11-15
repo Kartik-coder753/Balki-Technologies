@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { downloadRentalAgreement } from '../utils/downloadHelpers';
-import { safeFetchJson } from '../utils/apiClient';
+import { safeFetchJson, extractErrorMessage } from '../utils/apiClient';
 
 interface RentalsSectionProps {
   rentals: RentalEquipment[];
@@ -85,7 +85,7 @@ export const RentalsSection: React.FC<RentalsSectionProps> = ({
       });
 
       if (!res.ok || !res.data) {
-        throw new Error(res.error || 'Failed to book rental equipment');
+        throw new Error(extractErrorMessage(res.error || res.data, 'Failed to book rental equipment'));
       }
       const booking = res.data;
       
@@ -99,9 +99,9 @@ export const RentalsSection: React.FC<RentalsSectionProps> = ({
           origin: { y: 0.6 }
         });
       } catch (e) {}
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setBookingError(err?.message || 'Unable to process rental booking. Please ensure units are available.');
+      setBookingError(extractErrorMessage(err, 'Unable to process rental booking. Please ensure units are available.'));
     } finally {
       setIsSubmitting(false);
     }

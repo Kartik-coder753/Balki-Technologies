@@ -18,7 +18,7 @@ import { collection, onSnapshot, doc, setDoc, updateDoc, increment } from 'fireb
 import { db, handleFirestoreError } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { ClientReview, Product } from '../types';
-import { safeFetchJson } from '../utils/apiClient';
+import { safeFetchJson, extractErrorMessage } from '../utils/apiClient';
 
 interface ClientReviewsHubProps {
   products: Product[];
@@ -196,10 +196,10 @@ export const ClientReviewsHub: React.FC<ClientReviewsHubProps> = ({
         setHeadline('');
         setReviewText('');
       }, 1200);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error submitting review:', err);
       handleFirestoreError(err, 'create', 'reviews');
-      setErrorMessage(err.message || 'Failed to publish review. Please try again.');
+      setErrorMessage(extractErrorMessage(err, 'Failed to publish review. Please try again.'));
     } finally {
       setIsSubmitting(false);
     }

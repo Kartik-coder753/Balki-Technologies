@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { Order, OrderStatus, TrackingCheckpoint } from '../types';
 import { downloadTaxInvoice } from '../utils/downloadHelpers';
-import { safeFetchJson } from '../utils/apiClient';
+import { safeFetchJson, extractErrorMessage } from '../utils/apiClient';
 
 interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -83,16 +83,17 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
           setCurrentOrder(local);
         } else {
           setErrorMsg(
-            res.error ||
-              res.data?.message ||
+            extractErrorMessage(
+              res.error || res.data,
               `No active consignment found matching "${query}". Try one of the quick suggestions below.`
+            )
           );
           setCurrentOrder(null);
         }
       }
     } catch (e) {
       console.error(e);
-      setErrorMsg('Failed to connect to tracking server. Please check your connection.');
+      setErrorMsg(extractErrorMessage(e, 'Failed to connect to tracking server. Please check your connection.'));
     } finally {
       setIsLoading(false);
     }
@@ -125,11 +126,11 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
         if (onOrderUpdated) onOrderUpdated(res.data.order);
         setActionSuccessMsg(res.data.message || 'Tracking milestone advanced successfully!');
       } else {
-        setErrorMsg(res.error || 'Could not advance milestone.');
+        setErrorMsg(extractErrorMessage(res.error || res.data, 'Could not advance milestone.'));
       }
     } catch (e) {
       console.error(e);
-      setErrorMsg('Failed to update tracking status.');
+      setErrorMsg(extractErrorMessage(e, 'Failed to update tracking status.'));
     } finally {
       setIsAdvancing(false);
     }
@@ -153,11 +154,11 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
         if (onOrderUpdated) onOrderUpdated(res.data.order);
         setActionSuccessMsg('Order cancelled and full refund initiated. Inventory restocked.');
       } else {
-        setErrorMsg(res.error || 'Failed to cancel order.');
+        setErrorMsg(extractErrorMessage(res.error || res.data, 'Failed to cancel order.'));
       }
     } catch (e) {
       console.error(e);
-      setErrorMsg('Network error while processing cancellation.');
+      setErrorMsg(extractErrorMessage(e, 'Network error while processing cancellation.'));
     } finally {
       setIsCancelling(false);
     }

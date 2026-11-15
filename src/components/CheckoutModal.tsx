@@ -35,7 +35,7 @@ import { downloadTaxInvoice, downloadOrderRequestSummary } from '../utils/downlo
 import { useAuth } from '../context/AuthContext';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, handleFirestoreError } from '../lib/firebase';
-import { safeFetchJson } from '../utils/apiClient';
+import { safeFetchJson, extractErrorMessage } from '../utils/apiClient';
 
 interface ServerCalculation {
   subtotal: number;
@@ -182,7 +182,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     ).then(result => {
       if (!isMounted) return;
       if (!result.ok || !result.data) {
-        setCalcError(result.error || 'Server price calculation failed');
+        setCalcError(extractErrorMessage(result.error || result.data, 'Server price calculation failed'));
       } else {
         setServerCalc(result.data);
         if (result.data.razorpay) {
@@ -278,7 +278,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       });
 
       if (!res.ok || !res.data || !res.data.order) {
-        throw new Error(res.error || 'Failed to initialize small order checkout.');
+        throw new Error(extractErrorMessage(res.error || res.data, 'Failed to initialize small order checkout.'));
       }
 
       const data = res.data;
@@ -340,15 +340,26 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         setTimeout(() => {
           handleOpenRazorpay(data.order, data.razorpay, data.orderToken);
         }, 120);
+      } else if (data.razorpay?.status === 'gateway_error' || data.razorpay?.configured) {
+        // Gateway credentials exist, but Razorpay rejected or failed order creation
+        setPaymentProcessingState('failed');
+        setPaymentErrorMessage(
+          extractErrorMessage(
+            data.razorpay?.message,
+            'Unable to initialize Razorpay payment order on the server. Please retry payment below.'
+          )
+        );
       } else {
         // Honest unconfigured state: preserve order & details, do NOT fake payment
         setRazorpayConfigNotice(
-          data.razorpay?.message ||
+          extractErrorMessage(
+            data.razorpay?.message,
             'Razorpay payment gateway credentials are not yet configured on this server. Your order details are preserved safely as Payment Pending.'
+          )
         );
       }
-    } catch (err: any) {
-      setSubmissionError(err.message || 'Error creating order.');
+    } catch (err: unknown) {
+      setSubmissionError(extractErrorMessage(err, 'Error creating order.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -392,7 +403,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       });
 
       if (!res.ok || !res.data || !res.data.request) {
-        throw new Error(res.error || 'Failed to submit order approval request.');
+        throw new Error(extractErrorMessage(res.error || res.data, 'Failed to submit order approval request.'));
       }
 
       const data = res.data;
@@ -439,8 +450,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       } catch {
         // ignore confetti failure
       }
-    } catch (err: any) {
-      setSubmissionError(err.message || 'Error submitting approval request.');
+    } catch (err: unknown) {
+      setSubmissionError(extractErrorMessage(err, 'Error submitting approval request.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -485,7 +496,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       });
 
       if (!res.ok || !res.data || !res.data.order) {
-        throw new Error(res.error || 'Cryptographic payment signature verification failed.');
+        throw new Error(
+          extractErrorMessage(res.error || res.data, 'Cryptographic payment signature verification failed.')
+        );
       }
 
       const data = res.data;
@@ -503,9 +516,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       } catch {
         // ignore
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPaymentProcessingState('failed');
-      setPaymentErrorMessage(err.message || 'Signature verification error on backend.');
+      setPaymentErrorMessage(extractErrorMessage(err, 'Signature verification error on backend.'));
     }
   };
 
@@ -517,7 +530,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const rzpQuery = razorpayData?.orderId ? `?razorpayOrderId=${encodeURIComponent(razorpayData.orderId)}` : '';
       const res = await safeFetchJson<any>(`/api/orders/${encodeURIComponent(createdOrder.id)}/payment-status${rzpQuery}`);
       if (!res.ok || !res.data) {
-        throw new Error(res.error || 'Could not retrieve current payment status.');
+        throw new Error(extractErrorMessage(res.error || res.data, 'Could not retrieve current payment status.'));
       }
       const statusData = res.data;
       if (statusData.confirmed) {
@@ -537,15 +550,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       } else if (statusData.paymentStatus === 'Failed') {
         setPaymentProcessingState('failed');
         setPaymentErrorMessage(
-          statusData.lastPaymentError || 'Previous payment attempt failed. You can safely retry payment below.'
+          extractErrorMessage(
+            statusData.lastPaymentError,
+            'Previous payment attempt failed. You can safely retry payment below.'
+          )
         );
       } else {
         setPaymentErrorMessage(
           `Order ${createdOrder.id} is currently in "${statusData.paymentStatus}" status. Complete Razorpay checkout or wait a moment if you already paid.`
         );
       }
-    } catch (err: any) {
-      setPaymentErrorMessage(err.message || 'Unable to verify payment status.');
+    } catch (err: unknown) {
+      setPaymentErrorMessage(extractErrorMessage(err, 'Unable to verify payment status.'));
     } finally {
       setIsCheckingStatus(false);
     }
@@ -588,14 +604,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           setRazorpayMode('unconfigured');
           setPaymentProcessingState('idle');
           setRazorpayConfigNotice(
-            createRes.error ||
+            extractErrorMessage(
+              createRes.error || createRes.data,
               'Razorpay merchant credentials are not yet configured. Your order details remain safely saved as Payment Pending.'
+            )
           );
           return;
         }
 
         if (!createRes.ok || !createRes.data) {
-          throw new Error(createRes.error || 'Failed to initialize Razorpay order');
+          throw new Error(extractErrorMessage(createRes.error || createRes.data, 'Failed to initialize Razorpay order'));
         }
 
         rzpOrderId = createRes.data.razorpayOrderId;
@@ -695,16 +713,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       const rzp = new (window as any).Razorpay(options);
       rzp.on('payment.failed', function (resp: any) {
         setPaymentProcessingState('failed');
-        const desc =
-          resp.error?.description ||
-          'Transaction declined by bank or card issuer. Your order details are preserved so you can retry payment.';
+        const desc = extractErrorMessage(
+          resp?.error || resp,
+          'Transaction declined by bank or card issuer. Your order details are preserved so you can retry payment.'
+        );
         setPaymentErrorMessage(desc);
       });
       setPaymentProcessingState('idle');
       rzp.open();
-    } catch (err: any) {
+    } catch (err: unknown) {
       setPaymentProcessingState('failed');
-      setPaymentErrorMessage(err.message || 'Payment initiation error.');
+      setPaymentErrorMessage(extractErrorMessage(err, 'Payment initiation error.'));
     }
   };
 
@@ -723,8 +742,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     });
     if (res.ok && res.data?.qrString) {
       setDynamicQrString(res.data.qrString);
-    } else if (res.error) {
-      setPaymentErrorMessage(res.error);
+    } else if (!res.ok) {
+      setPaymentErrorMessage(extractErrorMessage(res.error || res.data, 'Unable to load Razorpay QR right now.'));
     }
   };
 

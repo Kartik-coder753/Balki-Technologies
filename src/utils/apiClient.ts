@@ -6,9 +6,103 @@ export interface ApiResponse<T = any> {
   code?: string;
 }
 
+const SENSITIVE_PATTERN = /(rzp_(live|test)_[A-Za-z0-9]+|whsec_[A-Za-z0-9]+|-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----)/g;
+
+function sanitizeErrorText(text: string): string {
+  return text.replace(SENSITIVE_PATTERN, '[REDACTED]').trim();
+}
+
+/**
+ * Safely extracts a human-readable error message from nested API responses,
+ * Vercel error payloads, Razorpay error objects, Axios errors, or thrown values.
+ * Never returns "[object Object]" and redacts accidental credential patterns.
+ */
+export function extractErrorMessage(
+  input: unknown,
+  fallback = 'An unexpected error occurred. Please try again.',
+  depth = 0
+): string {
+  if (depth > 5 || input === null || input === undefined) {
+    return fallback;
+  }
+
+  if (typeof input === 'string') {
+    const cleaned = sanitizeErrorText(input);
+    if (!cleaned || cleaned === '[object Object]') {
+      return fallback;
+    }
+    return cleaned;
+  }
+
+  if (typeof input === 'number' || typeof input === 'boolean') {
+    return String(input);
+  }
+
+  if (Array.isArray(input)) {
+    const parts = input
+      .map(item => extractErrorMessage(item, '', depth + 1))
+      .filter(Boolean);
+    return parts.length > 0 ? parts.join('; ') : fallback;
+  }
+
+  if (input instanceof Error) {
+    const errAny = input as any;
+    if (errAny?.response?.data) {
+      const nested = extractErrorMessage(errAny.response.data, '', depth + 1);
+      if (nested) return nested;
+    }
+    if (errAny?.error) {
+      const nested = extractErrorMessage(errAny.error, '', depth + 1);
+      if (nested) return nested;
+    }
+    const msg = extractErrorMessage(input.message, '', depth + 1);
+    return msg || fallback;
+  }
+
+  if (typeof input === 'object') {
+    const obj = input as Record<string, unknown>;
+    const candidateKeys = [
+      'response',
+      'data',
+      'error',
+      'message',
+      'description',
+      'reason',
+      'details',
+      'detail',
+      'statusText'
+    ];
+
+    for (const key of candidateKeys) {
+      if (obj[key] !== undefined && obj[key] !== null) {
+        const extracted = extractErrorMessage(obj[key], '', depth + 1);
+        if (extracted) {
+          return extracted;
+        }
+      }
+    }
+
+    // Fallback: join readable primitive properties rather than returning [object Object]
+    const readablePairs: string[] = [];
+    for (const [k, v] of Object.entries(obj)) {
+      if (typeof v === 'string' && v.trim() && v !== '[object Object]') {
+        readablePairs.push(`${k}: ${sanitizeErrorText(v)}`);
+      } else if (typeof v === 'number' || typeof v === 'boolean') {
+        readablePairs.push(`${k}: ${v}`);
+      }
+      if (readablePairs.length >= 3) break;
+    }
+    if (readablePairs.length > 0) {
+      return readablePairs.join(' | ');
+    }
+  }
+
+  return fallback;
+}
+
 /**
  * Safely performs a fetch request and parses JSON without throwing on
- * empty bodies, HTML fallback pages (e.g. 404/405 SPA rewrites), or malformed responses.
+ * empty bodies, HTML fallback pages (e.g. 404/405 SPA rewrites), or nested error objects.
  */
 export async function safeFetchJson<T = any>(
   url: string,
@@ -23,14 +117,15 @@ export async function safeFetchJson<T = any>(
         ...(options?.headers || {})
       }
     });
-  } catch (networkErr: any) {
+  } catch (networkErr: unknown) {
+    const rawMsg = extractErrorMessage(networkErr, '');
     return {
       ok: false,
       status: 0,
       data: null,
       error:
-        networkErr?.message && !String(networkErr.message).includes('Failed to fetch')
-          ? networkErr.message
+        rawMsg && !rawMsg.includes('Failed to fetch')
+          ? rawMsg
           : 'Unable to reach the payment & order server. Please check your internet connection and try again.',
       code: 'NETWORK_ERROR'
     };
@@ -39,7 +134,7 @@ export async function safeFetchJson<T = any>(
   let rawText = '';
   try {
     rawText = await res.text();
-  } catch (readErr: any) {
+  } catch {
     return {
       ok: false,
       status: res.status,
@@ -59,7 +154,7 @@ export async function safeFetchJson<T = any>(
       data: null,
       error: res.ok
         ? null
-        : `The checkout API returned an empty response (HTTP ${res.status}). Please try again or contact support.`,
+        : `The checkout API returned an empty response (HTTP ${res.status}). Please verify API serverless routing or try again.`,
       code: res.ok ? undefined : `EMPTY_RESPONSE_${res.status}`
     };
   }
@@ -74,7 +169,7 @@ export async function safeFetchJson<T = any>(
       ok: false,
       status: res.status,
       data: null,
-      error: `The server returned a web page instead of JSON (HTTP ${res.status}). Please verify API deployment routing.`,
+      error: `The server returned a web page instead of API JSON (HTTP ${res.status}). Please ensure the backend /api serverless functions are deployed on Vercel.`,
       code: `HTML_RESPONSE_${res.status}`
     };
   }
@@ -87,22 +182,28 @@ export async function safeFetchJson<T = any>(
       ok: false,
       status: res.status,
       data: null,
-      error: `Received an invalid response format from the server (HTTP ${res.status}).`,
+      error: `Received an invalid JSON response from the server (HTTP ${res.status}).`,
       code: 'INVALID_JSON'
     };
   }
 
   if (!res.ok || (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.success === false)) {
-    const message =
-      parsed?.message ||
-      parsed?.error ||
-      `Request failed with status ${res.status}.`;
+    const message = extractErrorMessage(
+      parsed,
+      `Request failed with status ${res.status}.`
+    );
+    const code =
+      typeof parsed?.code === 'string'
+        ? parsed.code
+        : typeof parsed?.error?.code === 'string'
+        ? parsed.error.code
+        : undefined;
     return {
       ok: false,
       status: res.status,
       data: parsed as T,
-      error: String(message),
-      code: parsed?.code
+      error: message,
+      code
     };
   }
 
