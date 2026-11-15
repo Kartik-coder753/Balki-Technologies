@@ -14,6 +14,38 @@ let cachedAdminDb: Firestore | null = null;
 let adminInitAttempted = false;
 let adminInitReason = 'not_initialized';
 
+function stripUndefinedDeep<T>(value: T): T {
+  if (value === null || value === undefined) return value;
+  if (Array.isArray(value)) {
+    return value.map(item => stripUndefinedDeep(item)) as unknown as T;
+  }
+  if (typeof value === 'object') {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value as Record<string, any>)) {
+      if (v !== undefined) {
+        out[k] = stripUndefinedDeep(v);
+      }
+    }
+    return out as T;
+  }
+  return value;
+}
+
+export function mapNormalizedPaymentStatus(paymentStatus?: string | null): 'pending' | 'paid' | 'failed' {
+  const s = (paymentStatus || '').toLowerCase();
+  if (s === 'paid' || s === 'po approved (net 30)') return 'paid';
+  if (s === 'failed') return 'failed';
+  return 'pending';
+}
+
+export function mapNormalizedDeliveryStatus(orderStatus?: string | null): 'pending' | 'processing' | 'delivering' | 'delivered' {
+  const s = (orderStatus || '').toLowerCase();
+  if (s === 'delivered') return 'delivered';
+  if (s === 'dispatched' || s === 'in_transit' || s === 'out_for_delivery') return 'delivering';
+  if (s === 'qc_assembly') return 'processing';
+  return 'pending';
+}
+
 function loadFirebaseConfig(): { projectId: string; firestoreDatabaseId?: string } {
   try {
     const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
@@ -53,7 +85,14 @@ function parseServiceAccountFromEnv(): {
   if (rawJson) {
     try {
       const decoded = rawJson.startsWith('{') ? rawJson : Buffer.from(rawJson, 'base64').toString('utf8');
-      const parsed = JSON.parse(decoded);
+      let parsed: any;
+      try {
+        parsed = JSON.parse(decoded);
+      } catch {
+        // Handle multi-line env strings where private_key contains literal newlines
+        const normalizedJson = decoded.replace(/\r?\n/g, '\\n');
+        parsed = JSON.parse(normalizedJson);
+      }
       if (!parsed || typeof parsed !== 'object') {
         return { account: null, diagnosticReason: 'invalid_service_account_json' };
       }
@@ -163,9 +202,10 @@ export async function syncOrderCreatedToFirestore(order: Order): Promise<boolean
 
   try {
     const orderRef = db.collection('orders').doc(order.id);
+    const sanitizedOrder = stripUndefinedDeep(order);
     await orderRef.set(
-      {
-        ...order,
+      stripUndefinedDeep({
+        ...sanitizedOrder,
         orderId: order.id,
         customerId: order.customerId || order.userId || 'client',
         userId: order.userId || order.customerId || 'client',
@@ -175,12 +215,14 @@ export async function syncOrderCreatedToFirestore(order: Order): Promise<boolean
         razorpayOrderId: order.razorpayOrderId || null,
         razorpayPaymentId: order.razorpayPaymentId || null,
         paymentStatus: order.paymentStatus,
+        normalizedPaymentStatus: mapNormalizedPaymentStatus(order.paymentStatus),
         orderStatus: order.orderStatus,
+        deliveryStatus: mapNormalizedDeliveryStatus(order.orderStatus),
         approvalStatus: order.approvalStatus,
         confirmationNotificationSent: false,
         createdAt: order.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
-      },
+      }),
       { merge: true }
     );
     return true;
@@ -199,6 +241,7 @@ export async function syncRazorpayOrderIdToFirestore(orderId: string, razorpayOr
       {
         razorpayOrderId,
         paymentStatus: 'Payment Pending',
+        normalizedPaymentStatus: 'pending',
         updatedAt: new Date().toISOString()
       },
       { merge: true }
@@ -215,14 +258,15 @@ export async function syncOrderRequestToFirestore(request: OrderRequest): Promis
   if (!db) return false;
 
   try {
+    const sanitizedReq = stripUndefinedDeep(request);
     await db.collection('orderRequests').doc(request.requestId).set(
-      {
-        ...request,
+      stripUndefinedDeep({
+        ...sanitizedReq,
         serverVerifiedTotal: request.finalAmount ?? request.requestedAmount,
         serverVerifiedTotalPaise: Math.round((request.finalAmount ?? request.requestedAmount) * 100),
         currency: 'INR',
         updatedAt: new Date().toISOString()
-      },
+      }),
       { merge: true }
     );
     return true;
@@ -282,6 +326,7 @@ export interface AtomicCaptureResult {
   handledByFirestore: boolean;
   duplicateEvent?: boolean;
   orderNotFound?: boolean;
+  razorpayOrderMismatch?: boolean;
   amountMismatch?: boolean;
   currencyMismatch?: boolean;
   alreadyPaidSamePayment?: boolean;
@@ -332,21 +377,52 @@ export async function runAtomicCaptureTransaction(
         }
       }
 
+      let orderData: Record<string, any>;
+      let isNewDoc = false;
+
       if (!orderSnap || !orderSnap.exists || !orderRef) {
-        if (params.eventId) {
-          tx.set(db.collection('webhook-events').doc(params.eventId), {
-            eventId: params.eventId,
-            eventName: params.eventName || 'payment.captured',
-            razorpayOrderId: params.razorpayOrderId,
-            razorpayPaymentId: params.razorpayPaymentId,
-            status: 'ignored_order_not_found',
-            processedAt: new Date().toISOString()
-          });
+        if (params.fallbackOrderData) {
+          const fallback = stripUndefinedDeep(params.fallbackOrderData);
+          orderRef = db.collection('orders').doc(fallback.id);
+          orderData = {
+            ...fallback,
+            orderId: fallback.id,
+            customerId: fallback.customerId || fallback.userId || 'client',
+            userId: fallback.userId || fallback.customerId || 'client',
+            serverVerifiedTotal: fallback.finalAmount ?? fallback.totalAmount,
+            serverVerifiedTotalPaise: Math.round((fallback.finalAmount ?? fallback.totalAmount) * 100),
+            currency: 'INR'
+          };
+          isNewDoc = true;
+        } else {
+          if (params.eventId) {
+            tx.set(db.collection('webhook-events').doc(params.eventId), {
+              eventId: params.eventId,
+              eventName: params.eventName || 'payment.captured',
+              razorpayOrderId: params.razorpayOrderId,
+              razorpayPaymentId: params.razorpayPaymentId,
+              status: 'ignored_order_not_found',
+              processedAt: new Date().toISOString()
+            });
+          }
+          return { handledByFirestore: true, orderNotFound: true };
         }
-        return { handledByFirestore: true, orderNotFound: true };
+      } else {
+        orderData = orderSnap.data() as Record<string, any>;
       }
 
-      const orderData = orderSnap.data() as Record<string, any>;
+      if (
+        orderData.razorpayOrderId &&
+        params.razorpayOrderId &&
+        orderData.razorpayOrderId !== params.razorpayOrderId
+      ) {
+        return {
+          handledByFirestore: true,
+          razorpayOrderMismatch: true,
+          order: { id: orderRef.id, ...orderData }
+        };
+      }
+
       const expectedTotal = Number(
         orderData.serverVerifiedTotal ?? orderData.finalAmount ?? orderData.totalAmount ?? 0
       );
@@ -428,21 +504,28 @@ export async function runAtomicCaptureTransaction(
       const nowIso = new Date().toISOString();
       const shouldSendConfirmation = orderData.confirmationNotificationSent !== true;
 
-      const updatedFields: Record<string, any> = {
+      const nextOrderStatus = orderData.orderStatus === 'delivered' ? 'delivered' : 'qc_assembly';
+      const updatedFields: Record<string, any> = stripUndefinedDeep({
         paymentStatus: 'Paid',
-        orderStatus: orderData.orderStatus === 'delivered' ? 'delivered' : 'qc_assembly',
+        normalizedPaymentStatus: 'paid',
+        orderStatus: nextOrderStatus,
+        deliveryStatus: mapNormalizedDeliveryStatus(nextOrderStatus),
         razorpayOrderId: params.razorpayOrderId,
         razorpayPaymentId: params.razorpayPaymentId,
         paymentMethod: params.paymentMethod || orderData.paymentMethod || 'Razorpay',
         paidAt: nowIso,
         updatedAt: nowIso,
         confirmationNotificationSent: true
-      };
+      });
       if (params.razorpaySignature) {
         updatedFields.razorpaySignature = params.razorpaySignature;
       }
 
-      tx.update(orderRef, updatedFields);
+      if (isNewDoc) {
+        tx.set(orderRef, stripUndefinedDeep({ ...orderData, ...updatedFields }), { merge: true });
+      } else {
+        tx.update(orderRef, updatedFields);
+      }
 
       const txnId = `txn_${params.source}_${Date.now()}_${Math.floor(1000 + Math.random() * 9000)}`;
       const txnRecord: PaymentTransaction = {
@@ -612,6 +695,7 @@ export async function runAtomicFailureTransaction(
 
       tx.update(orderRef, {
         paymentStatus: 'Failed',
+        normalizedPaymentStatus: 'failed',
         lastPaymentError: failureEntry.description,
         failedPaymentAttempts: FieldValue.arrayUnion(failureEntry),
         updatedAt: nowIso

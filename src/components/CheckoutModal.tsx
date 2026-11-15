@@ -240,6 +240,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Small order submission handler (< ₹5,000)
   const handleSmallOrderCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!validateForm()) return;
     setSubmissionError('');
     setRazorpayConfigNotice('');
@@ -368,6 +369,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Large order submission handler (>= ₹5,000)
   const handleRequestOwnerApproval = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     if (!validateForm()) return;
     setSubmissionError('');
     setIsSubmitting(true);
@@ -576,6 +578,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     const orderToUse = customOrder || createdOrder;
     const tokenToUse = customOrderToken !== undefined ? customOrderToken : orderToken;
     if (!orderToUse) return;
+    if (paymentProcessingState === 'opening' || paymentProcessingState === 'verifying') return;
     const isRetryAfterFailure = paymentProcessingState === 'failed' && !customRzp;
     setPaymentProcessingState('opening');
     setPaymentErrorMessage('');
@@ -586,6 +589,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         ? undefined
         : (customRzp?.orderId || razorpayData?.orderId || orderToUse.razorpayOrderId);
       let rzpKeyId = customRzp?.keyId || razorpayData?.keyId;
+      let rzpAmountPaise = customRzp?.amount ?? razorpayData?.amount ?? Math.round((orderToUse.finalAmount ?? orderToUse.totalAmount) * 100);
 
       if (!rzpOrderId || !rzpKeyId) {
         const createRes = await safeFetchJson<any>('/api/razorpay/create-order', {
@@ -618,11 +622,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         rzpOrderId = createRes.data.razorpayOrderId;
         rzpKeyId = createRes.data.keyId;
+        if (typeof createRes.data.amount === 'number' && createRes.data.amount > 0) {
+          rzpAmountPaise = createRes.data.amount;
+        }
         setRazorpayConfigured(true);
         setRazorpayMode(createRes.data.mode || 'test');
         setRazorpayData({
           orderId: rzpOrderId || null,
-          amount: createRes.data.amount,
+          amount: rzpAmountPaise,
           currency: createRes.data.currency || 'INR',
           keyId: rzpKeyId || null,
           configured: true,
@@ -672,7 +679,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       const options = {
         key: rzpKeyId,
-        amount: customRzp?.amount ?? razorpayData?.amount ?? Math.round(orderToUse.totalAmount * 100), // paise
+        amount: rzpAmountPaise, // paise
         currency: 'INR',
         name: 'BALKI Technologies',
         description: `Order ${orderToUse.id} - ${orderToUse.items?.length || 1} STEM Hardware Items`,

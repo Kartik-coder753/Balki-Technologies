@@ -309,10 +309,20 @@ function AppContent() {
 
   // Complete Order & Update Client Purchase History
   const handleOrderSuccess = async (order: Order) => {
-    setOrders(prev => [order, ...prev]);
+    const isExistingUpdate = orders.some(o => o.id === order.id);
+    setOrders(prev => {
+      if (prev.some(o => o.id === order.id)) {
+        return prev.map(o => (o.id === order.id ? { ...o, ...order } : o));
+      }
+      return [order, ...prev];
+    });
     setCartItems([]);
     setCouponDiscount(0);
     setAppliedCoupon('');
+
+    if (isExistingUpdate) {
+      return;
+    }
 
     // Update client purchasing metrics in profile
     try {

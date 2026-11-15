@@ -192,7 +192,9 @@ export interface Order {
   currency?: string;
   paymentMethod: PaymentMethod;
   paymentStatus: 'Pending' | 'Paid' | 'PO Approved (Net 30)' | 'Payment Pending' | 'Refunded' | 'Failed';
+  normalizedPaymentStatus?: 'pending' | 'paid' | 'failed';
   orderStatus: OrderStatus;
+  deliveryStatus?: 'pending' | 'processing' | 'delivering' | 'delivered';
   approvalStatus: OrderApprovalStatus;
   approvedAt?: string;
   approvedBy?: string;

@@ -15,6 +15,8 @@ import { INITIAL_SUPPORT_TICKETS } from '../data/supportData';
 import { ATL_QUOTATION_PACKAGES } from '../data/atlQuotationPackagesData';
 import {
   getAdminFirestoreStatus,
+  mapNormalizedPaymentStatus,
+  mapNormalizedDeliveryStatus,
   syncOrderCreatedToFirestore,
   syncRazorpayOrderIdToFirestore,
   syncOrderRequestToFirestore,
@@ -742,9 +744,21 @@ export function createApiApp(): express.Express {
 
   // Authoritative Razorpay Webhook Endpoint registered BEFORE express.json()
   // Preserves exact original raw HTTP body bytes for strict HMAC-SHA256 verification.
+  const rawWebhookBodyParser: express.RequestHandler = (req: any, res, next) => {
+    if (
+      Buffer.isBuffer(req.body) ||
+      Buffer.isBuffer(req.rawBody) ||
+      typeof req.rawBody === 'string' ||
+      typeof req.body === 'string'
+    ) {
+      return next();
+    }
+    return express.raw({ type: '*/*', limit: '1mb' })(req, res, next);
+  };
+
   app.post(
     '/api/razorpay/webhook',
-    express.raw({ type: '*/*', limit: '1mb' }),
+    rawWebhookBodyParser,
     async (req: any, res) => {
       try {
         const webhookSecret = getRazorpayWebhookSecret();
@@ -917,7 +931,9 @@ export function createApiApp(): express.Express {
               }
             } else {
               matchingOrder.paymentStatus = 'Paid';
-              matchingOrder.orderStatus = 'qc_assembly';
+              matchingOrder.normalizedPaymentStatus = 'paid';
+              matchingOrder.orderStatus = matchingOrder.orderStatus === 'delivered' ? 'delivered' : 'qc_assembly';
+              matchingOrder.deliveryStatus = mapNormalizedDeliveryStatus(matchingOrder.orderStatus);
               matchingOrder.razorpayOrderId = rzpOrderId || matchingOrder.razorpayOrderId;
               matchingOrder.razorpayPaymentId = rzpPaymentId || matchingOrder.razorpayPaymentId;
               matchingOrder.paymentMethod = (paymentMethod as any) || matchingOrder.paymentMethod || 'Razorpay';
@@ -1035,6 +1051,7 @@ export function createApiApp(): express.Express {
             ignoredBecauseAlreadyPaid = true;
           } else {
             matchingOrder.paymentStatus = 'Failed';
+            matchingOrder.normalizedPaymentStatus = 'failed';
             matchingOrder.lastPaymentError = errorDesc;
             matchingOrder.failedPaymentAttempts = [
               ...(matchingOrder.failedPaymentAttempts || []),
@@ -1454,6 +1471,7 @@ export function createApiApp(): express.Express {
         const fsOrder = await findFirestoreOrder({ orderId });
         if (fsOrder) {
           order = fsOrder as Order;
+          orders.unshift(order);
         }
       }
 
@@ -1463,16 +1481,16 @@ export function createApiApp(): express.Express {
         if (order.paymentStatus === 'Paid') {
           return sendJsonError(res, 400, `Order ${order.id} has already been paid and processed.`, 'ORDER_ALREADY_PAID');
         }
-        if (order.totalAmount >= threshold) {
+        finalAmount = Number(order.serverVerifiedTotal ?? order.finalAmount ?? order.totalAmount);
+        if (finalAmount >= threshold) {
           return sendJsonError(
             res,
             400,
-            `Order amount of ₹${order.totalAmount.toLocaleString('en-IN')} meets or exceeds the approval threshold of ₹${threshold.toLocaleString('en-IN')}. Administrator approval is required.`,
+            `Order amount of ₹${finalAmount.toLocaleString('en-IN')} meets or exceeds the approval threshold of ₹${threshold.toLocaleString('en-IN')}. Administrator approval is required.`,
             'APPROVAL_REQUIRED',
-            { requiresApproval: true, threshold, finalAmount: order.totalAmount }
+            { requiresApproval: true, threshold, finalAmount }
           );
         }
-        finalAmount = Number(order.serverVerifiedTotal ?? order.finalAmount ?? order.totalAmount);
 
         if (order.razorpayOrderId && order.paymentStatus !== 'Failed') {
           return sendJsonSuccess(res, 200, 'Existing Razorpay order retrieved', {
@@ -1678,8 +1696,36 @@ export function createApiApp(): express.Express {
         );
       }
 
+      // Prevent cross-order payment replay: verified razorpay_order_id MUST match the order's staged razorpayOrderId
+      if (order.razorpayOrderId && order.razorpayOrderId !== String(razorpay_order_id)) {
+        logPaymentDiagnostic('verify_payment_order_mismatch', {
+          orderId: order.id,
+          expectedRazorpayOrderId: order.razorpayOrderId,
+          receivedRazorpayOrderId: String(razorpay_order_id)
+        });
+        return sendJsonError(
+          res,
+          400,
+          'Razorpay order ID does not match this order record.',
+          'RAZORPAY_ORDER_MISMATCH'
+        );
+      }
+
       // Duplicate verification & double-payment protection
       const existingOrderForPayment = processedPaymentIds.get(String(razorpay_payment_id));
+      if (existingOrderForPayment && existingOrderForPayment !== order.id) {
+        logPaymentDiagnostic('verify_payment_cross_order_duplicate', {
+          orderId: order.id,
+          existingOrderForPayment
+        });
+        return sendJsonError(
+          res,
+          409,
+          `Payment ${razorpay_payment_id} has already been applied to another order (${existingOrderForPayment}).`,
+          'DUPLICATE_PAYMENT_DETECTED'
+        );
+      }
+
       if (order.paymentStatus === 'Paid') {
         if (order.razorpayPaymentId === razorpay_payment_id || existingOrderForPayment === order.id) {
           return sendJsonSuccess(res, 200, 'Payment already verified for this order.', {
@@ -1718,7 +1764,17 @@ export function createApiApp(): express.Express {
           capturedAmountPaise = typeof fetchedPayment.amount === 'number' ? fetchedPayment.amount : null;
           capturedCurrency = fetchedPayment.currency ? String(fetchedPayment.currency) : null;
 
-          const expectedPaise = Math.round(order.totalAmount * 100);
+          if (fetchedPayment.order_id && String(fetchedPayment.order_id) !== String(razorpay_order_id)) {
+            return sendJsonError(
+              res,
+              400,
+              'Razorpay payment does not belong to the supplied Razorpay order ID.',
+              'RAZORPAY_ORDER_MISMATCH'
+            );
+          }
+
+          const expectedTotalInr = Number(order.serverVerifiedTotal ?? order.finalAmount ?? order.totalAmount);
+          const expectedPaise = Math.round(expectedTotalInr * 100);
           if (typeof fetchedPayment.amount === 'number' && fetchedPayment.amount !== expectedPaise) {
             logPaymentDiagnostic('verify_payment_amount_mismatch', {
               orderId: order.id,
@@ -1728,7 +1784,7 @@ export function createApiApp(): express.Express {
             return sendJsonError(
               res,
               400,
-              `Payment amount mismatch detected (paid ₹${(fetchedPayment.amount / 100).toFixed(2)}, expected ₹${order.totalAmount.toFixed(2)}).`,
+              `Payment amount mismatch detected (paid ₹${(fetchedPayment.amount / 100).toFixed(2)}, expected ₹${expectedTotalInr.toFixed(2)}).`,
               'PAYMENT_AMOUNT_MISMATCH'
             );
           }
@@ -1764,6 +1820,25 @@ export function createApiApp(): express.Express {
         fallbackOrderData: order
       });
 
+      if (fsCapture.razorpayOrderMismatch) {
+        return sendJsonError(
+          res,
+          400,
+          'Razorpay order ID does not match the persisted Firestore order.',
+          'RAZORPAY_ORDER_MISMATCH'
+        );
+      }
+      if (fsCapture.amountMismatch) {
+        return sendJsonError(
+          res,
+          400,
+          `Payment amount mismatch detected (paid ${fsCapture.actualPaise} paise, expected ${fsCapture.expectedPaise} paise).`,
+          'PAYMENT_AMOUNT_MISMATCH'
+        );
+      }
+      if (fsCapture.currencyMismatch) {
+        return sendJsonError(res, 400, 'Invalid payment currency; INR required.', 'INVALID_CURRENCY');
+      }
       if (fsCapture.conflictDuplicatePayment) {
         return sendJsonError(
           res,
@@ -1791,7 +1866,9 @@ export function createApiApp(): express.Express {
       const wasAlreadyNotified = Boolean(order.confirmationNotificationSent);
       processedPaymentIds.set(String(razorpay_payment_id), order.id);
       order.paymentStatus = 'Paid';
-      order.orderStatus = 'qc_assembly';
+      order.normalizedPaymentStatus = 'paid';
+      order.orderStatus = order.orderStatus === 'delivered' ? 'delivered' : 'qc_assembly';
+      order.deliveryStatus = mapNormalizedDeliveryStatus(order.orderStatus);
       order.razorpayOrderId = String(razorpay_order_id);
       order.razorpayPaymentId = String(razorpay_payment_id);
       order.razorpaySignature = String(razorpay_signature);
@@ -2313,6 +2390,7 @@ export function createApiApp(): express.Express {
     const rzpStatus = getRazorpayConfigStatus();
     return sendJsonSuccess(res, 200, 'Order total calculated authoritatively', {
       ...calc.data,
+      amountInPaise: Math.round(calc.data.finalAmount * 100),
       razorpay: {
         configured: rzpStatus.configured,
         mode: rzpStatus.mode
@@ -2506,7 +2584,9 @@ export function createApiApp(): express.Express {
       currency: 'INR',
       paymentMethod: 'Razorpay',
       paymentStatus: 'Payment Pending',
+      normalizedPaymentStatus: 'pending',
       orderStatus: 'order_placed',
+      deliveryStatus: 'pending',
       approvalStatus: 'approved',
       razorpayOrderId,
       trackingNumber,
@@ -2737,7 +2817,9 @@ export function createApiApp(): express.Express {
     return sendJsonSuccess(res, 200, 'Order payment status retrieved', {
       orderId: found.id || found.orderId,
       paymentStatus: found.paymentStatus,
+      normalizedPaymentStatus: found.normalizedPaymentStatus || mapNormalizedPaymentStatus(found.paymentStatus),
       orderStatus: found.orderStatus,
+      deliveryStatus: found.deliveryStatus || mapNormalizedDeliveryStatus(found.orderStatus),
       approvalStatus: found.approvalStatus,
       razorpayOrderId: found.razorpayOrderId || null,
       razorpayPaymentId: found.razorpayPaymentId || null,
