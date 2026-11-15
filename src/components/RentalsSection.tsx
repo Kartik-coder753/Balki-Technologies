@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { downloadRentalAgreement } from '../utils/downloadHelpers';
+import { safeFetchJson } from '../utils/apiClient';
 
 interface RentalsSectionProps {
   rentals: RentalEquipment[];
@@ -36,6 +37,7 @@ export const RentalsSection: React.FC<RentalsSectionProps> = ({
   const [startDate, setStartDate] = useState('2026-09-25');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmedBooking, setConfirmedBooking] = useState<RentalBooking | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   const calculateFees = (equipment: RentalEquipment, days: number) => {
     // If multiple weeks, apply discounted weekly rate
@@ -50,6 +52,7 @@ export const RentalsSection: React.FC<RentalsSectionProps> = ({
     setSelectedRental(equipment);
     setRentalDays(equipment.minRentalDays || 3);
     setConfirmedBooking(null);
+    setBookingError(null);
   };
 
   const handleConfirmRental = async (e: React.FormEvent) => {
@@ -57,13 +60,14 @@ export const RentalsSection: React.FC<RentalsSectionProps> = ({
     if (!selectedRental) return;
 
     setIsSubmitting(true);
+    setBookingError(null);
     const { rentalFee, depositFee } = calculateFees(selectedRental, rentalDays);
 
     const endDate = new Date(new Date(startDate).getTime() + rentalDays * 24 * 60 * 60 * 1000)
       .toISOString().split('T')[0];
 
     try {
-      const res = await fetch('/api/rentals/book', {
+      const res = await safeFetchJson<RentalBooking>('/api/rentals/book', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -80,8 +84,10 @@ export const RentalsSection: React.FC<RentalsSectionProps> = ({
         })
       });
 
-      if (!res.ok) throw new Error('Failed to book rental equipment');
-      const booking: RentalBooking = await res.json();
+      if (!res.ok || !res.data) {
+        throw new Error(res.error || 'Failed to book rental equipment');
+      }
+      const booking = res.data;
       
       setConfirmedBooking(booking);
       onBookingSuccess(booking);
@@ -93,9 +99,9 @@ export const RentalsSection: React.FC<RentalsSectionProps> = ({
           origin: { y: 0.6 }
         });
       } catch (e) {}
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Unable to process rental booking. Please ensure units are available.');
+      setBookingError(err?.message || 'Unable to process rental booking. Please ensure units are available.');
     } finally {
       setIsSubmitting(false);
     }
@@ -318,6 +324,11 @@ export const RentalsSection: React.FC<RentalsSectionProps> = ({
                 </div>
               ) : (
                 <form onSubmit={handleConfirmRental} className="space-y-4">
+                  {bookingError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold">
+                      {bookingError}
+                    </div>
+                  )}
                   {/* Duration Slider */}
                   <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-2">
                     <div className="flex justify-between items-center">

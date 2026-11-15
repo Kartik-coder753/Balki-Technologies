@@ -58,14 +58,19 @@
         "shippingCharges": { "type": "number", "description": "Freight & carrier shipping charges" },
         "taxAmount": { "type": "number", "description": "18% GST tax amount in INR" },
         "finalAmount": { "type": "number", "description": "Final payable amount in INR" },
+        "serverVerifiedTotal": { "type": "number", "description": "Server-calculated authoritative total in INR" },
         "currency": { "type": "string", "description": "ISO currency code, default INR" },
-        "paymentStatus": { "type": "string", "enum": ["Pending", "Paid", "PO Approved (Net 30)", "Refunded", "Failed"], "description": "Gateway and settlement status" },
+        "paymentStatus": { "type": "string", "enum": ["Pending", "Payment Pending", "Paid", "PO Approved (Net 30)", "Refunded", "Failed"], "description": "Gateway and settlement status" },
         "orderStatus": { "type": "string", "enum": ["order_placed", "qc_assembly", "dispatched", "in_transit", "out_for_delivery", "delivered", "cancelled"], "description": "Physical milestone status" },
         "approvalStatus": { "type": "string", "enum": ["pending_approval", "approved", "rejected"], "description": "Administrative approval status" },
         "paymentMethod": { "type": "string", "description": "Payment instrument type (UPI, Card, NetBanking, SchoolPO, Razorpay)" },
         "razorpayOrderId": { "type": "string", "description": "Associated Razorpay order identifier" },
         "razorpayPaymentId": { "type": "string", "description": "Associated Razorpay payment identifier" },
+        "razorpaySignature": { "type": "string", "description": "Verified HMAC SHA256 signature from Razorpay gateway" },
         "razorpayPaymentLinkId": { "type": "string", "description": "Associated Razorpay payment link identifier" },
+        "paidAt": { "type": "string", "description": "ISO timestamp when payment was cryptographically verified" },
+        "lastPaymentError": { "type": "string", "description": "Description from most recent failed payment attempt" },
+        "confirmationNotificationSent": { "type": "boolean", "description": "Idempotency flag ensuring single confirmation email/notification" },
         "trackingNumber": { "type": "string", "description": "Express tracking number" },
         "courierName": { "type": "string", "description": "Designated logistics carrier partner" },
         "deliveryAddress": { "type": "object", "description": "Physical delivery location with street, city, state and pincode" },
@@ -84,11 +89,11 @@
         "customerDetails": { "type": "object", "description": "Institutional contact name, email, phone, school name, and GSTIN" },
         "requestedProducts": { "type": "array", "description": "List of products and quantities requested for bulk procurement" },
         "requestedAmount": { "type": "number", "description": "Estimated retail amount prior to institutional quote" },
-        "approvalStatus": { "type": "string", "enum": ["pending_approval", "approved", "rejected"], "description": "Review status by Balki procurement desk" },
+        "approvalStatus": { "type": "string", "enum": ["PENDING", "pending_approval", "approved", "rejected"], "description": "Review status by Balki procurement desk" },
         "rejectionReason": { "type": "string", "maxLength": 500, "description": "Administrative rationale if request is rejected" },
         "finalQuotedAmount": { "type": "number", "description": "Discounted institutional price approved by administrator" },
         "shippingCharges": { "type": "number", "description": "Negotiated or waived shipping fees" },
-        "paymentStatus": { "type": "string", "enum": ["Pending", "Paid", "PO Approved (Net 30)"], "description": "Payment status of approved quote" },
+        "paymentStatus": { "type": "string", "enum": ["NOT_STARTED", "Pending", "LINK_GENERATED", "Paid", "PO Approved (Net 30)"], "description": "Payment status of approved quote" },
         "createdAt": { "type": "string", "description": "ISO timestamp of quote submission" },
         "updatedAt": { "type": "string", "description": "ISO timestamp of last review update" }
       },
@@ -172,6 +177,36 @@
       "properties": {
         "status": { "type": "string", "description": "Connection test status" }
       }
+    },
+    "WebhookEvent": {
+      "title": "Razorpay Webhook Idempotency Event",
+      "description": "Server-only deduplication log of processed Razorpay webhook events",
+      "type": "object",
+      "properties": {
+        "eventId": { "type": "string" },
+        "eventName": { "type": "string" },
+        "orderId": { "type": "string" },
+        "razorpayOrderId": { "type": "string" },
+        "razorpayPaymentId": { "type": "string" },
+        "status": { "type": "string" },
+        "processedAt": { "type": "string" }
+      },
+      "required": ["eventId", "eventName", "status", "processedAt"]
+    },
+    "MailAudit": {
+      "title": "Transactional Email Audit Log",
+      "description": "Single idempotent confirmation email audit records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "to": { "type": "string" },
+        "subject": { "type": "string" },
+        "orderId": { "type": "string" },
+        "razorpayPaymentId": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "to", "subject", "orderId", "status", "createdAt"]
     }
   },
   "firestore": {
@@ -210,6 +245,14 @@
     "/reviews/{reviewId}": {
       "schema": "Review",
       "description": "Verified client reviews and feedback"
+    },
+    "/webhook-events/{eventId}": {
+      "schema": "WebhookEvent",
+      "description": "Server-only Razorpay webhook idempotency records"
+    },
+    "/mail/{mailId}": {
+      "schema": "MailAudit",
+      "description": "Server-only order confirmation email audit records"
     }
   }
 }

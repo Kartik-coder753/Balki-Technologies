@@ -187,6 +187,7 @@ export interface Order {
   shippingFee: number;
   discount: number;
   finalAmount?: number;
+  serverVerifiedTotal?: number;
   totalAmount: number;
   currency?: string;
   paymentMethod: PaymentMethod;
@@ -201,6 +202,14 @@ export interface Order {
   razorpaySignature?: string;
   razorpayPaymentLinkId?: string;
   paidAt?: string;
+  lastPaymentError?: string;
+  failedPaymentAttempts?: Array<{
+    paymentId: string | null;
+    errorCode: string;
+    description: string;
+    timestamp: string;
+  }>;
+  confirmationNotificationSent?: boolean;
   courierName?: string;
   trackingNumber: string;
   trackingDetails?: TrackingDetails;

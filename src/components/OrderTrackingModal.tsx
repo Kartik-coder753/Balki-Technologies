@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Order, OrderStatus, TrackingCheckpoint } from '../types';
 import { downloadTaxInvoice } from '../utils/downloadHelpers';
+import { safeFetchJson } from '../utils/apiClient';
 
 interface OrderTrackingModalProps {
   isOpen: boolean;
@@ -67,21 +68,25 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     setActionSuccessMsg('');
 
     try {
-      const res = await fetch(`/api/orders/track/${encodeURIComponent(query.trim())}`);
-      const data = await res.json();
+      const res = await safeFetchJson<any>(`/api/orders/track/${encodeURIComponent(query.trim())}`);
 
-      if (res.ok && data.found && data.order) {
-        setCurrentOrder(data.order);
+      if (res.ok && res.data?.found && res.data?.order) {
+        setCurrentOrder(res.data.order);
       } else {
         // Fallback to checking local recentOrders
-        const local = recentOrders.find(o => 
-          o.id.toLowerCase() === query.trim().toLowerCase() ||
-          o.trackingNumber.toLowerCase() === query.trim().toLowerCase()
+        const local = recentOrders.find(
+          o =>
+            o.id.toLowerCase() === query.trim().toLowerCase() ||
+            o.trackingNumber.toLowerCase() === query.trim().toLowerCase()
         );
         if (local) {
           setCurrentOrder(local);
         } else {
-          setErrorMsg(data.message || `No active consignment found matching "${query}". Try one of the quick suggestions below.`);
+          setErrorMsg(
+            res.error ||
+              res.data?.message ||
+              `No active consignment found matching "${query}". Try one of the quick suggestions below.`
+          );
           setCurrentOrder(null);
         }
       }
@@ -112,16 +117,15 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     setActionSuccessMsg('');
 
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(currentOrder.id)}/track/advance`, {
+      const res = await safeFetchJson<any>(`/api/orders/${encodeURIComponent(currentOrder.id)}/track/advance`, {
         method: 'POST'
       });
-      const data = await res.json();
-      if (res.ok && data.order) {
-        setCurrentOrder(data.order);
-        if (onOrderUpdated) onOrderUpdated(data.order);
-        setActionSuccessMsg(data.message || 'Tracking milestone advanced successfully!');
+      if (res.ok && res.data?.order) {
+        setCurrentOrder(res.data.order);
+        if (onOrderUpdated) onOrderUpdated(res.data.order);
+        setActionSuccessMsg(res.data.message || 'Tracking milestone advanced successfully!');
       } else {
-        setErrorMsg(data.error || 'Could not advance milestone.');
+        setErrorMsg(res.error || 'Could not advance milestone.');
       }
     } catch (e) {
       console.error(e);
@@ -141,20 +145,19 @@ export const OrderTrackingModal: React.FC<OrderTrackingModalProps> = ({
     setActionSuccessMsg('');
 
     try {
-      const res = await fetch(`/api/orders/${encodeURIComponent(currentOrder.id)}/cancel`, {
+      const res = await safeFetchJson<any>(`/api/orders/${encodeURIComponent(currentOrder.id)}/cancel`, {
         method: 'POST'
       });
-      const data = await res.json();
-      if (res.ok && data.order) {
-        setCurrentOrder(data.order);
-        if (onOrderUpdated) onOrderUpdated(data.order);
+      if (res.ok && res.data?.order) {
+        setCurrentOrder(res.data.order);
+        if (onOrderUpdated) onOrderUpdated(res.data.order);
         setActionSuccessMsg('Order cancelled and full refund initiated. Inventory restocked.');
       } else {
-        alert(data.error || 'Failed to cancel order.');
+        setErrorMsg(res.error || 'Failed to cancel order.');
       }
     } catch (e) {
       console.error(e);
-      alert('Network error while processing cancellation.');
+      setErrorMsg('Network error while processing cancellation.');
     } finally {
       setIsCancelling(false);
     }

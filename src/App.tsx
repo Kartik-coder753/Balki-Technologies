@@ -39,6 +39,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { AuthPortal } from './components/AuthPortal';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError } from './lib/firebase';
+import { safeFetchJson } from './utils/apiClient';
 import { Loader2 } from 'lucide-react';
 
 function AppContent() {
@@ -209,20 +210,20 @@ function AppContent() {
     const fetchData = async () => {
       try {
         const [prodRes, courseRes, rentRes, invRes, caseRes, tktRes] = await Promise.all([
-          fetch('/api/products').catch(() => null),
-          fetch('/api/courses').catch(() => null),
-          fetch('/api/rentals').catch(() => null),
-          fetch('/api/inventory').catch(() => null),
-          fetch('/api/case-studies').catch(() => null),
-          fetch('/api/support/tickets').catch(() => null)
+          safeFetchJson<Product[]>('/api/products'),
+          safeFetchJson<Course[]>('/api/courses'),
+          safeFetchJson<RentalEquipment[]>('/api/rentals'),
+          safeFetchJson<InventoryItem[]>('/api/inventory'),
+          safeFetchJson<CaseStudyBlog[]>('/api/case-studies'),
+          safeFetchJson<SupportTicket[]>('/api/support/tickets')
         ]);
 
-        if (prodRes && prodRes.ok) setProducts(await prodRes.json());
-        if (courseRes && courseRes.ok) setCourses(await courseRes.json());
-        if (rentRes && rentRes.ok) setRentals(await rentRes.json());
-        if (invRes && invRes.ok) setInventory(await invRes.json());
-        if (caseRes && caseRes.ok) setCaseStudies(await caseRes.json());
-        if (tktRes && tktRes.ok) setSupportTickets(await tktRes.json());
+        if (prodRes.ok && Array.isArray(prodRes.data)) setProducts(prodRes.data);
+        if (courseRes.ok && Array.isArray(courseRes.data)) setCourses(courseRes.data);
+        if (rentRes.ok && Array.isArray(rentRes.data)) setRentals(rentRes.data);
+        if (invRes.ok && Array.isArray(invRes.data)) setInventory(invRes.data);
+        if (caseRes.ok && Array.isArray(caseRes.data)) setCaseStudies(caseRes.data);
+        if (tktRes.ok && Array.isArray(tktRes.data)) setSupportTickets(tktRes.data);
       } catch (e) {
         console.warn('Backend loading in-memory initial fallback', e);
       }
@@ -370,14 +371,13 @@ function AppContent() {
     courseTitle: string
   ) => {
     try {
-      const res = await fetch('/api/user/progress/complete-lesson', {
+      const res = await safeFetchJson<UserProgress>('/api/user/progress/complete-lesson', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lessonId, quizScore, courseId, courseTitle })
       });
-      if (res.ok) {
-        const updated: UserProgress = await res.json();
-        setUserProgress(updated);
+      if (res.ok && res.data) {
+        setUserProgress(res.data);
       }
     } catch (err) {
       console.error(err);

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Order, OrderRequest, PaymentTransaction, OrderStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { safeFetchJson } from '../utils/apiClient';
 
 export const AdminOrderManager: React.FC = () => {
   const { currentUser, userProfile } = useAuth();
@@ -63,14 +64,14 @@ export const AdminOrderManager: React.FC = () => {
     setLoading(true);
     try {
       const [ordRes, reqRes, txnRes] = await Promise.all([
-        fetch('/api/admin/orders', { headers: adminHeaders }),
-        fetch('/api/admin/order-requests', { headers: adminHeaders }),
-        fetch('/api/admin/transactions', { headers: adminHeaders })
+        safeFetchJson<Order[]>('/api/admin/orders', { headers: adminHeaders }),
+        safeFetchJson<OrderRequest[]>('/api/admin/order-requests', { headers: adminHeaders }),
+        safeFetchJson<PaymentTransaction[]>('/api/admin/transactions', { headers: adminHeaders })
       ]);
 
-      if (ordRes.ok) setOrders(await ordRes.json());
-      if (reqRes.ok) setRequests(await reqRes.json());
-      if (txnRes.ok) setTransactions(await txnRes.json());
+      if (ordRes.ok && Array.isArray(ordRes.data)) setOrders(ordRes.data);
+      if (reqRes.ok && Array.isArray(reqRes.data)) setRequests(reqRes.data);
+      if (txnRes.ok && Array.isArray(txnRes.data)) setTransactions(txnRes.data);
     } catch (err) {
       console.warn('Failed to load admin data:', err);
     } finally {
@@ -85,7 +86,7 @@ export const AdminOrderManager: React.FC = () => {
   const handleApproveOrder = async (orderId: string) => {
     setActionLoading(orderId);
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}/approve`, {
+      const res = await safeFetchJson<any>(`/api/admin/orders/${orderId}/approve`, {
         method: 'POST',
         headers: adminHeaders
       });
@@ -105,7 +106,7 @@ export const AdminOrderManager: React.FC = () => {
     if (!rejectingOrderId) return;
     setActionLoading(rejectingOrderId);
     try {
-      const res = await fetch(`/api/admin/orders/${rejectingOrderId}/reject`, {
+      const res = await safeFetchJson<any>(`/api/admin/orders/${rejectingOrderId}/reject`, {
         method: 'POST',
         headers: adminHeaders,
         body: JSON.stringify({ rejectionReason: rejectionReason || 'Institutional review verification failed' })
@@ -128,7 +129,7 @@ export const AdminOrderManager: React.FC = () => {
     if (!statusUpdateOrderId) return;
     setActionLoading(statusUpdateOrderId);
     try {
-      const res = await fetch(`/api/admin/orders/${statusUpdateOrderId}/status`, {
+      const res = await safeFetchJson<any>(`/api/admin/orders/${statusUpdateOrderId}/status`, {
         method: 'POST',
         headers: adminHeaders,
         body: JSON.stringify({
@@ -155,13 +156,16 @@ export const AdminOrderManager: React.FC = () => {
     if (!approvingRequestId) return;
     setActionLoading(approvingRequestId);
     try {
-      const res = await fetch(`/api/admin/order-requests/${approvingRequestId}/approve`, {
+      const res = await safeFetchJson<any>(`/api/admin/order-requests/${approvingRequestId}/approve`, {
         method: 'POST',
         headers: adminHeaders,
         body: JSON.stringify({ finalQuotedAmount: quotedAmount })
       });
       if (res.ok) {
-        setSuccessNotice(`Quote request ${approvingRequestId} approved at INR ${quotedAmount.toLocaleString('en-IN')}.`);
+        setSuccessNotice(
+          res.data?.message ||
+            `Quote request ${approvingRequestId} approved at INR ${quotedAmount.toLocaleString('en-IN')}.`
+        );
         setApprovingRequestId(null);
         await loadData();
       }

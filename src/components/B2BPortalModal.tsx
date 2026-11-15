@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { downloadCurriculumGuide } from '../utils/downloadHelpers';
+import { safeFetchJson } from '../utils/apiClient';
 
 interface B2BPortalModalProps {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export const B2BPortalModal: React.FC<B2BPortalModalProps> = ({ isOpen, onClose 
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [quoteSubmitted, setQuoteSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -45,9 +47,10 @@ export const B2BPortalModal: React.FC<B2BPortalModalProps> = ({ isOpen, onClose 
   const handleSubmitQuote = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setSubmitError(null);
 
     try {
-      const res = await fetch('/api/b2b/quote', {
+      const res = await safeFetchJson('/api/b2b/quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -63,7 +66,9 @@ export const B2BPortalModal: React.FC<B2BPortalModalProps> = ({ isOpen, onClose 
         })
       });
 
-      if (!res.ok) throw new Error('Failed to submit quote request');
+      if (!res.ok) {
+        throw new Error(res.error || 'Failed to submit quote request');
+      }
       setQuoteSubmitted(true);
 
       try {
@@ -73,8 +78,10 @@ export const B2BPortalModal: React.FC<B2BPortalModalProps> = ({ isOpen, onClose 
           origin: { y: 0.6 }
         });
       } catch (e) {}
-    } catch (err) {
-      alert('Unable to submit request. Please reach out to balki.technologies@gmail.com directly.');
+    } catch (err: any) {
+      setSubmitError(
+        err?.message || 'Unable to submit request. Please reach out to balki.technologies@gmail.com directly.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -167,6 +174,11 @@ export const B2BPortalModal: React.FC<B2BPortalModalProps> = ({ isOpen, onClose 
             </div>
           ) : tab === 'quote' ? (
             <form onSubmit={handleSubmitQuote} className="space-y-4 text-xs">
+              {submitError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 font-semibold">
+                  {submitError}
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
                   <label className="block text-slate-700 font-bold mb-1">School / Institution Name *</label>

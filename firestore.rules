@@ -67,8 +67,12 @@ service cloud.firestore {
       return (
         (('orderId' in data && data.orderId is string && data.orderId.size() <= 128) || ('id' in data && data.id is string && data.id.size() <= 128)) &&
         (('customerId' in data && data.customerId is string && data.customerId.size() <= 128) || ('userId' in data && data.userId is string && data.userId.size() <= 128)) &&
-        data.customerName is string && data.customerName.size() <= 100 &&
-        data.customerEmail is string && data.customerEmail.size() <= 150 &&
+        data.customerName is string && data.customerName.size() > 0 && data.customerName.size() <= 100 &&
+        data.customerEmail is string && data.customerEmail.size() > 0 && data.customerEmail.size() <= 150 &&
+        data.currency == 'INR' &&
+        data.paymentStatus in ['Pending', 'Payment Pending', 'Paid', 'PO Approved (Net 30)', 'Refunded', 'Failed'] &&
+        data.orderStatus in ['order_placed', 'qc_assembly', 'dispatched', 'in_transit', 'out_for_delivery', 'delivered', 'cancelled'] &&
+        data.approvalStatus in ['PENDING', 'pending_approval', 'approved', 'rejected'] &&
         (('finalAmount' in data && data.finalAmount is number && data.finalAmount >= 0) || ('totalAmount' in data && data.totalAmount is number && data.totalAmount >= 0))
       );
     }
@@ -77,10 +81,10 @@ service cloud.firestore {
     function isValidOrderRequest(data) {
       return data.keys().hasAll(['requestId', 'customerId', 'requestedProducts', 'requestedAmount', 'approvalStatus', 'paymentStatus']) &&
              data.requestId is string && data.requestId.size() <= 128 &&
-             data.customerId == request.auth.uid &&
+             data.customerId is string && data.customerId.size() <= 128 &&
              data.requestedAmount is number && data.requestedAmount >= 0 &&
              data.approvalStatus in ['PENDING', 'pending_approval', 'approved', 'rejected'] &&
-             data.paymentStatus in ['NOT_STARTED', 'Pending', 'Paid', 'PO Approved (Net 30)'];
+             data.paymentStatus in ['NOT_STARTED', 'Pending', 'LINK_GENERATED', 'Paid', 'PO Approved (Net 30)'];
     }
 
     // Validation for Payment Transaction
@@ -150,19 +154,46 @@ service cloud.firestore {
         (resource.data.userId == request.auth.uid) ||
         isAdmin()
       );
+      // Customers may only stage an initial unpaid order when server Admin sync falls back to client SDK.
+      // Payment confirmation and server-authoritative fields are strictly forbidden on client writes.
       allow create: if isSignedIn() && isValidId(orderId) && isValidOrder(incoming()) && (
-        (incoming().customerId == request.auth.uid) ||
-        (incoming().userId == request.auth.uid)
-      ) && (
-        (!('approvalStatus' in incoming()) || incoming().approvalStatus == 'pending_approval' || isAdmin())
+        isAdmin() || (
+          (incoming().customerId == request.auth.uid) &&
+          (!('userId' in incoming()) || incoming().userId == request.auth.uid) &&
+          incoming().paymentStatus in ['Pending', 'Payment Pending'] &&
+          incoming().orderStatus == 'order_placed' &&
+          !incoming().keys().hasAny([
+            'serverVerifiedTotal', 'serverVerifiedTotalPaise',
+            'razorpayOrderId', 'razorpayPaymentId', 'razorpaySignature', 'razorpayPaymentLinkId',
+            'paidAt', 'approvedBy', 'approvedAt', 'rejectionReason',
+            'trackingNumber', 'courierName', 'deliveryOtp', 'trackingDetails',
+            'confirmationNotificationSent', 'failedPaymentAttempts', 'lastPaymentError'
+          ]) &&
+          (
+            incoming().approvalStatus in ['PENDING', 'pending_approval'] ||
+            (
+              incoming().approvalStatus == 'approved' &&
+              ('finalAmount' in incoming() && incoming().finalAmount < 5000) &&
+              (!('totalAmount' in incoming()) || incoming().totalAmount < 5000)
+            )
+          )
+        )
       );
+      // Only trusted backend (Firebase Admin SDK) or verified admins may modify paymentStatus,
+      // Razorpay identifiers/signatures, serverVerifiedTotal, approvalStatus, or owner-only fields.
       allow update: if isAdmin() || (
         isSignedIn() &&
         (existing().customerId == request.auth.uid || existing().userId == request.auth.uid) &&
         isValidOrder(incoming()) &&
         !incoming().diff(existing()).affectedKeys().hasAny([
-          'paymentStatus', 'approvalStatus', 'orderStatus', 'finalAmount', 'totalAmount',
-          'subtotal', 'shippingCharges', 'shippingFee', 'taxAmount', 'gstAmount', 'discount'
+          'paymentStatus', 'approvalStatus', 'orderStatus',
+          'finalAmount', 'totalAmount', 'serverVerifiedTotal', 'serverVerifiedTotalPaise',
+          'subtotal', 'shippingCharges', 'shippingFee', 'taxAmount', 'gstAmount', 'discount',
+          'razorpayPaymentId', 'razorpayOrderId', 'razorpaySignature', 'razorpayPaymentLinkId', 'paidAt',
+          'currency', 'approvedBy', 'approvedAt', 'rejectionReason',
+          'trackingNumber', 'courierName', 'deliveryOtp', 'trackingDetails',
+          'confirmationNotificationSent', 'failedPaymentAttempts', 'lastPaymentError',
+          'customerId', 'userId', 'orderId', 'id', 'createdAt'
         ])
       );
       allow delete: if isAdmin();
@@ -178,14 +209,30 @@ service cloud.firestore {
       allow list: if isSignedIn() && (
         resource.data.customerId == request.auth.uid || isAdmin()
       );
-      allow create: if isSignedIn() && isValidId(requestId) && isValidOrderRequest(incoming()) &&
-                   incoming().customerId == request.auth.uid &&
-                   incoming().approvalStatus in ['PENDING', 'pending_approval'];
+      allow create: if isSignedIn() && isValidId(requestId) && isValidOrderRequest(incoming()) && (
+        isAdmin() || (
+          incoming().customerId == request.auth.uid &&
+          incoming().approvalStatus in ['PENDING', 'pending_approval'] &&
+          incoming().paymentStatus == 'NOT_STARTED' &&
+          !incoming().keys().hasAny([
+            'serverVerifiedTotal', 'serverVerifiedTotalPaise', 'finalQuotedAmount',
+            'razorpayPaymentLinkId', 'razorpayPaymentLinkUrl',
+            'approvedBy', 'approvedAt', 'rejectionReason'
+          ])
+        )
+      );
       allow update: if isAdmin() || (
         isSignedIn() &&
         existing().customerId == request.auth.uid &&
         isValidOrderRequest(incoming()) &&
-        !incoming().diff(existing()).affectedKeys().hasAny(['approvalStatus', 'finalQuotedAmount', 'paymentStatus'])
+        !incoming().diff(existing()).affectedKeys().hasAny([
+          'approvalStatus', 'finalQuotedAmount', 'paymentStatus',
+          'requestedAmount', 'finalAmount', 'serverVerifiedTotal', 'serverVerifiedTotalPaise',
+          'subtotal', 'taxAmount', 'shippingCharges',
+          'razorpayPaymentLinkId', 'razorpayPaymentLinkUrl',
+          'approvedBy', 'approvedAt', 'rejectionReason',
+          'customerId', 'requestId', 'createdAt'
+        ])
       );
       allow delete: if isAdmin();
     }
@@ -234,6 +281,19 @@ service cloud.firestore {
       allow delete: if isSignedIn() && (
         existing().userId == request.auth.uid || isAdmin()
       );
+    }
+
+    // ==========================================
+    // 9. Webhook Idempotency Events & Mail Audit Logs (Server Admin SDK Only)
+    // ==========================================
+    match /webhook-events/{eventId} {
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    match /mail/{mailId} {
+      allow get, list: if isAdmin();
+      allow create, update, delete: if false;
     }
   }
 }

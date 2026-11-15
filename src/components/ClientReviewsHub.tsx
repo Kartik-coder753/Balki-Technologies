@@ -18,6 +18,7 @@ import { collection, onSnapshot, doc, setDoc, updateDoc, increment } from 'fireb
 import { db, handleFirestoreError } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { ClientReview, Product } from '../types';
+import { safeFetchJson } from '../utils/apiClient';
 
 interface ClientReviewsHubProps {
   products: Product[];
@@ -65,10 +66,11 @@ export const ClientReviewsHub: React.FC<ClientReviewsHubProps> = ({
         (error) => {
           handleFirestoreError(error, 'read', 'reviews');
           // Fallback to fetch from server API if Firestore query fails
-          fetch('/api/reviews')
-            .then((res) => (res.ok ? res.json() : []))
-            .then((data) => {
-              setReviews(data);
+          safeFetchJson<ClientReview[]>('/api/reviews')
+            .then((res) => {
+              if (res.ok && Array.isArray(res.data)) {
+                setReviews(res.data);
+              }
               setLoading(false);
             })
             .catch(() => setLoading(false));
@@ -78,10 +80,11 @@ export const ClientReviewsHub: React.FC<ClientReviewsHubProps> = ({
       return () => unsubscribe();
     } catch (err) {
       console.warn('Reviews listener setup error, falling back to REST API', err);
-      fetch('/api/reviews')
-        .then((res) => (res.ok ? res.json() : []))
-        .then((data) => {
-          setReviews(data);
+      safeFetchJson<ClientReview[]>('/api/reviews')
+        .then((res) => {
+          if (res.ok && Array.isArray(res.data)) {
+            setReviews(res.data);
+          }
           setLoading(false);
         })
         .catch(() => setLoading(false));
@@ -177,7 +180,7 @@ export const ClientReviewsHub: React.FC<ClientReviewsHubProps> = ({
 
       // 2. Also inform server API
       try {
-        await fetch('/api/reviews', {
+        await safeFetchJson('/api/reviews', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(reviewPayload)

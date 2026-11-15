@@ -16,6 +16,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { safeFetchJson } from '../utils/apiClient';
 
 export const CareersSection: React.FC = () => {
   const [fullName, setFullName] = useState('');
@@ -29,13 +30,15 @@ export const CareersSection: React.FC = () => {
   const [resumeFileName, setResumeFileName] = useState('My_Resume.pdf');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [applicationSuccess, setApplicationSuccess] = useState(false);
+  const [applicationError, setApplicationError] = useState<string | null>(null);
 
   const handleSubmitApplication = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setApplicationError(null);
 
     try {
-      const res = await fetch('/api/internship/apply', {
+      const res = await safeFetchJson('/api/internship/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -51,7 +54,9 @@ export const CareersSection: React.FC = () => {
         })
       });
 
-      if (!res.ok) throw new Error('Failed to submit application');
+      if (!res.ok) {
+        throw new Error(res.error || 'Failed to submit application');
+      }
       setApplicationSuccess(true);
 
       try {
@@ -61,8 +66,10 @@ export const CareersSection: React.FC = () => {
           origin: { y: 0.6 }
         });
       } catch (e) {}
-    } catch (err) {
-      alert('Unable to send application. Please email balki.technologies@gmail.com directly.');
+    } catch (err: any) {
+      setApplicationError(
+        err?.message || 'Unable to send application. Please email balki.technologies@gmail.com directly.'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -296,6 +303,11 @@ export const CareersSection: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleSubmitApplication} className="space-y-4 text-xs">
+                {applicationError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 font-semibold">
+                    {applicationError}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-slate-700 font-bold mb-1">Full Name *</label>

@@ -26,6 +26,7 @@ import {
 import confetti from 'canvas-confetti';
 import { SupportTicket } from '../types';
 import { SUPPORT_FAQS, DIAGNOSTIC_GUIDES } from '../data/supportData';
+import { safeFetchJson } from '../utils/apiClient';
 
 interface ContactSupportSectionProps {
   tickets: SupportTicket[];
@@ -53,6 +54,7 @@ export const ContactSupportSection: React.FC<ContactSupportSectionProps> = ({
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newlyCreatedTicket, setNewlyCreatedTicket] = useState<SupportTicket | null>(null);
+  const [ticketFormError, setTicketFormError] = useState<string | null>(null);
 
   // Ticket Lookup State
   const [searchTicketQuery, setSearchTicketQuery] = useState('');
@@ -67,10 +69,11 @@ export const ContactSupportSection: React.FC<ContactSupportSectionProps> = ({
   const handleSubmitTicket = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !description || !institutionName) {
-      alert('Please complete all required fields.');
+      setTicketFormError('Please complete all required fields.');
       return;
     }
 
+    setTicketFormError(null);
     setIsSubmitting(true);
     const generatedTicketNumber = `TKT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -96,17 +99,16 @@ export const ContactSupportSection: React.FC<ContactSupportSectionProps> = ({
 
     try {
       // Send to server API
-      const res = await fetch('/api/support/tickets', {
+      const res = await safeFetchJson<SupportTicket>('/api/support/tickets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newTicket)
       });
 
-      if (res.ok) {
-        const saved = await res.json();
-        onAddTicket(saved);
-        setNewlyCreatedTicket(saved);
-        setSelectedTrackedTicket(saved);
+      if (res.ok && res.data) {
+        onAddTicket(res.data);
+        setNewlyCreatedTicket(res.data);
+        setSelectedTrackedTicket(res.data);
       } else {
         onAddTicket(newTicket);
         setNewlyCreatedTicket(newTicket);
@@ -377,6 +379,11 @@ export const ContactSupportSection: React.FC<ContactSupportSectionProps> = ({
             )}
 
             <form onSubmit={handleSubmitTicket} className="space-y-4">
+              {ticketFormError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-semibold">
+                  {ticketFormError}
+                </div>
+              )}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">

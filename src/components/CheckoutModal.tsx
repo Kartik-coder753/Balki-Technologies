@@ -30,11 +30,12 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { CartItem, Order, OrderRequest, PaymentMethod } from '../types';
+import { CartItem, Order, OrderRequest } from '../types';
 import { downloadTaxInvoice, downloadOrderRequestSummary } from '../utils/downloadHelpers';
 import { useAuth } from '../context/AuthContext';
 import { doc, setDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { db, handleFirestoreError } from '../lib/firebase';
+import { safeFetchJson } from '../utils/apiClient';
 
 interface ServerCalculation {
   subtotal: number;
@@ -108,17 +109,25 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [submissionError, setSubmissionError] = useState('');
   const [createdOrder, setCreatedOrder] = useState<Order | null>(null);
   const [createdRequest, setCreatedRequest] = useState<OrderRequest | null>(null);
+  const [orderToken, setOrderToken] = useState<string | null>(null);
   const [razorpayData, setRazorpayData] = useState<{
-    orderId: string;
+    orderId: string | null;
     amount: number;
     currency: string;
-    keyId: string;
+    keyId: string | null;
+    configured?: boolean;
+    mode?: 'test' | 'live' | 'unconfigured';
+    message?: string;
   } | null>(null);
 
   // Razorpay payment UI states
+  const [razorpayConfigured, setRazorpayConfigured] = useState<boolean | null>(null);
+  const [razorpayMode, setRazorpayMode] = useState<'test' | 'live' | 'unconfigured'>('unconfigured');
+  const [razorpayConfigNotice, setRazorpayConfigNotice] = useState('');
   const [paymentProcessingState, setPaymentProcessingState] = useState<'idle' | 'opening' | 'verifying' | 'captured' | 'failed' | 'cancelled'>('idle');
   const [paymentErrorMessage, setPaymentErrorMessage] = useState('');
   const [verifiedPaymentId, setVerifiedPaymentId] = useState('');
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [copiedPaymentId, setCopiedPaymentId] = useState(false);
   const [selectedMethodTab, setSelectedMethodTab] = useState<'all' | 'upi' | 'card' | 'netbanking' | 'qr'>('all');
   const [dynamicQrString, setDynamicQrString] = useState('');
@@ -138,11 +147,18 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     }
   }, [userProfile, currentUser, isOpen]);
 
-  // Reset steps and error when opening
+  // Reset steps and transient status when opening
   useEffect(() => {
     if (isOpen) {
       setStep('details');
       setSubmissionError('');
+      setCalcError('');
+      setPaymentErrorMessage('');
+      setRazorpayConfigNotice('');
+      setPaymentProcessingState('idle');
+      setVerifiedPaymentId('');
+      setDynamicQrString('');
+      setOrderToken(null);
     }
   }, [isOpen]);
 
@@ -153,29 +169,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setIsCalculating(true);
     setCalcError('');
 
-    fetch('/api/orders/calculate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        items: cartItems.map(i => ({ productId: i.product.id, quantity: i.quantity })),
-        couponCode: appliedCoupon
-      })
-    })
-      .then(async res => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Server price calculation failed');
-        if (isMounted) {
-          setServerCalc(data);
+    safeFetchJson<ServerCalculation & { razorpay?: { configured: boolean; mode: 'test' | 'live' | 'unconfigured' } }>(
+      '/api/orders/calculate',
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: cartItems.map(i => ({ productId: i.product.id, quantity: i.quantity })),
+          couponCode: appliedCoupon
+        })
+      }
+    ).then(result => {
+      if (!isMounted) return;
+      if (!result.ok || !result.data) {
+        setCalcError(result.error || 'Server price calculation failed');
+      } else {
+        setServerCalc(result.data);
+        if (result.data.razorpay) {
+          setRazorpayConfigured(Boolean(result.data.razorpay.configured));
+          setRazorpayMode(result.data.razorpay.mode || 'unconfigured');
         }
-      })
-      .catch(err => {
-        if (isMounted) setCalcError(err.message || 'Error communicating with pricing engine');
-      })
-      .finally(() => {
-        if (isMounted) setIsCalculating(false);
-      });
+      }
+      setIsCalculating(false);
+    });
 
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, cartItems, appliedCoupon]);
 
   if (!isOpen) return null;
@@ -202,8 +222,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setSubmissionError('Please provide your full contact information (Name, Email, Phone).');
       return false;
     }
-    if (!street.trim() || !city.trim() || !state.trim() || !pincode.trim()) {
-      setSubmissionError('Please provide complete consignment delivery address including PIN code.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail.trim())) {
+      setSubmissionError('Please enter a valid email address.');
+      return false;
+    }
+    if (customerPhone.replace(/\D/g, '').length < 10) {
+      setSubmissionError('Please enter a valid 10-digit contact phone number.');
+      return false;
+    }
+    if (!street.trim() || !city.trim() || !state.trim() || !/^\d{6}$/.test(pincode.trim())) {
+      setSubmissionError('Please provide complete delivery address including a valid 6-digit PIN code.');
       return false;
     }
     return true;
@@ -214,6 +242,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     e.preventDefault();
     if (!validateForm()) return;
     setSubmissionError('');
+    setRazorpayConfigNotice('');
+    setPaymentErrorMessage('');
     setIsSubmitting(true);
 
     try {
@@ -241,26 +271,33 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         paymentMethod: 'Razorpay'
       };
 
-      const res = await fetch('/api/orders/checkout-small', {
+      const res = await safeFetchJson<any>('/api/orders/checkout-small', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to initialize small order checkout.');
+      if (!res.ok || !res.data || !res.data.order) {
+        throw new Error(res.error || 'Failed to initialize small order checkout.');
       }
 
+      const data = res.data;
       setCreatedOrder(data.order);
-      setRazorpayData(data.razorpay);
+      setOrderToken(data.orderToken || null);
+      setRazorpayData(data.razorpay || null);
 
-      // Persist to Firestore if authenticated
-      if (currentUser?.uid && data.order) {
+      const isGatewayConfigured = Boolean(
+        data.razorpay?.configured && data.razorpay?.orderId && data.razorpay?.keyId
+      );
+      setRazorpayConfigured(isGatewayConfigured);
+      setRazorpayMode(data.razorpay?.mode || 'unconfigured');
+
+      // Fallback client persistence only when server Admin SDK sync was unavailable in local preview
+      // Never write server-controlled or Razorpay payment confirmation fields from the client SDK
+      if (!data.firestoreSynced && currentUser?.uid && data.order) {
         try {
           const docRef = doc(db, 'orders', data.order.id);
           await setDoc(docRef, {
-            ...data.order,
             orderId: data.order.id,
             id: data.order.id,
             userId: currentUser.uid,
@@ -270,6 +307,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             customerPhone: data.order.customerPhone,
             deliveryAddress: data.order.deliveryAddress,
             shippingAddress: data.order.shippingAddress,
+            products: data.order.products || data.order.items || [],
+            items: data.order.items || data.order.products || [],
             subtotal: data.order.subtotal,
             taxAmount: data.order.taxAmount || 0,
             gstAmount: data.order.gstAmount || 0,
@@ -278,35 +317,35 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             finalAmount: data.order.finalAmount || data.order.totalAmount,
             totalAmount: data.order.totalAmount || data.order.finalAmount,
             currency: 'INR',
-            paymentStatus: data.order.paymentStatus,
-            orderStatus: data.order.orderStatus,
-            approvalStatus: data.order.approvalStatus,
-            razorpayOrderId: data.order.razorpayOrderId,
-            trackingNumber: data.order.trackingNumber,
+            paymentStatus: 'Payment Pending',
+            orderStatus: 'order_placed',
+            approvalStatus: 'approved',
             createdAt: data.order.createdAt || new Date().toISOString(),
             updatedAt: new Date().toISOString()
           });
         } catch (dbErr) {
-          console.warn('Firestore sync note:', dbErr);
+          try {
+            handleFirestoreError(dbErr, 'create', `orders/${data.order.id}`);
+          } catch {
+            // Non-blocking: backend already persisted authoritative order & Razorpay order ID
+          }
         }
       }
 
       onOrderPlaced(data.order);
       setStep('small_order_ready');
 
-      // Automatically launch Razorpay checkout modal so customer is taken directly to payment
-      setTimeout(() => {
-        handleOpenRazorpay(data.order, data.razorpay);
-      }, 100);
-
-      try {
-        confetti({
-          particleCount: 70,
-          spread: 70,
-          origin: { y: 0.6 }
-        });
-      } catch (e) {
-        // Safe fallback
+      if (isGatewayConfigured) {
+        // Launch genuine Razorpay Checkout only when real credentials are configured
+        setTimeout(() => {
+          handleOpenRazorpay(data.order, data.razorpay, data.orderToken);
+        }, 120);
+      } else {
+        // Honest unconfigured state: preserve order & details, do NOT fake payment
+        setRazorpayConfigNotice(
+          data.razorpay?.message ||
+            'Razorpay payment gateway credentials are not yet configured on this server. Your order details are preserved safely as Payment Pending.'
+        );
       }
     } catch (err: any) {
       setSubmissionError(err.message || 'Error creating order.');
@@ -346,21 +385,21 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         couponCode: appliedCoupon
       };
 
-      const res = await fetch('/api/orders/request-approval', {
+      const res = await safeFetchJson<any>('/api/orders/request-approval', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit order approval request.');
+      if (!res.ok || !res.data || !res.data.request) {
+        throw new Error(res.error || 'Failed to submit order approval request.');
       }
 
+      const data = res.data;
       setCreatedRequest(data.request);
 
-      // Persist to Firestore orderRequests collection if authenticated
-      if (currentUser?.uid && data.request) {
+      // Fallback client persistence only when server Admin SDK sync was unavailable
+      if (!data.firestoreSynced && currentUser?.uid && data.request) {
         try {
           const docRef = doc(db, 'orderRequests', data.request.requestId);
           await setDoc(docRef, {
@@ -381,7 +420,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             updatedAt: new Date().toISOString()
           });
         } catch (dbErr) {
-          console.warn('Firestore sync note:', dbErr);
+          try {
+            handleFirestoreError(dbErr, 'create', `orderRequests/${data.request.requestId}`);
+          } catch {
+            // Non-blocking: backend already persisted authoritative approval request
+          }
         }
       }
 
@@ -393,8 +436,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           spread: 75,
           origin: { y: 0.55 }
         });
-      } catch (e) {
-        // Safe fallback
+      } catch {
+        // ignore confetti failure
       }
     } catch (err: any) {
       setSubmissionError(err.message || 'Error submitting approval request.');
@@ -423,6 +466,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   // Official Razorpay Cryptographic Verification on Backend
   const verifyPaymentOnBackend = async (payload: {
     orderId: string;
+    orderToken?: string | null;
     razorpay_order_id: string;
     razorpay_payment_id: string;
     razorpay_signature: string;
@@ -431,36 +475,24 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     setPaymentErrorMessage('');
 
     try {
-      const res = await fetch('/api/razorpay/verify-payment', {
+      const res = await safeFetchJson<any>('/api/razorpay/verify-payment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          ...payload,
+          orderToken: payload.orderToken ?? orderToken
+        })
       });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Cryptographic payment signature verification failed.');
+
+      if (!res.ok || !res.data || !res.data.order) {
+        throw new Error(res.error || 'Cryptographic payment signature verification failed.');
       }
 
+      const data = res.data;
       setVerifiedPaymentId(payload.razorpay_payment_id);
       setCreatedOrder(data.order);
       setPaymentProcessingState('captured');
       onOrderPlaced(data.order);
-
-      // Update Firestore if authenticated
-      if (currentUser?.uid && data.order) {
-        try {
-          const docRef = doc(db, 'orders', data.order.id);
-          await setDoc(docRef, {
-            ...data.order,
-            paymentStatus: 'Paid',
-            razorpayPaymentId: payload.razorpay_payment_id,
-            razorpayOrderId: payload.razorpay_order_id,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-        } catch (dbErr) {
-          console.warn('Firestore sync note:', dbErr);
-        }
-      }
 
       try {
         confetti({
@@ -468,152 +500,231 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           spread: 80,
           origin: { y: 0.55 }
         });
-      } catch (e) {}
+      } catch {
+        // ignore
+      }
     } catch (err: any) {
       setPaymentProcessingState('failed');
       setPaymentErrorMessage(err.message || 'Signature verification error on backend.');
     }
   };
 
+  // Authoritative status polling / check (recovers payments confirmed asynchronously via Razorpay webhook)
+  const handleCheckPaymentStatus = async () => {
+    if (!createdOrder) return;
+    setIsCheckingStatus(true);
+    try {
+      const rzpQuery = razorpayData?.orderId ? `?razorpayOrderId=${encodeURIComponent(razorpayData.orderId)}` : '';
+      const res = await safeFetchJson<any>(`/api/orders/${encodeURIComponent(createdOrder.id)}/payment-status${rzpQuery}`);
+      if (!res.ok || !res.data) {
+        throw new Error(res.error || 'Could not retrieve current payment status.');
+      }
+      const statusData = res.data;
+      if (statusData.confirmed) {
+        const updatedOrder: Order = {
+          ...createdOrder,
+          paymentStatus: 'Paid',
+          orderStatus: statusData.orderStatus || 'qc_assembly',
+          razorpayOrderId: statusData.razorpayOrderId || createdOrder.razorpayOrderId,
+          razorpayPaymentId: statusData.razorpayPaymentId || createdOrder.razorpayPaymentId,
+          paidAt: statusData.paidAt || new Date().toISOString()
+        };
+        setVerifiedPaymentId(statusData.razorpayPaymentId || '');
+        setCreatedOrder(updatedOrder);
+        setPaymentErrorMessage('');
+        setPaymentProcessingState('captured');
+        onOrderPlaced(updatedOrder);
+      } else if (statusData.paymentStatus === 'Failed') {
+        setPaymentProcessingState('failed');
+        setPaymentErrorMessage(
+          statusData.lastPaymentError || 'Previous payment attempt failed. You can safely retry payment below.'
+        );
+      } else {
+        setPaymentErrorMessage(
+          `Order ${createdOrder.id} is currently in "${statusData.paymentStatus}" status. Complete Razorpay checkout or wait a moment if you already paid.`
+        );
+      }
+    } catch (err: any) {
+      setPaymentErrorMessage(err.message || 'Unable to verify payment status.');
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
   // Launch official Razorpay Checkout SDK
-  const handleOpenRazorpay = async (customOrder?: Order, customRzp?: any) => {
+  const handleOpenRazorpay = async (
+    customOrder?: Order,
+    customRzp?: any,
+    customOrderToken?: string | null
+  ) => {
     const orderToUse = customOrder || createdOrder;
+    const tokenToUse = customOrderToken !== undefined ? customOrderToken : orderToken;
     if (!orderToUse) return;
+    const isRetryAfterFailure = paymentProcessingState === 'failed' && !customRzp;
     setPaymentProcessingState('opening');
     setPaymentErrorMessage('');
+    setRazorpayConfigNotice('');
 
     try {
-      let rzpOrderId = customRzp?.orderId || razorpayData?.orderId || orderToUse.razorpayOrderId;
+      let rzpOrderId = isRetryAfterFailure
+        ? undefined
+        : (customRzp?.orderId || razorpayData?.orderId || orderToUse.razorpayOrderId);
       let rzpKeyId = customRzp?.keyId || razorpayData?.keyId;
 
       if (!rzpOrderId || !rzpKeyId) {
-        const createRes = await fetch('/api/razorpay/create-order', {
+        const createRes = await safeFetchJson<any>('/api/razorpay/create-order', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             orderId: orderToUse.id,
+            orderToken: tokenToUse,
             customerEmail: orderToUse.customerEmail,
             customerPhone: orderToUse.customerPhone
           })
         });
-        const createData = await createRes.json();
-        if (!createRes.ok) {
-          throw new Error(createData.error || 'Failed to initialize Razorpay order');
+
+        if (createRes.code === 'RAZORPAY_NOT_CONFIGURED') {
+          setRazorpayConfigured(false);
+          setRazorpayMode('unconfigured');
+          setPaymentProcessingState('idle');
+          setRazorpayConfigNotice(
+            createRes.error ||
+              'Razorpay merchant credentials are not yet configured. Your order details remain safely saved as Payment Pending.'
+          );
+          return;
         }
-        rzpOrderId = createData.razorpayOrderId;
-        rzpKeyId = createData.keyId;
-        setRazorpayData(createData);
+
+        if (!createRes.ok || !createRes.data) {
+          throw new Error(createRes.error || 'Failed to initialize Razorpay order');
+        }
+
+        rzpOrderId = createRes.data.razorpayOrderId;
+        rzpKeyId = createRes.data.keyId;
+        setRazorpayConfigured(true);
+        setRazorpayMode(createRes.data.mode || 'test');
+        setRazorpayData({
+          orderId: rzpOrderId || null,
+          amount: createRes.data.amount,
+          currency: createRes.data.currency || 'INR',
+          keyId: rzpKeyId || null,
+          configured: true,
+          mode: createRes.data.mode
+        });
       }
 
-      // Check if window.Razorpay SDK is ready
-      if (typeof (window as any).Razorpay === 'function') {
-        const options = {
-          key: rzpKeyId,
-          amount: Math.round(orderToUse.totalAmount * 100), // paise
-          currency: 'INR',
-          name: 'BALKI Technologies',
-          description: `Order ${orderToUse.id} - ${orderToUse.items?.length || 1} STEM Hardware Items`,
-          image: '/balki-logo.jpg',
-          order_id: rzpOrderId,
-          prefill: {
-            name: orderToUse.customerName,
-            email: orderToUse.customerEmail,
-            contact: orderToUse.customerPhone
-          },
-          notes: {
-            internalOrderId: orderToUse.id,
-            schoolName: orderToUse.schoolName || 'STEM Lab',
-            testMode: 'true'
-          },
-          theme: {
-            color: '#d97706' // amber-600
-          },
-          handler: async function (response: any) {
-            // Receive cryptographic signature from Razorpay Checkout modal
-            await verifyPaymentOnBackend({
-              orderId: orderToUse.id,
-              razorpay_order_id: response.razorpay_order_id || rzpOrderId,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature
-            });
-          },
-          modal: {
-            ondismiss: function () {
-              setPaymentProcessingState('cancelled');
-              setPaymentErrorMessage('Transaction was closed or cancelled by customer. Order remains safely saved and can be retried at any time.');
-            }
+      if (!rzpKeyId || !rzpOrderId) {
+        setRazorpayConfigured(false);
+        setPaymentProcessingState('idle');
+        setRazorpayConfigNotice(
+          'Razorpay payment gateway credentials are not yet configured. Your order is preserved safely as Payment Pending.'
+        );
+        return;
+      }
+
+      if (typeof (window as any).Razorpay !== 'function') {
+        await new Promise<void>((resolve, reject) => {
+          const existingScript = document.querySelector('script[src*="checkout.razorpay.com/v1/checkout.js"]') as HTMLScriptElement | null;
+          if (existingScript) {
+            existingScript.addEventListener('load', () => resolve(), { once: true });
+            existingScript.addEventListener('error', () => reject(new Error('Failed to load Razorpay script')), { once: true });
+            setTimeout(() => resolve(), 1500);
+            return;
           }
-        };
-
-        try {
-          const rzp = new (window as any).Razorpay(options);
-          rzp.on('payment.failed', function (resp: any) {
-            setPaymentProcessingState('failed');
-            const desc = resp.error?.description || 'Transaction declined by bank/network. In development test mode, use the Instant Test Payment simulation below or configure live test keys.';
-            setPaymentErrorMessage(desc);
-          });
-          rzp.open();
-        } catch (openErr: any) {
-          console.warn('Razorpay open warning:', openErr);
-          setPaymentProcessingState('failed');
-          setPaymentErrorMessage(openErr.message || 'Razorpay checkout window could not be opened. You can complete verification using Instant Test Payment below.');
-        }
-      } else {
-        // Fallback for sandboxes without external script loading: run test mode simulated flow
-        await handleSimulateTestPayment();
+          const script = document.createElement('script');
+          script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+          script.async = true;
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error('Failed to load Razorpay script'));
+          document.head.appendChild(script);
+        }).catch(() => {});
       }
+
+      if (typeof (window as any).Razorpay !== 'function') {
+        setPaymentProcessingState('failed');
+        setPaymentErrorMessage(
+          'Razorpay Checkout SDK script could not be loaded in your browser (please ensure https://checkout.razorpay.com/v1/checkout.js is not blocked by an extension or network policy).'
+        );
+        return;
+      }
+
+      const logoUrl =
+        typeof window !== 'undefined' && window.location?.origin
+          ? `${window.location.origin}/balki-logo.jpg`
+          : '/balki-logo.jpg';
+
+      const options = {
+        key: rzpKeyId,
+        amount: customRzp?.amount ?? razorpayData?.amount ?? Math.round(orderToUse.totalAmount * 100), // paise
+        currency: 'INR',
+        name: 'BALKI Technologies',
+        description: `Order ${orderToUse.id} - ${orderToUse.items?.length || 1} STEM Hardware Items`,
+        image: logoUrl,
+        order_id: rzpOrderId,
+        prefill: {
+          name: orderToUse.customerName,
+          email: orderToUse.customerEmail,
+          contact: orderToUse.customerPhone
+        },
+        notes: {
+          internalOrderId: orderToUse.id,
+          schoolName: orderToUse.schoolName || 'STEM Lab',
+          mode: razorpayMode
+        },
+        theme: {
+          color: '#d97706' // amber-600
+        },
+        handler: async function (response: any) {
+          await verifyPaymentOnBackend({
+            orderId: orderToUse.id,
+            orderToken: tokenToUse,
+            razorpay_order_id: response.razorpay_order_id || rzpOrderId,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature
+          });
+        },
+        modal: {
+          ondismiss: function () {
+            setPaymentProcessingState('cancelled');
+            setPaymentErrorMessage(
+              'Transaction was closed or cancelled by customer. Order remains safely saved and can be retried at any time.'
+            );
+          }
+        }
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on('payment.failed', function (resp: any) {
+        setPaymentProcessingState('failed');
+        const desc =
+          resp.error?.description ||
+          'Transaction declined by bank or card issuer. Your order details are preserved so you can retry payment.';
+        setPaymentErrorMessage(desc);
+      });
+      setPaymentProcessingState('idle');
+      rzp.open();
     } catch (err: any) {
       setPaymentProcessingState('failed');
       setPaymentErrorMessage(err.message || 'Payment initiation error.');
     }
   };
 
-  // Sandbox simulation: successful payment with real backend signature validation
-  const handleSimulateTestPayment = async () => {
-    if (!createdOrder) return;
-    const rzpOrderId = razorpayData?.orderId || createdOrder.razorpayOrderId || `order_test_${Date.now()}`;
-    const testPaymentId = `pay_test_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
-    const testSignature = 'test_sig_valid_balki';
-
-    await verifyPaymentOnBackend({
-      orderId: createdOrder.id,
-      razorpay_order_id: rzpOrderId,
-      razorpay_payment_id: testPaymentId,
-      razorpay_signature: testSignature
-    });
-  };
-
-  // Sandbox simulation: bank failure simulation
-  const handleSimulateFailure = () => {
-    setPaymentProcessingState('failed');
-    setPaymentErrorMessage('Transaction declined by issuing bank (Test Error Simulation: Insufficient Balance or Auth Failure). Your order remains pending and can be retried.');
-  };
-
-  // Sandbox simulation: user cancel simulation
-  const handleSimulateCancel = () => {
-    setPaymentProcessingState('cancelled');
-    setPaymentErrorMessage('Payment cancelled by user. No funds were debited. You can resume checkout whenever ready.');
-  };
-
-  // Load dynamic QR string
+  // Load dynamic QR string from configured Razorpay API
   const handleLoadQr = async () => {
     if (!createdOrder) return;
-    try {
-      const res = await fetch('/api/razorpay/create-qr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: createdOrder.id,
-          amount: createdOrder.totalAmount,
-          customerPhone: createdOrder.customerPhone
-        })
-      });
-      const data = await res.json();
-      if (res.ok && data.qrString) {
-        setDynamicQrString(data.qrString);
-      }
-    } catch (e) {
-      console.warn('QR load error:', e);
+    const res = await safeFetchJson<any>('/api/razorpay/create-qr', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: createdOrder.id,
+        orderToken,
+        amount: createdOrder.totalAmount,
+        customerPhone: createdOrder.customerPhone
+      })
+    });
+    if (res.ok && res.data?.qrString) {
+      setDynamicQrString(res.data.qrString);
+    } else if (res.error) {
+      setPaymentErrorMessage(res.error);
     }
   };
 
@@ -978,12 +1089,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 )}
 
                 <h3 className="text-lg font-black text-slate-900">
-                  {paymentProcessingState === 'captured' 
-                    ? 'Payment Confirmed & Order Dispatched!' 
+                  {paymentProcessingState === 'captured'
+                    ? 'Payment Confirmed & Order Dispatched!'
                     : paymentProcessingState === 'failed'
                     ? 'Payment Attempt Failed'
                     : paymentProcessingState === 'cancelled'
                     ? 'Payment Cancelled by Customer'
+                    : razorpayConfigured === false
+                    ? 'Order Saved — Payment Gateway Setup Pending'
+                    : razorpayMode === 'live'
+                    ? 'Razorpay Secure Payment Gateway'
                     : 'Razorpay Payment Gateway (Test Mode)'}
                 </h3>
 
@@ -1020,19 +1135,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </span>
                   <div className="flex items-center justify-center gap-1 font-mono font-bold text-xs text-blue-950">
                     <span className="truncate max-w-[130px]">
-                      {verifiedPaymentId || razorpayData?.orderId || createdOrder.razorpayOrderId}
+                      {verifiedPaymentId || razorpayData?.orderId || createdOrder.razorpayOrderId || 'Awaiting Gateway'}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(verifiedPaymentId || razorpayData?.orderId || createdOrder.razorpayOrderId || '', 'rzp')}
-                      className="p-1 hover:bg-blue-100 rounded text-blue-800 cursor-pointer"
-                      title="Copy Payment Reference"
-                    >
-                      {copiedRzpId ? <CheckCheck className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
+                    {(verifiedPaymentId || razorpayData?.orderId || createdOrder.razorpayOrderId) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          copyToClipboard(
+                            verifiedPaymentId || razorpayData?.orderId || createdOrder.razorpayOrderId || '',
+                            'rzp'
+                          )
+                        }
+                        className="p-1 hover:bg-blue-100 rounded text-blue-800 cursor-pointer"
+                        title="Copy Payment Reference"
+                      >
+                        {copiedRzpId ? <CheckCheck className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                    )}
                   </div>
                   <span className="text-[9px] text-blue-700 font-semibold block">
-                    {paymentProcessingState === 'captured' ? 'Captured (Test Mode)' : 'Order Staged'}
+                    {paymentProcessingState === 'captured'
+                      ? razorpayMode === 'live'
+                        ? 'Captured (Live)'
+                        : 'Captured (Test Mode)'
+                      : razorpayConfigured === false
+                      ? 'Gateway Credentials Pending'
+                      : 'Order Staged'}
                   </span>
                 </div>
 
@@ -1070,6 +1198,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </span>
                 </div>
               </div>
+
+              {/* Razorpay Not-Yet-Configured Notice Banner */}
+              {razorpayConfigNotice && paymentProcessingState !== 'captured' && (
+                <div className="p-3.5 rounded-xl border bg-amber-50 border-amber-300 text-amber-950 text-xs flex items-start gap-2.5 animate-in fade-in">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-700" />
+                  <div className="flex-1 space-y-1">
+                    <div className="font-bold">Payment Gateway Not Yet Configured</div>
+                    <p className="text-[11px] leading-relaxed text-amber-900">{razorpayConfigNotice}</p>
+                    <p className="text-[10px] text-amber-800 font-medium">
+                      Your order <strong>{createdOrder.id}</strong> and customer/delivery details are safely preserved in <strong>Payment Pending</strong> status.
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Error / Cancellation Feedback Banner */}
               {paymentErrorMessage && (
@@ -1150,10 +1292,20 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-800 flex items-center gap-1.5 text-[11px] uppercase tracking-wider">
                         <CreditCard className="w-4 h-4 text-amber-600" />
-                        Supported Payment Methods (Razorpay Test Gateway)
+                        Supported Payment Methods (Razorpay)
                       </span>
-                      <span className="text-[10px] font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">
-                        Test Mode Active
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                        razorpayConfigured === false
+                          ? 'bg-amber-100 text-amber-800'
+                          : razorpayMode === 'live'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {razorpayConfigured === false
+                          ? 'Credentials Pending'
+                          : razorpayMode === 'live'
+                          ? 'Live Gateway'
+                          : 'Test Mode Active'}
                       </span>
                     </div>
 
@@ -1198,7 +1350,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         type="button"
                         onClick={() => {
                           setSelectedMethodTab('qr');
-                          handleLoadQr();
+                          if (razorpayConfigured !== false) handleLoadQr();
                         }}
                         className={`p-2.5 rounded-lg border text-left transition cursor-pointer ${
                           selectedMethodTab === 'qr' ? 'border-amber-500 bg-amber-50/60' : 'border-slate-200 hover:bg-slate-50'
@@ -1217,9 +1369,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                           <QrCode className="w-8 h-8 text-slate-900" />
                         </div>
                         <div className="flex-1 text-[11px] space-y-0.5">
-                          <div className="font-bold text-amber-950">Dynamic UPI QR Ready</div>
+                          <div className="font-bold text-amber-950">
+                            {dynamicQrString ? 'Dynamic UPI QR Ready' : 'Razorpay UPI QR'}
+                          </div>
                           <div className="text-amber-800 text-[10px]">
-                            Scan with BHIM, Google Pay, or PhonePe. Reference: <span className="font-mono font-bold">{createdOrder.id}</span>
+                            {razorpayConfigured === false
+                              ? 'QR payment will activate automatically once Razorpay merchant credentials are configured.'
+                              : `Scan with BHIM, Google Pay, or PhonePe. Reference: ${createdOrder.id}`}
                           </div>
                         </div>
                       </div>
@@ -1260,14 +1416,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <button
                       type="button"
                       id="btn-pay-razorpay"
-                      onClick={handleOpenRazorpay}
+                      onClick={() => handleOpenRazorpay()}
                       disabled={paymentProcessingState === 'opening' || paymentProcessingState === 'verifying'}
-                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-black rounded-xl shadow-md hover:shadow-lg flex items-center gap-2 transition-all cursor-pointer"
+                      className={`px-5 py-2.5 text-white text-xs font-black rounded-xl shadow-md hover:shadow-lg flex items-center gap-2 transition-all cursor-pointer disabled:opacity-60 ${
+                        razorpayConfigured === false
+                          ? 'bg-slate-700 hover:bg-slate-800'
+                          : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
                     >
                       {paymentProcessingState === 'opening' || paymentProcessingState === 'verifying' ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span>Connecting Razorpay...</span>
+                        </>
+                      ) : razorpayConfigured === false ? (
+                        <>
+                          <RefreshCw className="w-4 h-4" />
+                          <span>Check Gateway Availability</span>
                         </>
                       ) : (
                         <>
@@ -1281,15 +1446,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {paymentProcessingState !== 'captured' && (
+                  {paymentProcessingState !== 'captured' && razorpayConfigured !== false && (
                     <button
                       type="button"
-                      onClick={handleSimulateTestPayment}
-                      className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-xl transition cursor-pointer border border-slate-200 flex items-center gap-1"
-                      title="Test mode instant validation using valid backend HMAC SHA256"
+                      id="btn-refresh-payment-status"
+                      onClick={handleCheckPaymentStatus}
+                      disabled={isCheckingStatus || paymentProcessingState === 'opening' || paymentProcessingState === 'verifying'}
+                      className="px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl transition-colors cursor-pointer border border-slate-300 flex items-center gap-1.5 disabled:opacity-60"
                     >
-                      <Zap className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Instant Test Payment</span>
+                      <RefreshCw className={`w-3.5 h-3.5 ${isCheckingStatus ? 'animate-spin' : ''}`} />
+                      <span>{isCheckingStatus ? 'Checking...' : 'Check Status'}</span>
                     </button>
                   )}
                   <button
@@ -1301,42 +1467,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   </button>
                 </div>
               </div>
-
-              {/* Sandbox Test Mode Simulation Tools (For evaluator to test failure and cancellation states) */}
-              {paymentProcessingState !== 'captured' && (
-                <div className="p-3 bg-slate-100/90 rounded-xl border border-slate-200 text-[11px] space-y-1.5">
-                  <div className="flex items-center justify-between text-slate-600 font-bold">
-                    <span className="flex items-center gap-1">
-                      <Sparkles className="w-3 h-3 text-amber-600" />
-                      Razorpay Test Mode Developer Controls
-                    </span>
-                    <span className="text-[10px] text-slate-400">Evaluate Error & Cancel States</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleSimulateFailure}
-                      className="px-2.5 py-1 bg-white hover:bg-rose-50 text-rose-700 text-[10px] font-semibold rounded border border-rose-200 transition cursor-pointer"
-                    >
-                      Simulate Bank Failure
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSimulateCancel}
-                      className="px-2.5 py-1 bg-white hover:bg-amber-50 text-amber-800 text-[10px] font-semibold rounded border border-amber-200 transition cursor-pointer"
-                    >
-                      Simulate User Cancelled
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSimulateTestPayment}
-                      className="px-2.5 py-1 bg-white hover:bg-emerald-50 text-emerald-800 text-[10px] font-semibold rounded border border-emerald-200 transition cursor-pointer"
-                    >
-                      Simulate Backend HMAC Verified
-                    </button>
-                  </div>
-                </div>
-              )}
 
             </div>
           )}
