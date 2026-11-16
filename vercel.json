@@ -2,7 +2,10 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": false,
   "functions": {
-    "api/**/*.ts": {
+    "api/index.ts": {
+      "includeFiles": "firebase-applet-config.json"
+    },
+    "api/razorpay/webhook.ts": {
       "includeFiles": "firebase-applet-config.json"
     }
   },

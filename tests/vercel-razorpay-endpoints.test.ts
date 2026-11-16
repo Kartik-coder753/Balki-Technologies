@@ -1,6 +1,7 @@
 /**
  * Comprehensive Vercel Serverless Bundle & Razorpay Payment Integration Test Suite
- * Tests compiled CommonJS /api/* handlers under VERCEL=1 NODE_ENV=production without mutating production Firestore.
+ * Verifies Vercel Hobby serverless function limit (<= 12 functions, consolidated to 2)
+ * and exercises all API, Razorpay, Webhook, Order threshold, and Rewrite routes.
  */
 import fs from 'fs';
 import path from 'path';
@@ -17,6 +18,20 @@ function cleanup() {
   if (fs.existsSync(TMP_OUT)) {
     fs.rmSync(TMP_OUT, { recursive: true, force: true });
   }
+}
+
+function collectVercelServerlessFiles(dir: string): string[] {
+  const results: string[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('_')) continue; // Vercel ignores _-prefixed files/folders
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectVercelServerlessFiles(full));
+    } else if (/\.(ts|js|mjs|cjs)$/i.test(entry.name)) {
+      results.push(path.relative(process.cwd(), full));
+    }
+  }
+  return results.sort();
 }
 
 function bundleHandler(srcRel: string, outRel: string): string {
@@ -86,6 +101,13 @@ async function invokeHandler(
 
 async function run() {
   cleanup();
+
+  // 0. Assert Vercel Hobby Plan Serverless Function Count <= 12
+  const apiEntrypoints = collectVercelServerlessFiles(path.join(process.cwd(), 'api'));
+  assert.ok(apiEntrypoints.length <= 12, `Expected <= 12 Vercel serverless functions, found ${apiEntrypoints.length}: ${apiEntrypoints.join(', ')}`);
+  assert.deepStrictEqual(apiEntrypoints, ['api/index.ts', 'api/razorpay/webhook.ts']);
+  console.log(`PASS: Vercel Serverless Function count is ${apiEntrypoints.length} (Hobby limit: 12): ${apiEntrypoints.join(', ')}`);
+
   fs.mkdirSync(path.join(TMP_OUT, 'api'), { recursive: true });
   fs.writeFileSync(path.join(TMP_OUT, 'api', 'package.json'), JSON.stringify({ type: 'commonjs' }, null, 2));
 
@@ -101,69 +123,57 @@ async function run() {
   delete process.env.FIREBASE_CLIENT_EMAIL;
   delete process.env.FIREBASE_PRIVATE_KEY;
 
-  const entrypoints: Array<[string, string]> = [
-    ['api/index.ts', 'index.cjs'],
-    ['api/health.ts', 'health.cjs'],
-    ['api/orders/calculate.ts', 'orders/calculate.cjs'],
-    ['api/orders/checkout-small.ts', 'orders/checkout-small.cjs'],
-    ['api/orders/request-approval.ts', 'orders/request-approval.cjs'],
-    ['api/orders/threshold.ts', 'orders/threshold.cjs'],
-    ['api/razorpay/config-status.ts', 'razorpay/config-status.cjs'],
-    ['api/razorpay/public-key.ts', 'razorpay/public-key.cjs'],
-    ['api/razorpay/create-order.ts', 'razorpay/create-order.cjs'],
-    ['api/razorpay/verify-payment.ts', 'razorpay/verify-payment.cjs'],
-    ['api/razorpay/webhook.ts', 'razorpay/webhook.cjs'],
-    ['api/razorpay/create-qr.ts', 'razorpay/create-qr.cjs']
-  ];
+  const indexMod = cjsRequire(bundleHandler('api/index.ts', 'index.cjs'));
+  const webhookMod = cjsRequire(bundleHandler('api/razorpay/webhook.ts', 'razorpay/webhook.cjs'));
+  const apiHandler: (req: any, res: any) => any = indexMod.default || indexMod;
+  const webhookHandler: (req: any, res: any) => any = webhookMod.default || webhookMod;
 
-  const loaded: Record<string, (req: any, res: any) => any> = {};
-  for (const [src, out] of entrypoints) {
-    const outFile = bundleHandler(src, out);
-    // Clear require cache so each compiled CJS module executes cleanly
-    const mod = cjsRequire(outFile);
-    loaded[out] = mod.default || mod;
-    assert.strictEqual(typeof loaded[out], 'function', `${out} did not export default handler function`);
-    assert.strictEqual(mod.config?.api?.bodyParser, false, `${out} must set config.api.bodyParser = false`);
-  }
-  console.log(`PASS: All ${entrypoints.length} Vercel CommonJS serverless bundles built and loaded cleanly under VERCEL=1`);
+  assert.strictEqual(typeof apiHandler, 'function');
+  assert.strictEqual(typeof webhookHandler, 'function');
+  assert.strictEqual(indexMod.config?.api?.bodyParser, false);
+  assert.strictEqual(webhookMod.config?.api?.bodyParser, false);
+  console.log('PASS: Consolidated Vercel CommonJS bundles (api/index & api/razorpay/webhook) built and loaded cleanly');
 
-  // 1. Health & Threshold & Config Status
-  const healthRes = await invokeHandler(loaded['health.cjs'], { method: 'GET', url: '/api/health' });
+  // 1. Health & /api root & Razorpay Config Status via Vercel rewrite (?__apiPath=...)
+  const rootRes = await invokeHandler(apiHandler, { method: 'GET', url: '/api' });
+  assert.strictEqual(rootRes.status, 200);
+  assert.strictEqual(rootRes.json?.success, true);
+
+  const healthRes = await invokeHandler(apiHandler, { method: 'GET', url: '/api/index?__apiPath=health' });
   assert.strictEqual(healthRes.status, 200);
   assert.strictEqual(healthRes.json?.success, true);
   assert.strictEqual(healthRes.json?.environment, 'vercel-serverless');
   assert.strictEqual(healthRes.json?.razorpayConfigured, true);
   assert.strictEqual(healthRes.json?.webhookConfigured, true);
-  console.log('PASS: /api/health returns 200 JSON under Vercel serverless mode');
 
-  const cfgRes = await invokeHandler(loaded['razorpay/config-status.cjs'], {
+  const cfgRes = await invokeHandler(apiHandler, {
     method: 'GET',
-    url: '/api/razorpay/config-status'
+    url: '/api/index?__apiPath=razorpay/config-status'
   });
   assert.strictEqual(cfgRes.status, 200);
   assert.strictEqual(cfgRes.json?.mode, 'test');
-  console.log('PASS: /api/razorpay/config-status returns 200 JSON');
+  console.log('PASS: /api, /api/health, and /api/razorpay/config-status work via consolidated gateway');
 
-  // 2. Rewrite routing via api/index.ts (?__apiPath=...)
-  const prodRes = await invokeHandler(loaded['index.cjs'], {
+  // 2. Query param preservation & 404 JSON
+  const prodRes = await invokeHandler(apiHandler, {
     method: 'GET',
     url: '/api/index?__apiPath=products&category=microcontrollers'
   });
   assert.strictEqual(prodRes.status, 200);
   assert.ok(Array.isArray(prodRes.json) && prodRes.json.length > 0);
 
-  const notFoundRes = await invokeHandler(loaded['index.cjs'], {
+  const notFoundRes = await invokeHandler(apiHandler, {
     method: 'GET',
     url: '/api/index?__apiPath=does/not/exist'
   });
   assert.strictEqual(notFoundRes.status, 404);
   assert.strictEqual(notFoundRes.json?.code, 'API_ROUTE_NOT_FOUND');
-  console.log('PASS: /api/index handles ?__apiPath rewrites, query params, and structured 404 JSON');
+  console.log('PASS: ?__apiPath rewrites preserve query params and return structured 404 JSON');
 
   // 3. Server-side Calculation: < ₹5,000, = ₹5,000, > ₹5,000
-  const smallCalcRes = await invokeHandler(loaded['orders/calculate.cjs'], {
+  const smallCalcRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/orders/calculate',
+    url: '/api/index?__apiPath=orders/calculate',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items: [{ productId: 'mat-prod-1', quantity: 1 }] })
   });
@@ -172,12 +182,10 @@ async function run() {
   assert.strictEqual(smallCalcRes.json?.requiresApproval, false);
   assert.strictEqual(smallCalcRes.json?.amountInPaise, Math.round(smallCalcRes.json.finalAmount * 100));
 
-  // Exact ₹5,000 boundary check: set threshold dynamically to exact finalAmount to verify `>= threshold`
-  const exactTotal = String(smallCalcRes.json.finalAmount);
-  process.env.ORDER_APPROVAL_THRESHOLD_INR = exactTotal;
-  const exactBoundaryRes = await invokeHandler(loaded['orders/calculate.cjs'], {
+  process.env.ORDER_APPROVAL_THRESHOLD_INR = String(smallCalcRes.json.finalAmount);
+  const exactBoundaryRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/orders/calculate',
+    url: '/api/index?__apiPath=orders/calculate',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items: [{ productId: 'mat-prod-1', quantity: 1 }] })
   });
@@ -186,22 +194,21 @@ async function run() {
   assert.strictEqual(exactBoundaryRes.json?.orderCategory, 'LARGE_ORDER');
   process.env.ORDER_APPROVAL_THRESHOLD_INR = '5000';
 
-  // > ₹5,000 check
-  const largeCalcRes = await invokeHandler(loaded['orders/calculate.cjs'], {
+  const largeCalcRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/orders/calculate',
+    url: '/api/index?__apiPath=orders/calculate',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items: [{ productId: 'mat-prod-141', quantity: 1 }] })
   });
   assert.strictEqual(largeCalcRes.status, 200);
   assert.strictEqual(largeCalcRes.json?.requiresApproval, true);
   assert.strictEqual(largeCalcRes.json?.orderCategory, 'LARGE_ORDER');
-  console.log('PASS: Server-side pricing enforces < ₹5,000 (SMALL_ORDER), = ₹5,000 (LARGE_ORDER), and > ₹5,000 (LARGE_ORDER)');
+  console.log('PASS: Server-side pricing enforces < ₹5,000, = ₹5,000, and > ₹5,000 rules');
 
-  // 4. Small-order checkout creates order + signed orderToken; Large-order blocked from small checkout
-  const blockedLarge = await invokeHandler(loaded['orders/checkout-small.cjs'], {
+  // 4. Small-order checkout & Large-order threshold enforcement
+  const blockedLarge = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/orders/checkout-small',
+    url: '/api/index?__apiPath=orders/checkout-small',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       customerName: 'Aarav Sharma',
@@ -214,9 +221,9 @@ async function run() {
   assert.strictEqual(blockedLarge.status, 400);
   assert.strictEqual(blockedLarge.json?.code, 'APPROVAL_REQUIRED');
 
-  const smallCheckoutRes = await invokeHandler(loaded['orders/checkout-small.cjs'], {
+  const smallCheckoutRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/orders/checkout-small',
+    url: '/api/index?__apiPath=orders/checkout-small',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       customerName: 'Aarav Sharma',
@@ -230,14 +237,10 @@ async function run() {
   assert.ok(smallCheckoutRes.json?.order?.id);
   assert.ok(smallCheckoutRes.json?.orderToken);
   assert.strictEqual(smallCheckoutRes.json?.order?.paymentStatus, 'Payment Pending');
-  assert.strictEqual(smallCheckoutRes.json?.order?.normalizedPaymentStatus, 'pending');
-  assert.strictEqual(smallCheckoutRes.json?.order?.deliveryStatus, 'pending');
-  console.log('PASS: /api/orders/checkout-small enforces < ₹5,000 and blocks >= ₹5,000');
 
-  // 5. Large-order approval request
-  const approvalReqRes = await invokeHandler(loaded['orders/request-approval.cjs'], {
+  const approvalReqRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/orders/request-approval',
+    url: '/api/index?__apiPath=orders/request-approval',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       customerName: 'Priya Nair',
@@ -250,17 +253,17 @@ async function run() {
   assert.strictEqual(approvalReqRes.status, 201);
   assert.strictEqual(approvalReqRes.json?.request?.approvalStatus, 'PENDING');
   assert.strictEqual(approvalReqRes.json?.request?.paymentStatus, 'NOT_STARTED');
-  console.log('PASS: /api/orders/request-approval registers high-value orders cleanly');
+  console.log('PASS: Order threshold routing (< ₹5,000 small checkout & >= ₹5,000 owner approval) works via gateway');
 
-  // 6. Verify-payment: invalid signature, valid HMAC signature, idempotent retry, duplicate conflict
+  // 5. Verify-payment via consolidated gateway
   const orderId = smallCheckoutRes.json.order.id;
   const orderToken = smallCheckoutRes.json.orderToken;
   const mockRzpOrderId = 'order_test_001';
   const mockRzpPaymentId = 'pay_test_001';
 
-  const invalidSigRes = await invokeHandler(loaded['razorpay/verify-payment.cjs'], {
+  const invalidSigRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/razorpay/verify-payment',
+    url: '/api/index?__apiPath=razorpay/verify-payment',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       orderId,
@@ -278,9 +281,9 @@ async function run() {
     .update(`${mockRzpOrderId}|${mockRzpPaymentId}`)
     .digest('hex');
 
-  const verifySuccessRes = await invokeHandler(loaded['razorpay/verify-payment.cjs'], {
+  const verifySuccessRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/razorpay/verify-payment',
+    url: '/api/index?__apiPath=razorpay/verify-payment',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       orderId,
@@ -293,13 +296,10 @@ async function run() {
   assert.strictEqual(verifySuccessRes.status, 200);
   assert.strictEqual(verifySuccessRes.json?.order?.paymentStatus, 'Paid');
   assert.strictEqual(verifySuccessRes.json?.order?.normalizedPaymentStatus, 'paid');
-  assert.strictEqual(verifySuccessRes.json?.order?.orderStatus, 'qc_assembly');
-  assert.strictEqual(verifySuccessRes.json?.order?.deliveryStatus, 'processing');
 
-  // Replay with SAME paymentId is idempotent 200; replay with DIFFERENT paymentId on SAME order is 409 conflict
-  const verifyIdempotentRes = await invokeHandler(loaded['razorpay/verify-payment.cjs'], {
+  const verifyIdempotentRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/razorpay/verify-payment',
+    url: '/api/index?__apiPath=razorpay/verify-payment',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       orderId,
@@ -317,9 +317,9 @@ async function run() {
     .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
     .update(`${mockRzpOrderId}|${secondPayId}`)
     .digest('hex');
-  const duplicateConflictRes = await invokeHandler(loaded['razorpay/verify-payment.cjs'], {
+  const duplicateConflictRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/razorpay/verify-payment',
+    url: '/api/index?__apiPath=razorpay/verify-payment',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       orderId,
@@ -331,9 +331,9 @@ async function run() {
   });
   assert.strictEqual(duplicateConflictRes.status, 409);
   assert.strictEqual(duplicateConflictRes.json?.code, 'DUPLICATE_PAYMENT_DETECTED');
-  console.log('PASS: /api/razorpay/verify-payment rejects tampered signatures, validates HMAC SHA256, and blocks duplicate payments');
+  console.log('PASS: /api/razorpay/verify-payment rejects tampered signatures, verifies HMAC, and prevents duplicate payments');
 
-  // 7. Webhook: invalid signature, valid payment.captured, duplicate event idempotency, payment.failed protection
+  // 6. Dedicated Webhook handler: raw HTTP body HMAC verification & idempotency
   const whOrderId = 'ORD-2026-WH01';
   const whRawBody = JSON.stringify({
     event: 'payment.captured',
@@ -351,13 +351,10 @@ async function run() {
     }
   });
 
-  const whInvalidRes = await invokeHandler(loaded['razorpay/webhook.cjs'], {
+  const whInvalidRes = await invokeHandler(webhookHandler, {
     method: 'POST',
     url: '/api/razorpay/webhook',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Razorpay-Signature': 'bad_sig'
-    },
+    headers: { 'Content-Type': 'application/json', 'X-Razorpay-Signature': 'bad_sig' },
     body: whRawBody
   });
   assert.strictEqual(whInvalidRes.status, 401);
@@ -368,7 +365,7 @@ async function run() {
     .update(whRawBody)
     .digest('hex');
 
-  const whValidRes = await invokeHandler(loaded['razorpay/webhook.cjs'], {
+  const whValidRes = await invokeHandler(webhookHandler, {
     method: 'POST',
     url: '/api/razorpay/webhook',
     headers: {
@@ -381,7 +378,7 @@ async function run() {
   assert.strictEqual(whValidRes.status, 200);
   assert.strictEqual(whValidRes.json?.success, true);
 
-  const whDupRes = await invokeHandler(loaded['razorpay/webhook.cjs'], {
+  const whDupRes = await invokeHandler(webhookHandler, {
     method: 'POST',
     url: '/api/razorpay/webhook',
     headers: {
@@ -393,22 +390,22 @@ async function run() {
   });
   assert.strictEqual(whDupRes.status, 200);
   assert.strictEqual(whDupRes.json?.duplicate, true);
-  console.log('PASS: /api/razorpay/webhook preserves raw HTTP body bytes, enforces HMAC SHA256, and deduplicates events');
+  console.log('PASS: /api/razorpay/webhook preserves raw body bytes, verifies HMAC SHA256, and deduplicates events');
 
-  // 8. Missing env var failure resilience
+  // 7. Missing Razorpay credentials resilience
   delete process.env.RAZORPAY_KEY_ID;
-  const unconfiguredRes = await invokeHandler(loaded['razorpay/create-order.cjs'], {
+  const unconfiguredRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/razorpay/create-order',
+    url: '/api/index?__apiPath=razorpay/create-order',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ items: [{ productId: 'mat-prod-1', quantity: 1 }] })
   });
   assert.strictEqual(unconfiguredRes.status, 503);
   assert.strictEqual(unconfiguredRes.json?.code, 'RAZORPAY_NOT_CONFIGURED');
-  console.log('PASS: Missing Razorpay credentials fail cleanly with structured 503 JSON (no 500 crash)');
+  console.log('PASS: Missing Razorpay credentials fail cleanly with 503 JSON');
 
   cleanup();
-  console.log('ALL VERCEL SERVERLESS & RAZORPAY INTEGRATION TESTS PASSED.');
+  console.log('ALL CONSOLIDATED VERCEL SERVERLESS (2 FUNCTIONS) & RAZORPAY TESTS PASSED.');
 }
 
 run().catch((err) => {

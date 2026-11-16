@@ -1099,7 +1099,7 @@ export function createApiApp(): express.Express {
   app.use(express.json({ limit: '1mb' }));
 
   // Health & Deployment Readiness Check
-  app.get('/api/health', (_req, res) => {
+  app.get(['/api', '/api/index', '/api/health'], (_req, res) => {
     const rzpStatus = getRazorpayConfigStatus();
     const fsStatus = getAdminFirestoreStatus();
     sendJsonSuccess(res, 200, 'Balki Technologies API operational', {
