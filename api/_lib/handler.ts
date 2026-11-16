@@ -33,6 +33,10 @@ function resolveNormalizedUrl(req: any, fixedPath?: string): string {
 
 export function createVercelHandler(fixedPath?: string) {
   return function vercelApiHandler(req: any, res: any) {
+    const requestId =
+      (typeof req?.headers?.['x-vercel-id'] === 'string' && req.headers['x-vercel-id'].trim()) ||
+      (typeof req?.headers?.['x-request-id'] === 'string' && req.headers['x-request-id'].trim()) ||
+      `req_${Date.now().toString(36)}`;
     try {
       if (!cachedApp) {
         cachedApp = getApiApp();
@@ -46,16 +50,18 @@ export function createVercelHandler(fixedPath?: string) {
         err instanceof Error && err.message
           ? err.message
           : 'Failed to initialize backend API handler.';
-      console.error('[VercelAPIHandler] Initialization/execution error:', message);
+      console.error('[VercelAPIHandler] Initialization/execution error:', { requestId, message });
       if (res && !res.headersSent) {
         res.statusCode = 500;
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('X-Request-Id', requestId);
         res.end(
           JSON.stringify({
             success: false,
             message,
             error: message,
-            code: 'API_HANDLER_ERROR'
+            code: 'API_HANDLER_ERROR',
+            requestId
           })
         );
       }

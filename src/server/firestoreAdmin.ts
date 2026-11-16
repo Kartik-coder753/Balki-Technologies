@@ -99,7 +99,7 @@ function parseServiceAccountFromEnv(): {
       if (!parsed.client_email || !parsed.private_key) {
         return { account: null, diagnosticReason: 'missing_client_email_or_private_key' };
       }
-      const privateKey = String(parsed.private_key).replace(/\\n/g, '\n');
+      const privateKey = String(parsed.private_key).replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
       if (!privateKey.includes('BEGIN PRIVATE KEY') && !privateKey.includes('BEGIN RSA PRIVATE KEY')) {
         return { account: null, diagnosticReason: 'invalid_private_key_pem_format' };
       }
@@ -124,7 +124,7 @@ function parseServiceAccountFromEnv(): {
     if (!clientEmail || !privateKeyRaw) {
       return { account: null, diagnosticReason: 'missing_client_email_or_private_key' };
     }
-    const privateKey = privateKeyRaw.replace(/\\n/g, '\n');
+    const privateKey = privateKeyRaw.replace(/\\\\n/g, '\n').replace(/\\n/g, '\n');
     if (!privateKey.includes('BEGIN PRIVATE KEY') && !privateKey.includes('BEGIN RSA PRIVATE KEY')) {
       return { account: null, diagnosticReason: 'invalid_private_key_pem_format' };
     }

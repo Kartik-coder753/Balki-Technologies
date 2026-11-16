@@ -9,16 +9,7 @@ import http from 'http';
 import crypto from 'crypto';
 import assert from 'assert';
 import { execSync } from 'child_process';
-import { createRequire } from 'module';
-
-const cjsRequire = createRequire(import.meta.url);
-const TMP_OUT = path.join(process.cwd(), '.tmp-vercel-test-out');
-
-function cleanup() {
-  if (fs.existsSync(TMP_OUT)) {
-    fs.rmSync(TMP_OUT, { recursive: true, force: true });
-  }
-}
+import { pathToFileURL } from 'url';
 
 function collectVercelServerlessFiles(dir: string): string[] {
   const results: string[] = [];
@@ -32,16 +23,6 @@ function collectVercelServerlessFiles(dir: string): string[] {
     }
   }
   return results.sort();
-}
-
-function bundleHandler(srcRel: string, outRel: string): string {
-  const outFile = path.join(TMP_OUT, 'api', outRel);
-  fs.mkdirSync(path.dirname(outFile), { recursive: true });
-  execSync(
-    `npx esbuild ${srcRel} --bundle --platform=node --format=cjs --packages=external --outfile=${outFile}`,
-    { stdio: 'pipe' }
-  );
-  return outFile;
 }
 
 async function invokeHandler(
@@ -100,44 +81,47 @@ async function invokeHandler(
 }
 
 async function run() {
-  cleanup();
+  // Rebuild production Vercel native ESM .mjs serverless bundles
+  execSync(
+    'npx esbuild api/_lib/indexEntry.ts --bundle --platform=node --format=esm --packages=external --outfile=api/index.mjs && npx esbuild api/_lib/webhookEntry.ts --bundle --platform=node --format=esm --packages=external --outfile=api/razorpay/webhook.mjs',
+    { stdio: 'pipe' }
+  );
 
   // 0. Assert Vercel Hobby Plan Serverless Function Count <= 12
   const apiEntrypoints = collectVercelServerlessFiles(path.join(process.cwd(), 'api'));
   assert.ok(apiEntrypoints.length <= 12, `Expected <= 12 Vercel serverless functions, found ${apiEntrypoints.length}: ${apiEntrypoints.join(', ')}`);
-  assert.deepStrictEqual(apiEntrypoints, ['api/index.ts', 'api/razorpay/webhook.ts']);
+  assert.deepStrictEqual(apiEntrypoints, ['api/index.mjs', 'api/razorpay/webhook.mjs']);
   console.log(`PASS: Vercel Serverless Function count is ${apiEntrypoints.length} (Hobby limit: 12): ${apiEntrypoints.join(', ')}`);
 
-  fs.mkdirSync(path.join(TMP_OUT, 'api'), { recursive: true });
-  fs.writeFileSync(path.join(TMP_OUT, 'api', 'package.json'), JSON.stringify({ type: 'commonjs' }, null, 2));
-
-  // Set isolated test environment (never touch live Firestore in unit tests)
+  // Set isolated test environment (never touch live Firestore in unit tests), including accidental wrapping quotes test
   process.env.VERCEL = '1';
   process.env.NODE_ENV = 'production';
-  process.env.RAZORPAY_KEY_ID = 'rzp_test_99887766554433';
-  process.env.RAZORPAY_KEY_SECRET = 'test_secret_key_for_hmac_tests';
-  process.env.RAZORPAY_WEBHOOK_SECRET = 'whsec_test_secret_for_webhook_tests';
+  process.env.RAZORPAY_KEY_ID = '"rzp_test_99887766554433"';
+  process.env.RAZORPAY_KEY_SECRET = '"test_secret_key_for_hmac_tests"';
+  process.env.RAZORPAY_WEBHOOK_SECRET = '"whsec_test_secret_for_webhook_tests"';
   process.env.ORDER_APPROVAL_THRESHOLD_INR = '5000';
   process.env.ORDER_SIGNATURE_SECRET = 'test_order_signature_secret_2026_verify';
   delete process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   delete process.env.FIREBASE_CLIENT_EMAIL;
   delete process.env.FIREBASE_PRIVATE_KEY;
 
-  const indexMod = cjsRequire(bundleHandler('api/index.ts', 'index.cjs'));
-  const webhookMod = cjsRequire(bundleHandler('api/razorpay/webhook.ts', 'razorpay/webhook.cjs'));
-  const apiHandler: (req: any, res: any) => any = indexMod.default || indexMod;
-  const webhookHandler: (req: any, res: any) => any = webhookMod.default || webhookMod;
+  const indexMod = await import(pathToFileURL(path.join(process.cwd(), 'api/index.mjs')).href);
+  const webhookMod = await import(pathToFileURL(path.join(process.cwd(), 'api/razorpay/webhook.mjs')).href);
+  assert.strictEqual(typeof indexMod.default, 'function');
+  assert.strictEqual(typeof webhookMod.default, 'function');
+  const apiHandler: (req: any, res: any) => any = indexMod.default;
+  const webhookHandler: (req: any, res: any) => any = webhookMod.default;
 
-  assert.strictEqual(typeof apiHandler, 'function');
-  assert.strictEqual(typeof webhookHandler, 'function');
   assert.strictEqual(indexMod.config?.api?.bodyParser, false);
   assert.strictEqual(webhookMod.config?.api?.bodyParser, false);
-  console.log('PASS: Consolidated Vercel CommonJS bundles (api/index & api/razorpay/webhook) built and loaded cleanly');
+  console.log('PASS: Native ESM Vercel functions (api/index.mjs & api/razorpay/webhook.mjs) export default + config cleanly');
 
   // 1. Health & /api root & Razorpay Config Status via Vercel rewrite (?__apiPath=...)
   const rootRes = await invokeHandler(apiHandler, { method: 'GET', url: '/api' });
   assert.strictEqual(rootRes.status, 200);
   assert.strictEqual(rootRes.json?.success, true);
+  assert.ok(typeof rootRes.headers['x-request-id'] === 'string' && rootRes.headers['x-request-id'].length > 0);
+  assert.ok(typeof rootRes.json?.requestId === 'string' && rootRes.json.requestId.length > 0);
 
   const healthRes = await invokeHandler(apiHandler, { method: 'GET', url: '/api/index?__apiPath=health' });
   assert.strictEqual(healthRes.status, 200);
@@ -152,9 +136,15 @@ async function run() {
   });
   assert.strictEqual(cfgRes.status, 200);
   assert.strictEqual(cfgRes.json?.mode, 'test');
-  console.log('PASS: /api, /api/health, and /api/razorpay/config-status work via consolidated gateway');
+  console.log('PASS: /api, /api/health, and /api/razorpay/config-status work via consolidated CJS gateway with X-Request-Id');
 
-  // 2. Query param preservation & 404 JSON
+  // 2. Catalog, Courses, Rentals, Inventory, Case Studies, Support Tickets + Query param preservation & 404 JSON
+  for (const route of ['products', 'courses', 'rentals', 'inventory', 'case-studies', 'support/tickets']) {
+    const r = await invokeHandler(apiHandler, { method: 'GET', url: `/api/index?__apiPath=${route}` });
+    assert.strictEqual(r.status, 200, `${route} expected 200`);
+    assert.ok(Array.isArray(r.json) && r.json.length > 0, `${route} expected non-empty array`);
+  }
+
   const prodRes = await invokeHandler(apiHandler, {
     method: 'GET',
     url: '/api/index?__apiPath=products&category=microcontrollers'
@@ -168,7 +158,8 @@ async function run() {
   });
   assert.strictEqual(notFoundRes.status, 404);
   assert.strictEqual(notFoundRes.json?.code, 'API_ROUTE_NOT_FOUND');
-  console.log('PASS: ?__apiPath rewrites preserve query params and return structured 404 JSON');
+  assert.ok(typeof notFoundRes.json?.requestId === 'string' && notFoundRes.json.requestId.length > 0);
+  console.log('PASS: All GET catalog/support routes & ?__apiPath rewrites work via native ESM gateway with requestId');
 
   // 3. Server-side Calculation: < ₹5,000, = ₹5,000, > ₹5,000
   const smallCalcRes = await invokeHandler(apiHandler, {
@@ -277,7 +268,7 @@ async function run() {
   assert.strictEqual(invalidSigRes.json?.code, 'INVALID_PAYMENT_SIGNATURE');
 
   const validSig = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+    .createHmac('sha256', 'test_secret_key_for_hmac_tests')
     .update(`${mockRzpOrderId}|${mockRzpPaymentId}`)
     .digest('hex');
 
@@ -299,7 +290,7 @@ async function run() {
 
   const verifyIdempotentRes = await invokeHandler(apiHandler, {
     method: 'POST',
-    url: '/api/index?__apiPath=razorpay/verify-payment',
+    url: '/api/index?__apiPath=orders/verify-payment',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       orderId,
@@ -314,7 +305,7 @@ async function run() {
 
   const secondPayId = 'pay_test_conflict_002';
   const secondSig = crypto
-    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+    .createHmac('sha256', 'test_secret_key_for_hmac_tests')
     .update(`${mockRzpOrderId}|${secondPayId}`)
     .digest('hex');
   const duplicateConflictRes = await invokeHandler(apiHandler, {
@@ -361,7 +352,7 @@ async function run() {
   assert.strictEqual(whInvalidRes.json?.code, 'INVALID_WEBHOOK_SIGNATURE');
 
   const whSig = crypto
-    .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET!)
+    .createHmac('sha256', 'whsec_test_secret_for_webhook_tests')
     .update(whRawBody)
     .digest('hex');
 
@@ -404,12 +395,10 @@ async function run() {
   assert.strictEqual(unconfiguredRes.json?.code, 'RAZORPAY_NOT_CONFIGURED');
   console.log('PASS: Missing Razorpay credentials fail cleanly with 503 JSON');
 
-  cleanup();
-  console.log('ALL CONSOLIDATED VERCEL SERVERLESS (2 FUNCTIONS) & RAZORPAY TESTS PASSED.');
+  console.log('ALL CONSOLIDATED VERCEL SERVERLESS (2 NATIVE ESM FUNCTIONS) & RAZORPAY TESTS PASSED.');
 }
 
 run().catch((err) => {
-  cleanup();
   console.error('TEST FAILURE:', err);
   process.exit(1);
 });

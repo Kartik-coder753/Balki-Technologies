@@ -4,6 +4,7 @@ export interface ApiResponse<T = any> {
   data: T | null;
   error: string | null;
   code?: string;
+  requestId?: string;
 }
 
 const SENSITIVE_PATTERN = /(rzp_(live|test)_[A-Za-z0-9]+|whsec_[A-Za-z0-9]+|-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----)/g;
@@ -131,16 +132,20 @@ export async function safeFetchJson<T = any>(
     };
   }
 
+  const responseRequestId = res.headers.get('x-request-id') || res.headers.get('x-vercel-id') || undefined;
+
   let rawText = '';
   try {
     rawText = await res.text();
   } catch {
+    console.error('[API Error]', { url, status: res.status, code: 'RESPONSE_READ_ERROR', requestId: responseRequestId });
     return {
       ok: false,
       status: res.status,
       data: null,
       error: `Failed to read server response (HTTP ${res.status}).`,
-      code: 'RESPONSE_READ_ERROR'
+      code: 'RESPONSE_READ_ERROR',
+      requestId: responseRequestId
     };
   }
 
@@ -148,6 +153,9 @@ export async function safeFetchJson<T = any>(
   const contentType = (res.headers.get('content-type') || '').toLowerCase();
 
   if (!trimmed) {
+    if (!res.ok) {
+      console.error('[API Error]', { url, status: res.status, code: `EMPTY_RESPONSE_${res.status}`, requestId: responseRequestId });
+    }
     return {
       ok: res.ok,
       status: res.status,
@@ -155,7 +163,8 @@ export async function safeFetchJson<T = any>(
       error: res.ok
         ? null
         : `The checkout API returned an empty response (HTTP ${res.status}). Please verify API serverless routing or try again.`,
-      code: res.ok ? undefined : `EMPTY_RESPONSE_${res.status}`
+      code: res.ok ? undefined : `EMPTY_RESPONSE_${res.status}`,
+      requestId: responseRequestId
     };
   }
 
@@ -165,12 +174,14 @@ export async function safeFetchJson<T = any>(
     trimmed.startsWith('<html') ||
     trimmed.startsWith('<')
   ) {
+    console.error('[API Error]', { url, status: res.status, code: `HTML_RESPONSE_${res.status}`, requestId: responseRequestId });
     return {
       ok: false,
       status: res.status,
       data: null,
       error: `The server returned a web page instead of API JSON (HTTP ${res.status}). Please ensure the backend /api serverless functions are deployed on Vercel.`,
-      code: `HTML_RESPONSE_${res.status}`
+      code: `HTML_RESPONSE_${res.status}`,
+      requestId: responseRequestId
     };
   }
 
@@ -178,14 +189,22 @@ export async function safeFetchJson<T = any>(
   try {
     parsed = JSON.parse(trimmed);
   } catch {
+    const plainFallback = !res.ok && trimmed.length > 0 && trimmed.length < 220 ? sanitizeErrorText(trimmed) : '';
+    console.error('[API Error]', { url, status: res.status, code: `NON_JSON_${res.status}`, requestId: responseRequestId });
     return {
       ok: false,
       status: res.status,
       data: null,
-      error: `Received an invalid JSON response from the server (HTTP ${res.status}).`,
-      code: 'INVALID_JSON'
+      error: plainFallback
+        ? `Server error (HTTP ${res.status}): ${plainFallback}`
+        : `Received an invalid JSON response from the server (HTTP ${res.status}).`,
+      code: res.ok ? 'INVALID_JSON' : `NON_JSON_${res.status}`,
+      requestId: responseRequestId
     };
   }
+
+  const effectiveRequestId =
+    typeof parsed?.requestId === 'string' ? parsed.requestId : responseRequestId;
 
   if (!res.ok || (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && parsed.success === false)) {
     const message = extractErrorMessage(
@@ -198,12 +217,20 @@ export async function safeFetchJson<T = any>(
         : typeof parsed?.error?.code === 'string'
         ? parsed.error.code
         : undefined;
+    console.error('[API Error]', {
+      url,
+      status: res.status,
+      code,
+      requestId: effectiveRequestId,
+      message
+    });
     return {
       ok: false,
       status: res.status,
       data: parsed as T,
       error: message,
-      code
+      code,
+      requestId: effectiveRequestId
     };
   }
 
@@ -211,6 +238,7 @@ export async function safeFetchJson<T = any>(
     ok: true,
     status: res.status,
     data: parsed as T,
-    error: null
+    error: null,
+    requestId: effectiveRequestId
   };
 }

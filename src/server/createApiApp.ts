@@ -99,10 +99,22 @@ function isPlaceholderValue(val: string | undefined | null): boolean {
   );
 }
 
+function stripWrappingQuotes(val: string | undefined | null): string {
+  if (!val) return '';
+  const trimmed = String(val).trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
 export function getRazorpayConfigStatus(): RazorpayConfigStatus {
-  const rawKeyId = (process.env.RAZORPAY_KEY_ID || '').trim();
-  const rawKeySecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
-  const rawWebhookSecret = (process.env.RAZORPAY_WEBHOOK_SECRET || '').trim();
+  const rawKeyId = stripWrappingQuotes(process.env.RAZORPAY_KEY_ID);
+  const rawKeySecret = stripWrappingQuotes(process.env.RAZORPAY_KEY_SECRET);
+  const rawWebhookSecret = stripWrappingQuotes(process.env.RAZORPAY_WEBHOOK_SECRET);
 
   const hasValidKeyId =
     !isPlaceholderValue(rawKeyId) &&
@@ -131,11 +143,11 @@ export function getRazorpayConfigStatus(): RazorpayConfigStatus {
 function getRazorpayKeySecret(): string | null {
   const status = getRazorpayConfigStatus();
   if (!status.configured) return null;
-  return (process.env.RAZORPAY_KEY_SECRET || '').trim();
+  return stripWrappingQuotes(process.env.RAZORPAY_KEY_SECRET);
 }
 
 function getRazorpayWebhookSecret(): string | null {
-  const raw = (process.env.RAZORPAY_WEBHOOK_SECRET || '').trim();
+  const raw = stripWrappingQuotes(process.env.RAZORPAY_WEBHOOK_SECRET);
   if (isPlaceholderValue(raw) || raw.length < 12) return null;
   return raw;
 }
@@ -163,11 +175,11 @@ function getApprovalThresholdInr(): number {
 const EPHEMERAL_FALLBACK_SECRET = crypto.randomBytes(32).toString('hex');
 
 function getOrderSigningSecret(): string {
-  const envSecret = (process.env.ORDER_SIGNATURE_SECRET || '').trim();
+  const envSecret = stripWrappingQuotes(process.env.ORDER_SIGNATURE_SECRET);
   if (!isPlaceholderValue(envSecret) && envSecret.length >= 16) {
     return envSecret;
   }
-  const rzpSecret = (process.env.RAZORPAY_KEY_SECRET || '').trim();
+  const rzpSecret = stripWrappingQuotes(process.env.RAZORPAY_KEY_SECRET);
   if (!isPlaceholderValue(rzpSecret) && rzpSecret.length >= 12) {
     return rzpSecret;
   }
@@ -321,11 +333,13 @@ function sendJsonError(
   extra: Record<string, unknown> = {}
 ) {
   const safeMessage = extractServerErrorMessage(message, 'Request could not be processed.');
+  const requestId = typeof res.locals?.requestId === 'string' ? res.locals.requestId : undefined;
   return res.status(status).json({
     success: false,
     message: safeMessage,
     error: safeMessage,
     code,
+    ...(requestId ? { requestId } : {}),
     ...extra
   });
 }
@@ -336,9 +350,11 @@ function sendJsonSuccess(
   message: string,
   data: Record<string, unknown> = {}
 ) {
+  const requestId = typeof res.locals?.requestId === 'string' ? res.locals.requestId : undefined;
   return res.status(status).json({
     success: true,
     message,
+    ...(requestId ? { requestId } : {}),
     data,
     ...data
   });
@@ -719,8 +735,15 @@ let cachedApiApp: express.Express | null = null;
 export function createApiApp(): express.Express {
   const app = express();
 
-  // CORS & Content-Type guards for /api/* (registered before body parsers so raw webhook & OPTIONS work cleanly)
+  // Correlation ID, CORS & Content-Type guards for /api/* (registered before body parsers so raw webhook & OPTIONS work cleanly)
   app.use('/api', (req, res, next) => {
+    const incomingReqId =
+      (typeof req.headers['x-vercel-id'] === 'string' && req.headers['x-vercel-id'].trim()) ||
+      (typeof req.headers['x-request-id'] === 'string' && req.headers['x-request-id'].trim()) ||
+      `req_${crypto.randomBytes(6).toString('hex')}`;
+    res.locals.requestId = incomingReqId;
+    res.setHeader('X-Request-Id', incomingReqId);
+
     const allowedOrigins = [
       'https://www.balkitechnologies.com',
       'https://balkitechnologies.com',
@@ -733,7 +756,8 @@ export function createApiApp(): express.Express {
       res.setHeader('Vary', 'Origin');
     }
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Email, X-Admin-Key, X-Razorpay-Signature, X-Razorpay-Event-Id');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Admin-Email, X-Admin-Key, X-Razorpay-Signature, X-Razorpay-Event-Id, X-Request-Id');
+    res.setHeader('Access-Control-Expose-Headers', 'X-Request-Id');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
 
     if (req.method === 'OPTIONS') {
@@ -1611,7 +1635,7 @@ export function createApiApp(): express.Express {
   });
 
   // Verify Razorpay payment with strict cryptographic HMAC SHA256 signature
-  app.post('/api/razorpay/verify-payment', async (req, res) => {
+  app.post(['/api/razorpay/verify-payment', '/api/orders/verify-payment'], async (req, res) => {
     try {
       const rzpStatus = getRazorpayConfigStatus();
       const razorpayClient = getRazorpayClient();
@@ -2114,37 +2138,37 @@ export function createApiApp(): express.Express {
 
   // Dynamic QR payment request
   app.post('/api/razorpay/create-qr', async (req, res) => {
-    const rzpStatus = getRazorpayConfigStatus();
-    const razorpayClient = getRazorpayClient();
-
-    if (!rzpStatus.configured || !razorpayClient) {
-      return sendJsonError(
-        res,
-        503,
-        'Dynamic QR payment requires configured Razorpay merchant credentials.',
-        'RAZORPAY_NOT_CONFIGURED'
-      );
-    }
-
-    const { orderId, orderToken, customerPhone } = req.body || {};
-    let order = orderId ? orders.find(o => o.id === orderId || o.orderId === orderId) : undefined;
-    if (!order && orderToken) {
-      const verified = verifyOrderToken(orderToken);
-      if (verified) {
-        order = hydrateOrderFromSignedToken(verified);
-      }
-    }
-
-    if (!order) {
-      return sendJsonError(res, 404, 'Valid order reference is required for QR payment.', 'ORDER_NOT_FOUND');
-    }
-
-    const cleanAmount = Number(order.totalAmount);
-    if (!Number.isFinite(cleanAmount) || cleanAmount <= 0 || cleanAmount >= getApprovalThresholdInr()) {
-      return sendJsonError(res, 400, 'Order is ineligible for automatic QR payment.', 'QR_INELIGIBLE');
-    }
-
     try {
+      const rzpStatus = getRazorpayConfigStatus();
+      const razorpayClient = getRazorpayClient();
+
+      if (!rzpStatus.configured || !razorpayClient) {
+        return sendJsonError(
+          res,
+          503,
+          'Dynamic QR payment requires configured Razorpay merchant credentials.',
+          'RAZORPAY_NOT_CONFIGURED'
+        );
+      }
+
+      const { orderId, orderToken, customerPhone } = req.body || {};
+      let order = orderId ? orders.find(o => o.id === orderId || o.orderId === orderId) : undefined;
+      if (!order && orderToken) {
+        const verified = verifyOrderToken(orderToken);
+        if (verified) {
+          order = hydrateOrderFromSignedToken(verified);
+        }
+      }
+
+      if (!order) {
+        return sendJsonError(res, 404, 'Valid order reference is required for QR payment.', 'ORDER_NOT_FOUND');
+      }
+
+      const cleanAmount = Number(order.totalAmount);
+      if (!Number.isFinite(cleanAmount) || cleanAmount <= 0 || cleanAmount >= getApprovalThresholdInr()) {
+        return sendJsonError(res, 400, 'Order is ineligible for automatic QR payment.', 'QR_INELIGIBLE');
+      }
+
       const qrCode: any = await razorpayClient.qrCode.create({
         type: 'upi_qr',
         name: `BALKI ${order.id}`,
@@ -2171,7 +2195,7 @@ export function createApiApp(): express.Express {
         qrErr,
         'Razorpay QR creation is unavailable on this merchant account. Please use Razorpay Checkout modal.'
       );
-      logPaymentDiagnostic('create_qr_failed', { orderId: order.id, reason: msg });
+      logPaymentDiagnostic('create_qr_failed', { requestId: res.locals?.requestId, reason: msg });
       return sendJsonError(res, 502, msg, 'RAZORPAY_QR_UNAVAILABLE');
     }
   });
@@ -2400,433 +2424,453 @@ export function createApiApp(): express.Express {
 
   // Small Order Checkout (< ₹5,000)
   app.post('/api/orders/checkout-small', async (req, res) => {
-    const {
-      customerId,
-      customerName,
-      customerEmail,
-      customerPhone,
-      schoolName,
-      gstin,
-      deliveryAddress,
-      shippingAddress,
-      items,
-      couponCode,
-      paymentMethod = 'Razorpay'
-    } = req.body || {};
+    try {
+      const {
+        customerId,
+        customerName,
+        customerEmail,
+        customerPhone,
+        schoolName,
+        gstin,
+        deliveryAddress,
+        shippingAddress,
+        items,
+        couponCode,
+        paymentMethod = 'Razorpay'
+      } = req.body || {};
 
-    if (typeof customerName !== 'string' || customerName.trim().length < 2) {
-      return sendJsonError(res, 400, 'Customer full name is required.', 'INVALID_CUSTOMER_NAME');
-    }
-    if (!isValidEmail(customerEmail)) {
-      return sendJsonError(res, 400, 'A valid email address is required.', 'INVALID_CUSTOMER_EMAIL');
-    }
-    if (!isValidPhone(customerPhone)) {
-      return sendJsonError(res, 400, 'A valid 10-digit phone number is required.', 'INVALID_CUSTOMER_PHONE');
-    }
+      if (typeof customerName !== 'string' || customerName.trim().length < 2) {
+        return sendJsonError(res, 400, 'Customer full name is required.', 'INVALID_CUSTOMER_NAME');
+      }
+      if (!isValidEmail(customerEmail)) {
+        return sendJsonError(res, 400, 'A valid email address is required.', 'INVALID_CUSTOMER_EMAIL');
+      }
+      if (!isValidPhone(customerPhone)) {
+        return sendJsonError(res, 400, 'A valid 10-digit phone number is required.', 'INVALID_CUSTOMER_PHONE');
+      }
 
-    const address = normalizeAddress(deliveryAddress || shippingAddress);
-    if (!address) {
-      return sendJsonError(
-        res,
-        400,
-        'Complete delivery address (street, city, state, and 6-digit PIN code) is mandatory.',
-        'INVALID_DELIVERY_ADDRESS'
+      const address = normalizeAddress(deliveryAddress || shippingAddress);
+      if (!address) {
+        return sendJsonError(
+          res,
+          400,
+          'Complete delivery address (street, city, state, and 6-digit PIN code) is mandatory.',
+          'INVALID_DELIVERY_ADDRESS'
+        );
+      }
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return sendJsonError(res, 400, 'Cart items are required for checkout.', 'EMPTY_ITEMS');
+      }
+
+      // Duplicate submission protection (8s window)
+      const idempotencyKey = `${customerEmail.trim().toLowerCase()}_${JSON.stringify(
+        items.map((i: any) => ({ id: i.productId || i.id, q: i.quantity }))
+      )}`;
+      const now = Date.now();
+      if (recentSubmissions.has(idempotencyKey) && now - recentSubmissions.get(idempotencyKey)! < 8000) {
+        return sendJsonError(
+          res,
+          429,
+          'A duplicate checkout submission is already being processed. Please wait a moment.',
+          'DUPLICATE_SUBMISSION'
+        );
+      }
+      recentSubmissions.set(idempotencyKey, now);
+
+      const calc = calculateTrustedOrderAmount(items, couponCode);
+      if (!calc.success || !calc.data) {
+        return sendJsonError(res, 400, calc.error || 'Invalid order items', calc.code || 'CALCULATION_ERROR', {
+          availableStock: calc.availableStock
+        });
+      }
+
+      const threshold = getApprovalThresholdInr();
+      if (calc.data.finalAmount >= threshold) {
+        return sendJsonError(
+          res,
+          400,
+          `Order amount of ₹${calc.data.finalAmount.toLocaleString('en-IN')} meets or exceeds the approval threshold of ₹${threshold.toLocaleString('en-IN')}. Please submit as "Request Owner Approval".`,
+          'APPROVAL_REQUIRED',
+          {
+            requiresApproval: true,
+            threshold,
+            finalAmount: calc.data.finalAmount
+          }
+        );
+      }
+
+      // Reserve stock authoritatively
+      for (const it of calc.data.items) {
+        const prod = products.find(p => p.id === it.productId);
+        if (prod) {
+          prod.stock = Math.max(0, prod.stock - it.quantity);
+          const inv = inventory.find(i => i.sku === prod.sku);
+          if (inv) {
+            inv.currentStock = prod.stock;
+            if (inv.currentStock <= inv.minimumThreshold) {
+              inv.status = inv.currentStock === 0 ? 'Critical' : 'Low Stock';
+            }
+          }
+        }
+      }
+
+      const orderId = `ORD-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      const effectiveCustomerId = customerId || 'client_' + customerEmail.trim().split('@')[0];
+
+      const { trackingNumber, deliveryOtp, trackingDetails } = generateOrderTracking(
+        orderId,
+        address.city,
+        address.state,
+        paymentMethod,
+        schoolName
       );
-    }
 
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return sendJsonError(res, 400, 'Cart items are required for checkout.', 'EMPTY_ITEMS');
-    }
-
-    // Duplicate submission protection (8s window)
-    const idempotencyKey = `${customerEmail.trim().toLowerCase()}_${JSON.stringify(
-      items.map((i: any) => ({ id: i.productId || i.id, q: i.quantity }))
-    )}`;
-    const now = Date.now();
-    if (recentSubmissions.has(idempotencyKey) && now - recentSubmissions.get(idempotencyKey)! < 8000) {
-      return sendJsonError(
-        res,
-        429,
-        'A duplicate checkout submission is already being processed. Please wait a moment.',
-        'DUPLICATE_SUBMISSION'
-      );
-    }
-    recentSubmissions.set(idempotencyKey, now);
-
-    const calc = calculateTrustedOrderAmount(items, couponCode);
-    if (!calc.success || !calc.data) {
-      return sendJsonError(res, 400, calc.error || 'Invalid order items', calc.code || 'CALCULATION_ERROR', {
-        availableStock: calc.availableStock
+      const fullItems: CartItem[] = calc.data.items.map(it => {
+        const fullProd = products.find(p => p.id === it.productId)!;
+        return {
+          product: fullProd,
+          quantity: it.quantity
+        };
       });
-    }
 
-    const threshold = getApprovalThresholdInr();
-    if (calc.data.finalAmount >= threshold) {
-      return sendJsonError(
+      const rzpStatus = getRazorpayConfigStatus();
+      const razorpayClient = getRazorpayClient();
+      let razorpayOrderId: string | undefined = undefined;
+      let razorpayErrorMessage: string | undefined = undefined;
+
+      if (rzpStatus.configured && razorpayClient) {
+        const amountInPaise = Math.round(calc.data.finalAmount * 100);
+        if (!Number.isFinite(amountInPaise) || amountInPaise < 100) {
+          razorpayErrorMessage = 'Order payable amount must be at least ₹1.00 (100 paise) for Razorpay processing.';
+          logPaymentDiagnostic('checkout_small_invalid_amount', { requestId: res.locals?.requestId, orderId, amountInPaise });
+        } else {
+          try {
+            const rzpOrder: any = await razorpayClient.orders.create({
+              amount: amountInPaise,
+              currency: 'INR',
+              receipt: orderId,
+              notes: {
+                balkiOrderId: orderId,
+                customerEmail: customerEmail.trim(),
+                customerPhone: customerPhone.trim()
+              }
+            });
+            razorpayOrderId = rzpOrder.id;
+            logPaymentDiagnostic('checkout_small_rzp_order_created', {
+              requestId: res.locals?.requestId,
+              orderId,
+              razorpayOrderId,
+              amountInPaise,
+              mode: rzpStatus.mode
+            });
+          } catch (sdkErr: any) {
+            const statusCode = Number(sdkErr?.statusCode || sdkErr?.error?.statusCode || 502);
+            const extracted = extractServerErrorMessage(sdkErr, 'Unable to initialize Razorpay order right now.');
+            const isAuthError =
+              statusCode === 401 ||
+              extracted.toLowerCase().includes('authentication failed') ||
+              extracted.toLowerCase().includes('key_id');
+            razorpayErrorMessage = isAuthError
+              ? 'Razorpay merchant authentication failed on the server. Please verify server RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.'
+              : extracted;
+            logPaymentDiagnostic('checkout_small_rzp_order_failed', {
+              requestId: res.locals?.requestId,
+              orderId,
+              statusCode,
+              isAuthError,
+              reason: razorpayErrorMessage
+            });
+          }
+        }
+      }
+
+      const newOrder: Order = {
+        id: orderId,
+        orderId,
+        userId: effectiveCustomerId,
+        customerId: effectiveCustomerId,
+        customerName: customerName.trim(),
+        customerEmail: customerEmail.trim(),
+        customerPhone: customerPhone.trim(),
+        schoolName: typeof schoolName === 'string' && schoolName.trim() ? schoolName.trim() : undefined,
+        gstin: typeof gstin === 'string' && gstin.trim() ? gstin.trim().toUpperCase() : undefined,
+        deliveryAddress: address,
+        shippingAddress: address,
+        products: fullItems,
+        items: fullItems,
+        subtotal: calc.data.subtotal,
+        taxAmount: calc.data.taxAmount,
+        gstAmount: calc.data.taxAmount,
+        shippingCharges: calc.data.shippingCharges,
+        shippingFee: calc.data.shippingCharges,
+        discount: calc.data.discount,
+        finalAmount: calc.data.finalAmount,
+        serverVerifiedTotal: calc.data.finalAmount,
+        totalAmount: calc.data.finalAmount,
+        currency: 'INR',
+        paymentMethod: 'Razorpay',
+        paymentStatus: 'Payment Pending',
+        normalizedPaymentStatus: 'pending',
+        orderStatus: 'order_placed',
+        deliveryStatus: 'pending',
+        approvalStatus: 'approved',
+        razorpayOrderId,
+        trackingNumber,
+        courierName: 'Delhivery B2B Priority',
+        deliveryOtp,
+        trackingDetails,
+        confirmationNotificationSent: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      orders.unshift(newOrder);
+      const firestoreSynced = await syncOrderCreatedToFirestore(newOrder);
+
+      const orderToken = signOrderToken({
+        orderId,
+        customerId: effectiveCustomerId,
+        customerName: newOrder.customerName,
+        customerEmail: newOrder.customerEmail,
+        customerPhone: newOrder.customerPhone,
+        schoolName: newOrder.schoolName,
+        gstin: newOrder.gstin,
+        deliveryAddress: address,
+        subtotal: calc.data.subtotal,
+        taxAmount: calc.data.taxAmount,
+        shippingCharges: calc.data.shippingCharges,
+        discount: calc.data.discount,
+        finalAmount: calc.data.finalAmount,
+        currency: 'INR',
+        razorpayOrderId,
+        trackingNumber,
+        deliveryOtp,
+        items: calc.data.items.map(i => ({ productId: i.productId, quantity: i.quantity })),
+        iat: Date.now()
+      });
+
+      const razorpayInfo =
+        rzpStatus.configured && rzpStatus.keyId && razorpayOrderId
+          ? {
+              configured: true,
+              mode: rzpStatus.mode,
+              orderId: razorpayOrderId,
+              amount: Math.round(calc.data.finalAmount * 100),
+              currency: 'INR',
+              status: 'created',
+              keyId: rzpStatus.keyId,
+              notes: {
+                balkiOrderId: orderId,
+                customerEmail: newOrder.customerEmail,
+                customerPhone: newOrder.customerPhone
+              }
+            }
+          : {
+              configured: rzpStatus.configured,
+              mode: rzpStatus.mode,
+              orderId: null,
+              amount: Math.round(calc.data.finalAmount * 100),
+              currency: 'INR',
+              status: rzpStatus.configured ? 'gateway_error' : 'not_configured',
+              keyId: null,
+              message:
+                razorpayErrorMessage ||
+                'Razorpay payment gateway is not yet configured with merchant API credentials. Your order has been saved safely as Payment Pending.'
+            };
+
+      return sendJsonSuccess(
         res,
-        400,
-        `Order amount of ₹${calc.data.finalAmount.toLocaleString('en-IN')} meets or exceeds the approval threshold of ₹${threshold.toLocaleString('en-IN')}. Please submit as "Request Owner Approval".`,
-        'APPROVAL_REQUIRED',
+        201,
+        razorpayInfo.orderId
+          ? 'Small order created and prepared for Razorpay checkout.'
+          : 'Small order saved as Payment Pending. Online payment gateway is awaiting merchant credential setup.',
         {
-          requiresApproval: true,
-          threshold,
-          finalAmount: calc.data.finalAmount
+          orderCategory: 'SMALL_ORDER',
+          order: newOrder,
+          orderToken,
+          firestoreSynced,
+          razorpay: razorpayInfo
         }
       );
+    } catch (err: any) {
+      const safeMsg = extractServerErrorMessage(err, 'Unable to initialize small order checkout.');
+      logPaymentDiagnostic('checkout_small_error', { requestId: res.locals?.requestId, reason: safeMsg });
+      return sendJsonError(res, 500, safeMsg, 'SMALL_CHECKOUT_ERROR');
     }
-
-    // Reserve stock authoritatively
-    for (const it of calc.data.items) {
-      const prod = products.find(p => p.id === it.productId);
-      if (prod) {
-        prod.stock = Math.max(0, prod.stock - it.quantity);
-        const inv = inventory.find(i => i.sku === prod.sku);
-        if (inv) {
-          inv.currentStock = prod.stock;
-          if (inv.currentStock <= inv.minimumThreshold) {
-            inv.status = inv.currentStock === 0 ? 'Critical' : 'Low Stock';
-          }
-        }
-      }
-    }
-
-    const orderId = `ORD-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const effectiveCustomerId = customerId || 'client_' + customerEmail.trim().split('@')[0];
-
-    const { trackingNumber, deliveryOtp, trackingDetails } = generateOrderTracking(
-      orderId,
-      address.city,
-      address.state,
-      paymentMethod,
-      schoolName
-    );
-
-    const fullItems: CartItem[] = calc.data.items.map(it => {
-      const fullProd = products.find(p => p.id === it.productId)!;
-      return {
-        product: fullProd,
-        quantity: it.quantity
-      };
-    });
-
-    const rzpStatus = getRazorpayConfigStatus();
-    const razorpayClient = getRazorpayClient();
-    let razorpayOrderId: string | undefined = undefined;
-    let razorpayErrorMessage: string | undefined = undefined;
-
-    if (rzpStatus.configured && razorpayClient) {
-      const amountInPaise = Math.round(calc.data.finalAmount * 100);
-      if (!Number.isFinite(amountInPaise) || amountInPaise < 100) {
-        razorpayErrorMessage = 'Order payable amount must be at least ₹1.00 (100 paise) for Razorpay processing.';
-        logPaymentDiagnostic('checkout_small_invalid_amount', { orderId, amountInPaise });
-      } else {
-        try {
-          const rzpOrder: any = await razorpayClient.orders.create({
-            amount: amountInPaise,
-            currency: 'INR',
-            receipt: orderId,
-            notes: {
-              balkiOrderId: orderId,
-              customerEmail: customerEmail.trim(),
-              customerPhone: customerPhone.trim()
-            }
-          });
-          razorpayOrderId = rzpOrder.id;
-          logPaymentDiagnostic('checkout_small_rzp_order_created', {
-            orderId,
-            razorpayOrderId,
-            amountInPaise,
-            mode: rzpStatus.mode
-          });
-        } catch (sdkErr: any) {
-          const statusCode = Number(sdkErr?.statusCode || sdkErr?.error?.statusCode || 502);
-          const extracted = extractServerErrorMessage(sdkErr, 'Unable to initialize Razorpay order right now.');
-          const isAuthError =
-            statusCode === 401 ||
-            extracted.toLowerCase().includes('authentication failed') ||
-            extracted.toLowerCase().includes('key_id');
-          razorpayErrorMessage = isAuthError
-            ? 'Razorpay merchant authentication failed on the server. Please verify server RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.'
-            : extracted;
-          logPaymentDiagnostic('checkout_small_rzp_order_failed', {
-            orderId,
-            statusCode,
-            isAuthError,
-            reason: razorpayErrorMessage
-          });
-        }
-      }
-    }
-
-    const newOrder: Order = {
-      id: orderId,
-      orderId,
-      userId: effectiveCustomerId,
-      customerId: effectiveCustomerId,
-      customerName: customerName.trim(),
-      customerEmail: customerEmail.trim(),
-      customerPhone: customerPhone.trim(),
-      schoolName: typeof schoolName === 'string' && schoolName.trim() ? schoolName.trim() : undefined,
-      gstin: typeof gstin === 'string' && gstin.trim() ? gstin.trim().toUpperCase() : undefined,
-      deliveryAddress: address,
-      shippingAddress: address,
-      products: fullItems,
-      items: fullItems,
-      subtotal: calc.data.subtotal,
-      taxAmount: calc.data.taxAmount,
-      gstAmount: calc.data.taxAmount,
-      shippingCharges: calc.data.shippingCharges,
-      shippingFee: calc.data.shippingCharges,
-      discount: calc.data.discount,
-      finalAmount: calc.data.finalAmount,
-      serverVerifiedTotal: calc.data.finalAmount,
-      totalAmount: calc.data.finalAmount,
-      currency: 'INR',
-      paymentMethod: 'Razorpay',
-      paymentStatus: 'Payment Pending',
-      normalizedPaymentStatus: 'pending',
-      orderStatus: 'order_placed',
-      deliveryStatus: 'pending',
-      approvalStatus: 'approved',
-      razorpayOrderId,
-      trackingNumber,
-      courierName: 'Delhivery B2B Priority',
-      deliveryOtp,
-      trackingDetails,
-      confirmationNotificationSent: false,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    orders.unshift(newOrder);
-    const firestoreSynced = await syncOrderCreatedToFirestore(newOrder);
-
-    const orderToken = signOrderToken({
-      orderId,
-      customerId: effectiveCustomerId,
-      customerName: newOrder.customerName,
-      customerEmail: newOrder.customerEmail,
-      customerPhone: newOrder.customerPhone,
-      schoolName: newOrder.schoolName,
-      gstin: newOrder.gstin,
-      deliveryAddress: address,
-      subtotal: calc.data.subtotal,
-      taxAmount: calc.data.taxAmount,
-      shippingCharges: calc.data.shippingCharges,
-      discount: calc.data.discount,
-      finalAmount: calc.data.finalAmount,
-      currency: 'INR',
-      razorpayOrderId,
-      trackingNumber,
-      deliveryOtp,
-      items: calc.data.items.map(i => ({ productId: i.productId, quantity: i.quantity })),
-      iat: Date.now()
-    });
-
-    const razorpayInfo =
-      rzpStatus.configured && rzpStatus.keyId && razorpayOrderId
-        ? {
-            configured: true,
-            mode: rzpStatus.mode,
-            orderId: razorpayOrderId,
-            amount: Math.round(calc.data.finalAmount * 100),
-            currency: 'INR',
-            status: 'created',
-            keyId: rzpStatus.keyId,
-            notes: {
-              balkiOrderId: orderId,
-              customerEmail: newOrder.customerEmail,
-              customerPhone: newOrder.customerPhone
-            }
-          }
-        : {
-            configured: rzpStatus.configured,
-            mode: rzpStatus.mode,
-            orderId: null,
-            amount: Math.round(calc.data.finalAmount * 100),
-            currency: 'INR',
-            status: rzpStatus.configured ? 'gateway_error' : 'not_configured',
-            keyId: null,
-            message:
-              razorpayErrorMessage ||
-              'Razorpay payment gateway is not yet configured with merchant API credentials. Your order has been saved safely as Payment Pending.'
-          };
-
-    return sendJsonSuccess(
-      res,
-      201,
-      razorpayInfo.orderId
-        ? 'Small order created and prepared for Razorpay checkout.'
-        : 'Small order saved as Payment Pending. Online payment gateway is awaiting merchant credential setup.',
-      {
-        orderCategory: 'SMALL_ORDER',
-        order: newOrder,
-        orderToken,
-        firestoreSynced,
-        razorpay: razorpayInfo
-      }
-    );
   });
 
   // Large Order Checkout (₹5,000 or above - Owner Approval Required)
   app.post('/api/orders/request-approval', async (req, res) => {
-    const {
-      customerId,
-      customerName,
-      customerEmail,
-      customerPhone,
-      schoolName,
-      gstin,
-      deliveryAddress,
-      shippingAddress,
-      items,
-      couponCode
-    } = req.body || {};
+    try {
+      const {
+        customerId,
+        customerName,
+        customerEmail,
+        customerPhone,
+        schoolName,
+        gstin,
+        deliveryAddress,
+        shippingAddress,
+        items,
+        couponCode
+      } = req.body || {};
 
-    if (typeof customerName !== 'string' || customerName.trim().length < 2) {
-      return sendJsonError(res, 400, 'Customer full name is required.', 'INVALID_CUSTOMER_NAME');
-    }
-    if (!isValidEmail(customerEmail)) {
-      return sendJsonError(res, 400, 'A valid email address is required.', 'INVALID_CUSTOMER_EMAIL');
-    }
-    if (!isValidPhone(customerPhone)) {
-      return sendJsonError(res, 400, 'A valid 10-digit phone number is required.', 'INVALID_CUSTOMER_PHONE');
-    }
-
-    const address = normalizeAddress(deliveryAddress || shippingAddress);
-    if (!address) {
-      return sendJsonError(
-        res,
-        400,
-        'Complete delivery address (street, city, state, and 6-digit PIN code) is mandatory.',
-        'INVALID_DELIVERY_ADDRESS'
-      );
-    }
-
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return sendJsonError(res, 400, 'Cart items are required.', 'EMPTY_ITEMS');
-    }
-
-    const idempotencyKey = `req_${customerEmail.trim().toLowerCase()}_${JSON.stringify(
-      items.map((i: any) => ({ id: i.productId || i.id, q: i.quantity }))
-    )}`;
-    const now = Date.now();
-    if (recentSubmissions.has(idempotencyKey) && now - recentSubmissions.get(idempotencyKey)! < 8000) {
-      return sendJsonError(
-        res,
-        429,
-        'A duplicate approval request is already in progress. Please wait a moment.',
-        'DUPLICATE_SUBMISSION'
-      );
-    }
-    recentSubmissions.set(idempotencyKey, now);
-
-    const calc = calculateTrustedOrderAmount(items, couponCode);
-    if (!calc.success || !calc.data) {
-      return sendJsonError(res, 400, calc.error || 'Invalid items', calc.code || 'CALCULATION_ERROR', {
-        availableStock: calc.availableStock
-      });
-    }
-
-    const threshold = getApprovalThresholdInr();
-    if (calc.data.finalAmount < threshold) {
-      return sendJsonError(
-        res,
-        400,
-        `Order amount ₹${calc.data.finalAmount.toLocaleString('en-IN')} is below ₹${threshold.toLocaleString('en-IN')} and qualifies for direct automatic payment checkout.`,
-        'SMALL_ORDER_PATH_REQUIRED',
-        { requiresApproval: false, threshold, finalAmount: calc.data.finalAmount }
-      );
-    }
-
-    const requestId = `REQ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
-    const effectiveCustomerId = customerId || 'client_' + customerEmail.trim().split('@')[0];
-
-    const newRequest: OrderRequest = {
-      requestId,
-      id: requestId,
-      customerId: effectiveCustomerId,
-      customerDetails: {
-        name: customerName.trim(),
-        email: customerEmail.trim(),
-        phone: customerPhone.trim(),
-        schoolName: typeof schoolName === 'string' && schoolName.trim() ? schoolName.trim() : undefined,
-        gstin: typeof gstin === 'string' && gstin.trim() ? gstin.trim().toUpperCase() : undefined,
-        address: `${address.street}, ${address.city}, ${address.state} - ${address.pincode}`,
-        shippingAddress: address
-      },
-      requestedProducts: calc.data.items.map(it => ({
-        productId: it.productId,
-        productName: it.name,
-        quantity: it.quantity,
-        estimatedUnitPrice: it.unitPrice
-      })),
-      subtotal: calc.data.subtotal,
-      taxAmount: calc.data.taxAmount,
-      shippingCharges: calc.data.shippingCharges,
-      requestedAmount: calc.data.finalAmount,
-      finalAmount: calc.data.finalAmount,
-      currency: 'INR',
-      approvalStatus: 'PENDING',
-      paymentStatus: 'NOT_STARTED',
-      rejectionReason: null,
-      finalQuotedAmount: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    orderRequests.unshift(newRequest);
-    const firestoreSynced = await syncOrderRequestToFirestore(newRequest);
-
-    notifications.unshift({
-      notificationId: `notif_admin_${Date.now()}`,
-      recipientId: 'super-admin-balki',
-      recipientEmail: 'kartikks1205@gmail.com',
-      title: `High-Value Order Approval Request: ${requestId}`,
-      message: `${schoolName || customerName} requested approval for ₹${calc.data.finalAmount.toLocaleString('en-IN')} (${calc.data.items.length} hardware packages).`,
-      type: 'approval',
-      orderId: requestId,
-      read: false,
-      createdAt: new Date().toISOString()
-    });
-
-    return sendJsonSuccess(
-      res,
-      201,
-      'Your order request has been successfully submitted. Our team will verify product availability and contact you shortly regarding pricing and payment.',
-      {
-        orderCategory: 'LARGE_ORDER',
-        requestId,
-        firestoreSynced,
-        request: newRequest
+      if (typeof customerName !== 'string' || customerName.trim().length < 2) {
+        return sendJsonError(res, 400, 'Customer full name is required.', 'INVALID_CUSTOMER_NAME');
       }
-    );
+      if (!isValidEmail(customerEmail)) {
+        return sendJsonError(res, 400, 'A valid email address is required.', 'INVALID_CUSTOMER_EMAIL');
+      }
+      if (!isValidPhone(customerPhone)) {
+        return sendJsonError(res, 400, 'A valid 10-digit phone number is required.', 'INVALID_CUSTOMER_PHONE');
+      }
+
+      const address = normalizeAddress(deliveryAddress || shippingAddress);
+      if (!address) {
+        return sendJsonError(
+          res,
+          400,
+          'Complete delivery address (street, city, state, and 6-digit PIN code) is mandatory.',
+          'INVALID_DELIVERY_ADDRESS'
+        );
+      }
+
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return sendJsonError(res, 400, 'Cart items are required.', 'EMPTY_ITEMS');
+      }
+
+      const idempotencyKey = `req_${customerEmail.trim().toLowerCase()}_${JSON.stringify(
+        items.map((i: any) => ({ id: i.productId || i.id, q: i.quantity }))
+      )}`;
+      const now = Date.now();
+      if (recentSubmissions.has(idempotencyKey) && now - recentSubmissions.get(idempotencyKey)! < 8000) {
+        return sendJsonError(
+          res,
+          429,
+          'A duplicate approval request is already in progress. Please wait a moment.',
+          'DUPLICATE_SUBMISSION'
+        );
+      }
+      recentSubmissions.set(idempotencyKey, now);
+
+      const calc = calculateTrustedOrderAmount(items, couponCode);
+      if (!calc.success || !calc.data) {
+        return sendJsonError(res, 400, calc.error || 'Invalid items', calc.code || 'CALCULATION_ERROR', {
+          availableStock: calc.availableStock
+        });
+      }
+
+      const threshold = getApprovalThresholdInr();
+      if (calc.data.finalAmount < threshold) {
+        return sendJsonError(
+          res,
+          400,
+          `Order amount ₹${calc.data.finalAmount.toLocaleString('en-IN')} is below ₹${threshold.toLocaleString('en-IN')} and qualifies for direct automatic payment checkout.`,
+          'SMALL_ORDER_PATH_REQUIRED',
+          { requiresApproval: false, threshold, finalAmount: calc.data.finalAmount }
+        );
+      }
+
+      const requestId = `REQ-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+      const effectiveCustomerId = customerId || 'client_' + customerEmail.trim().split('@')[0];
+
+      const newRequest: OrderRequest = {
+        requestId,
+        id: requestId,
+        customerId: effectiveCustomerId,
+        customerDetails: {
+          name: customerName.trim(),
+          email: customerEmail.trim(),
+          phone: customerPhone.trim(),
+          schoolName: typeof schoolName === 'string' && schoolName.trim() ? schoolName.trim() : undefined,
+          gstin: typeof gstin === 'string' && gstin.trim() ? gstin.trim().toUpperCase() : undefined,
+          address: `${address.street}, ${address.city}, ${address.state} - ${address.pincode}`,
+          shippingAddress: address
+        },
+        requestedProducts: calc.data.items.map(it => ({
+          productId: it.productId,
+          productName: it.name,
+          quantity: it.quantity,
+          estimatedUnitPrice: it.unitPrice
+        })),
+        subtotal: calc.data.subtotal,
+        taxAmount: calc.data.taxAmount,
+        shippingCharges: calc.data.shippingCharges,
+        requestedAmount: calc.data.finalAmount,
+        finalAmount: calc.data.finalAmount,
+        currency: 'INR',
+        approvalStatus: 'PENDING',
+        paymentStatus: 'NOT_STARTED',
+        rejectionReason: null,
+        finalQuotedAmount: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      orderRequests.unshift(newRequest);
+      const firestoreSynced = await syncOrderRequestToFirestore(newRequest);
+
+      notifications.unshift({
+        notificationId: `notif_admin_${Date.now()}`,
+        recipientId: 'super-admin-balki',
+        recipientEmail: 'kartikks1205@gmail.com',
+        title: `High-Value Order Approval Request: ${requestId}`,
+        message: `${schoolName || customerName} requested approval for ₹${calc.data.finalAmount.toLocaleString('en-IN')} (${calc.data.items.length} hardware packages).`,
+        type: 'approval',
+        orderId: requestId,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      return sendJsonSuccess(
+        res,
+        201,
+        'Your order request has been successfully submitted. Our team will verify product availability and contact you shortly regarding pricing and payment.',
+        {
+          orderCategory: 'LARGE_ORDER',
+          requestId,
+          firestoreSynced,
+          request: newRequest
+        }
+      );
+    } catch (err: any) {
+      const safeMsg = extractServerErrorMessage(err, 'Unable to submit owner approval request.');
+      logPaymentDiagnostic('request_approval_error', { requestId: res.locals?.requestId, reason: safeMsg });
+      return sendJsonError(res, 500, safeMsg, 'APPROVAL_REQUEST_ERROR');
+    }
   });
 
   app.get('/api/orders/:id/payment-status', async (req, res) => {
-    const orderId = req.params.id;
-    const razorpayOrderId = typeof req.query.razorpayOrderId === 'string' ? req.query.razorpayOrderId : undefined;
-    const fsOrder = await findFirestoreOrder({ orderId, razorpayOrderId });
-    const memOrder = orders.find(
-      o => o.id === orderId || o.orderId === orderId || (razorpayOrderId && o.razorpayOrderId === razorpayOrderId)
-    );
-    const found: any = fsOrder || memOrder;
-    if (!found) {
-      return sendJsonError(res, 404, 'Order not found', 'ORDER_NOT_FOUND');
+    try {
+      const orderId = req.params.id;
+      const razorpayOrderId = typeof req.query.razorpayOrderId === 'string' ? req.query.razorpayOrderId : undefined;
+      const fsOrder = await findFirestoreOrder({ orderId, razorpayOrderId });
+      const memOrder = orders.find(
+        o => o.id === orderId || o.orderId === orderId || (razorpayOrderId && o.razorpayOrderId === razorpayOrderId)
+      );
+      const found: any = fsOrder || memOrder;
+      if (!found) {
+        return sendJsonError(res, 404, 'Order not found', 'ORDER_NOT_FOUND');
+      }
+      return sendJsonSuccess(res, 200, 'Order payment status retrieved', {
+        orderId: found.id || found.orderId,
+        paymentStatus: found.paymentStatus,
+        normalizedPaymentStatus: found.normalizedPaymentStatus || mapNormalizedPaymentStatus(found.paymentStatus),
+        orderStatus: found.orderStatus,
+        deliveryStatus: found.deliveryStatus || mapNormalizedDeliveryStatus(found.orderStatus),
+        approvalStatus: found.approvalStatus,
+        razorpayOrderId: found.razorpayOrderId || null,
+        razorpayPaymentId: found.razorpayPaymentId || null,
+        paidAt: found.paidAt || null,
+        lastPaymentError: found.lastPaymentError || null,
+        confirmed: found.paymentStatus === 'Paid'
+      });
+    } catch (err: any) {
+      const safeMsg = extractServerErrorMessage(err, 'Failed to query order payment status.');
+      logPaymentDiagnostic('payment_status_error', { requestId: res.locals?.requestId, reason: safeMsg });
+      return sendJsonError(res, 500, safeMsg, 'PAYMENT_STATUS_ERROR');
     }
-    return sendJsonSuccess(res, 200, 'Order payment status retrieved', {
-      orderId: found.id || found.orderId,
-      paymentStatus: found.paymentStatus,
-      normalizedPaymentStatus: found.normalizedPaymentStatus || mapNormalizedPaymentStatus(found.paymentStatus),
-      orderStatus: found.orderStatus,
-      deliveryStatus: found.deliveryStatus || mapNormalizedDeliveryStatus(found.orderStatus),
-      approvalStatus: found.approvalStatus,
-      razorpayOrderId: found.razorpayOrderId || null,
-      razorpayPaymentId: found.razorpayPaymentId || null,
-      paidAt: found.paidAt || null,
-      lastPaymentError: found.lastPaymentError || null,
-      confirmed: found.paymentStatus === 'Paid'
-    });
   });
 
   app.get('/api/orders/:id', (req, res) => {
@@ -3070,89 +3114,95 @@ export function createApiApp(): express.Express {
   });
 
   app.post('/api/admin/order-requests/:id/approve', async (req, res) => {
-    const access = verifyAdminAccess(req);
-    if (!access.authorized) {
-      return sendJsonError(res, 403, 'Unauthorized. Administrator credentials required.', 'ADMIN_UNAUTHORIZED');
-    }
+    try {
+      const access = verifyAdminAccess(req);
+      if (!access.authorized) {
+        return sendJsonError(res, 403, 'Unauthorized. Administrator credentials required.', 'ADMIN_UNAUTHORIZED');
+      }
 
-    const { finalQuotedAmount, shippingCharges = 0 } = req.body || {};
-    const request = orderRequests.find(r => r.requestId === req.params.id);
-    if (!request) {
-      return sendJsonError(res, 404, 'Quote request not found', 'ORDER_REQUEST_NOT_FOUND');
-    }
+      const { finalQuotedAmount, shippingCharges = 0 } = req.body || {};
+      const request = orderRequests.find(r => r.requestId === req.params.id);
+      if (!request) {
+        return sendJsonError(res, 404, 'Quote request not found', 'ORDER_REQUEST_NOT_FOUND');
+      }
 
-    const quotedInr = Number(finalQuotedAmount) || request.requestedAmount;
-    if (!Number.isFinite(quotedInr) || quotedInr <= 0) {
-      return sendJsonError(res, 400, 'Approved quoted amount must be positive.', 'INVALID_QUOTED_AMOUNT');
-    }
+      const quotedInr = Number(finalQuotedAmount) || request.requestedAmount;
+      if (!Number.isFinite(quotedInr) || quotedInr <= 0) {
+        return sendJsonError(res, 400, 'Approved quoted amount must be positive.', 'INVALID_QUOTED_AMOUNT');
+      }
 
-    request.approvalStatus = 'approved';
-    request.finalQuotedAmount = quotedInr;
-    request.shippingCharges = Number(shippingCharges) || 0;
-    request.updatedAt = new Date().toISOString();
+      request.approvalStatus = 'approved';
+      request.finalQuotedAmount = quotedInr;
+      request.shippingCharges = Number(shippingCharges) || 0;
+      request.updatedAt = new Date().toISOString();
 
-    const rzpStatus = getRazorpayConfigStatus();
-    const razorpayClient = getRazorpayClient();
-    let linkId: string | undefined = undefined;
-    let linkUrl: string | undefined = undefined;
+      const rzpStatus = getRazorpayConfigStatus();
+      const razorpayClient = getRazorpayClient();
+      let linkId: string | undefined = undefined;
+      let linkUrl: string | undefined = undefined;
 
-    if (rzpStatus.configured && razorpayClient) {
-      try {
-        const linkRes: any = await razorpayClient.paymentLink.create({
-          amount: Math.round(quotedInr * 100),
-          currency: 'INR',
-          accept_partial: false,
-          description: `Approved Institutional Quotation Payment for ${request.requestId} - Balki Technologies`,
-          customer: {
-            name: request.customerDetails?.name || 'Institutional Client',
-            email: request.customerDetails?.email || '',
-            contact: request.customerDetails?.phone || ''
-          },
-          notify: { sms: true, email: true },
-          reminder_enable: true,
-          notes: {
-            requestId: request.requestId,
-            schoolName: request.customerDetails?.schoolName || ''
-          }
-        });
-        linkId = linkRes.id;
-        linkUrl = linkRes.short_url;
-        request.razorpayPaymentLinkId = linkId;
-        request.razorpayPaymentLinkUrl = linkUrl;
-        request.paymentStatus = 'LINK_GENERATED';
-      } catch (linkErr: any) {
-        console.warn('Razorpay payment link creation failed during approval:', linkErr?.error || linkErr);
+      if (rzpStatus.configured && razorpayClient) {
+        try {
+          const linkRes: any = await razorpayClient.paymentLink.create({
+            amount: Math.round(quotedInr * 100),
+            currency: 'INR',
+            accept_partial: false,
+            description: `Approved Institutional Quotation Payment for ${request.requestId} - Balki Technologies`,
+            customer: {
+              name: request.customerDetails?.name || 'Institutional Client',
+              email: request.customerDetails?.email || '',
+              contact: request.customerDetails?.phone || ''
+            },
+            notify: { sms: true, email: true },
+            reminder_enable: true,
+            notes: {
+              requestId: request.requestId,
+              schoolName: request.customerDetails?.schoolName || ''
+            }
+          });
+          linkId = linkRes.id;
+          linkUrl = linkRes.short_url;
+          request.razorpayPaymentLinkId = linkId;
+          request.razorpayPaymentLinkUrl = linkUrl;
+          request.paymentStatus = 'LINK_GENERATED';
+        } catch (linkErr: any) {
+          console.warn('Razorpay payment link creation failed during approval:', linkErr?.error || linkErr);
+          request.paymentStatus = 'Pending';
+        }
+      } else {
         request.paymentStatus = 'Pending';
       }
-    } else {
-      request.paymentStatus = 'Pending';
+
+      notifications.unshift({
+        notificationId: `notif_${Date.now()}`,
+        recipientId: request.customerId,
+        recipientEmail: request.customerDetails?.email,
+        title: `Institutional Quote Approved: ${request.requestId}`,
+        message: linkUrl
+          ? `Your bulk quote has been approved at INR ${quotedInr.toLocaleString('en-IN')}. Razorpay payment link: ${linkUrl}`
+          : `Your bulk quote has been approved at INR ${quotedInr.toLocaleString('en-IN')}. Payment link pending merchant gateway configuration.`,
+        type: 'approval',
+        orderId: request.requestId,
+        read: false,
+        createdAt: new Date().toISOString()
+      });
+
+      return sendJsonSuccess(
+        res,
+        200,
+        linkUrl
+          ? `Quote request ${request.requestId} approved and Razorpay payment link generated.`
+          : `Quote request ${request.requestId} approved. Razorpay credentials are not yet configured to generate live payment link.`,
+        {
+          request,
+          paymentLink: linkId && linkUrl ? { paymentLinkId: linkId, paymentLinkUrl: linkUrl, amount: quotedInr } : null
+        }
+      );
+    } catch (err: any) {
+      const safeMsg = extractServerErrorMessage(err, 'Unable to approve order request.');
+      logPaymentDiagnostic('admin_approve_request_error', { requestId: res.locals?.requestId, reason: safeMsg });
+      return sendJsonError(res, 500, safeMsg, 'ADMIN_APPROVE_ERROR');
     }
-
-    notifications.unshift({
-      notificationId: `notif_${Date.now()}`,
-      recipientId: request.customerId,
-      recipientEmail: request.customerDetails?.email,
-      title: `Institutional Quote Approved: ${request.requestId}`,
-      message: linkUrl
-        ? `Your bulk quote has been approved at INR ${quotedInr.toLocaleString('en-IN')}. Razorpay payment link: ${linkUrl}`
-        : `Your bulk quote has been approved at INR ${quotedInr.toLocaleString('en-IN')}. Payment link pending merchant gateway configuration.`,
-      type: 'approval',
-      orderId: request.requestId,
-      read: false,
-      createdAt: new Date().toISOString()
-    });
-
-    return sendJsonSuccess(
-      res,
-      200,
-      linkUrl
-        ? `Quote request ${request.requestId} approved and Razorpay payment link generated.`
-        : `Quote request ${request.requestId} approved. Razorpay credentials are not yet configured to generate live payment link.`,
-      {
-        request,
-        paymentLink: linkId && linkUrl ? { paymentLinkId: linkId, paymentLinkUrl: linkUrl, amount: quotedInr } : null
-      }
-    );
   });
 
   app.post('/api/admin/order-requests/:id/reject', (req, res) => {

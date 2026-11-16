@@ -48,8 +48,14 @@ export async function sendOrderConfirmationEmailOnce(input: OrderConfirmationEma
     </div>
   `.trim();
 
-  const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
-  const fromEmail = (process.env.EMAIL_FROM || 'orders@balkitechnologies.com').trim();
+  const cleanEnv = (v?: string) => {
+    const t = (v || '').trim();
+    return (t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'"))
+      ? t.slice(1, -1).trim()
+      : t;
+  };
+  const resendApiKey = cleanEnv(process.env.RESEND_API_KEY);
+  const fromEmail = cleanEnv(process.env.EMAIL_FROM) || 'orders@balkitechnologies.com';
   let provider = 'firestore_audit_queue';
   let delivered = false;
 
