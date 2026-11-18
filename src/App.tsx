@@ -205,6 +205,19 @@ function AppContent() {
     setIsTrackingOpen(true);
   };
 
+  // Deep-link support for owner dashboard request links (no PII or tokens in URL)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const requestedTab = params.get('tab');
+      if (requestedTab === 'dashboard') {
+        setActiveTab('dashboard');
+      }
+    } catch {
+      // Ignore malformed URLs
+    }
+  }, []);
+
   // Initial Fetch from backend APIs for catalog and public services
   useEffect(() => {
     const fetchData = async () => {

@@ -54,6 +54,17 @@ export const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const { currentUser, userProfile, updateProfileData } = useAuth();
   const isAdmin = currentUser?.email?.toLowerCase() === 'kartikks1205@gmail.com' || userProfile?.role === 'Admin';
   const [activeSubTab, setActiveSubTab] = useState<'purchases' | 'credentials' | 'tinkering' | 'admin_console'>('purchases');
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (isAdmin && params.get('view') === 'admin_console') {
+        setActiveSubTab('admin_console');
+      }
+    } catch {
+      // Ignore
+    }
+  }, [isAdmin]);
   
   // Real-time Firestore client orders
   const [clientOrders, setClientOrders] = useState<Order[]>(initialOrders);

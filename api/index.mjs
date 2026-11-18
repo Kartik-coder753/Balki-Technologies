@@ -2586,99 +2586,1018 @@ async function runAtomicFailureTransaction(params) {
     return { handledByFirestore: false };
   }
 }
+async function syncOrderStatusToFirestore(orderId, updates) {
+  const db = getAdminFirestore();
+  if (!db) return false;
+  try {
+    await db.collection("orders").doc(orderId).set(
+      stripUndefinedDeep({
+        ...updates,
+        updatedAt: updates.updatedAt || (/* @__PURE__ */ new Date()).toISOString()
+      }),
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.warn("Firestore Admin syncOrderStatus failed:", err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+async function hasEmailAuditBeenSentInFirestore(mailDocId) {
+  const db = getAdminFirestore();
+  if (!db) return false;
+  try {
+    const snap = await db.collection("mail").doc(mailDocId).get();
+    if (!snap.exists) return false;
+    const data = snap.data();
+    return Boolean(data && (data.status === "sent" || data.delivered === true));
+  } catch (err) {
+    console.warn("Firestore mail dedupe lookup skipped:", err instanceof Error ? err.message : err);
+    return false;
+  }
+}
 async function recordEmailAuditInFirestore(mailDoc) {
   const db = getAdminFirestore();
   if (!db) return;
   try {
-    await db.collection("mail").doc(mailDoc.id).set(mailDoc, { merge: true });
+    const payload = stripUndefinedDeep({
+      ...mailDoc,
+      status: mailDoc.status || (mailDoc.delivered ? "sent" : "failed"),
+      razorpayPaymentId: mailDoc.razorpayPaymentId || mailDoc.paymentId,
+      updatedAt: mailDoc.updatedAt || (/* @__PURE__ */ new Date()).toISOString()
+    });
+    await db.collection("mail").doc(mailDoc.id).set(payload, { merge: true });
   } catch (err) {
     console.warn("Firestore mail audit write skipped:", err instanceof Error ? err.message : err);
   }
 }
 
 // src/server/mailer.ts
-var dispatchedConfirmationEmails = /* @__PURE__ */ new Set();
-async function sendOrderConfirmationEmailOnce(input) {
-  const dedupeKey = `${input.orderId}:${input.razorpayPaymentId}`;
-  if (dispatchedConfirmationEmails.has(dedupeKey)) {
-    return { sent: false, skippedDuplicate: true, provider: "deduplicated" };
+import { Resend } from "resend";
+var sentEmailDedupeKeys = /* @__PURE__ */ new Set();
+var inFlightEmailDedupeKeys = /* @__PURE__ */ new Set();
+var recentEmailLogs = [];
+var MAX_EMAIL_LOGS = 200;
+var testTransportOverride = null;
+var testRetryDelayMs = null;
+function getRecentEmailLogs(limit = 50) {
+  return recentEmailLogs.slice(0, Math.max(1, Math.min(limit, MAX_EMAIL_LOGS)));
+}
+function stripWrappingQuotes2(value) {
+  if (!value) return "";
+  const trimmed = String(value).trim();
+  if (trimmed.startsWith('"') && trimmed.endsWith('"') || trimmed.startsWith("'") && trimmed.endsWith("'")) {
+    return trimmed.slice(1, -1).trim();
   }
-  dispatchedConfirmationEmails.add(dedupeKey);
-  const itemsRows = (input.items || []).map((item) => {
-    const price = item.lineTotal ?? (item.unitPrice || 0) * item.quantity;
-    return `<li><strong>${item.name}</strong> &times; ${item.quantity} \u2014 \u20B9${Number(price).toLocaleString("en-IN")}</li>`;
-  }).join("");
-  const subject = `BALKI TECHNOLOGIES \u2014 Order Confirmed (${input.orderId})`;
-  const html = `
-    <div style="font-family: Arial, sans-serif; color: #0f172a; max-width: 600px;">
-      <h2 style="color: #d97706;">Order Payment Verified & Confirmed</h2>
-      <p>Dear ${input.customerName},</p>
-      <p>Thank you for ordering from <strong>BALKI TECHNOLOGIES</strong>. Your payment has been cryptographically verified.</p>
-      <ul>
-        <li><strong>Order Reference:</strong> ${input.orderId}</li>
-        <li><strong>Verified Amount:</strong> \u20B9${Number(input.amountInr).toLocaleString("en-IN")} INR</li>
-        <li><strong>Payment Status:</strong> ${input.paymentStatus}</li>
-        <li><strong>Razorpay Payment ID:</strong> ${input.razorpayPaymentId}</li>
-      </ul>
-      <h3>Products</h3>
-      <ul>${itemsRows}</ul>
-      <p>We will notify you with Delhivery priority tracking updates as soon as QC assembly completes.</p>
-    </div>
-  `.trim();
-  const cleanEnv = (v) => {
-    const t = (v || "").trim();
-    return t.startsWith('"') && t.endsWith('"') || t.startsWith("'") && t.endsWith("'") ? t.slice(1, -1).trim() : t;
-  };
-  const resendApiKey = cleanEnv(process.env.RESEND_API_KEY);
-  const fromEmail = cleanEnv(process.env.EMAIL_FROM) || "orders@balkitechnologies.com";
-  let provider = "firestore_audit_queue";
-  let delivered = false;
-  if (resendApiKey) {
-    provider = "resend";
-    try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          from: fromEmail,
-          to: [input.customerEmail],
-          subject,
-          html
-        })
-      });
-      delivered = response.ok;
-    } catch (err) {
-      console.warn("Resend email dispatch error:", err instanceof Error ? err.message : err);
+  return trimmed;
+}
+function isPlaceholderValue(value) {
+  if (!value) return true;
+  const upper = value.toUpperCase();
+  return upper.includes("YOUR_RESEND") || upper.includes("CHANGE_THIS") || upper.startsWith("MY_") || upper === "UNDEFINED" || upper === "NULL";
+}
+var SECRET_REDACT_PATTERN = /(re_[A-Za-z0-9_]+|rzp_(live|test)_[A-Za-z0-9]+|whsec_[A-Za-z0-9]+)/g;
+function sanitizeErrorForLog(err, fallback = "Email delivery failed") {
+  if (!err) return fallback;
+  if (typeof err === "string") {
+    const cleaned = err.replace(SECRET_REDACT_PATTERN, "[REDACTED]").trim();
+    return cleaned || fallback;
+  }
+  if (err instanceof Error) {
+    return err.message.replace(SECRET_REDACT_PATTERN, "[REDACTED]").trim() || fallback;
+  }
+  if (typeof err === "object") {
+    const anyErr = err;
+    const raw = anyErr.message || anyErr.error?.message || anyErr.name;
+    if (typeof raw === "string" && raw.trim()) {
+      return raw.replace(SECRET_REDACT_PATTERN, "[REDACTED]").trim();
     }
   }
-  await recordEmailAuditInFirestore({
-    id: `mail_${input.orderId}_${input.razorpayPaymentId}`,
-    to: input.customerEmail,
-    subject,
-    orderId: input.orderId,
-    paymentId: input.razorpayPaymentId,
-    amountInr: input.amountInr,
-    paymentStatus: input.paymentStatus,
-    deliveryProvider: provider,
-    delivered,
-    html,
-    createdAt: (/* @__PURE__ */ new Date()).toISOString()
+  return fallback;
+}
+function extractRawEmail(input) {
+  if (typeof input !== "string") return "";
+  const cleaned = stripWrappingQuotes2(input).trim();
+  const angleMatch = cleaned.match(/<([^<>]+)>/);
+  return (angleMatch ? angleMatch[1] : cleaned).trim();
+}
+function isValidEmailAddress(input) {
+  if (typeof input !== "string") return false;
+  if (/[\r\n]/.test(input)) return false;
+  const raw = extractRawEmail(input);
+  if (!raw || raw.length > 254) return false;
+  return /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]{2,}$/.test(raw);
+}
+function escapeHtml(value) {
+  return String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function sanitizeHttpUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+      return parsed.toString();
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+function getAppBaseUrl() {
+  const configured = stripWrappingQuotes2(process.env.APP_URL);
+  const safe = sanitizeHttpUrl(configured);
+  if (safe) {
+    return safe.replace(/\/+$/, "");
+  }
+  return "https://www.balkitechnologies.com";
+}
+function getResendApiKey() {
+  const key = stripWrappingQuotes2(process.env.RESEND_API_KEY);
+  if (!key || isPlaceholderValue(key) || key.length < 10) return null;
+  return key;
+}
+function getFromEmail() {
+  const configured = stripWrappingQuotes2(process.env.EMAIL_FROM);
+  if (configured && !isPlaceholderValue(configured) && isValidEmailAddress(configured)) {
+    return configured.includes("<") ? configured : `Balki Technologies <${configured}>`;
+  }
+  return "Balki Technologies <orders@balkitechnologies.com>";
+}
+function getOwnerEmail() {
+  const configured = stripWrappingQuotes2(process.env.OWNER_EMAIL);
+  if (!configured || isPlaceholderValue(configured) || !isValidEmailAddress(configured)) {
+    return null;
+  }
+  return extractRawEmail(configured);
+}
+function getEmailConfigStatus() {
+  const apiKey = getResendApiKey();
+  const fromEmail = getFromEmail();
+  const rawFrom = extractRawEmail(fromEmail);
+  const fromDomain = rawFrom.includes("@") ? rawFrom.split("@")[1] : null;
+  const ownerEmail = getOwnerEmail();
+  return {
+    configured: Boolean(apiKey),
+    fromEmail,
+    fromDomain,
+    ownerEmailConfigured: Boolean(ownerEmail),
+    ownerEmail
+  };
+}
+function formatInr(amount) {
+  const num = Number(amount);
+  const safe = Number.isFinite(num) ? num : 0;
+  return `\u20B9${safe.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+function formatDateIst(iso) {
+  const date = iso ? new Date(iso) : /* @__PURE__ */ new Date();
+  if (Number.isNaN(date.getTime())) return (/* @__PURE__ */ new Date()).toUTCString();
+  return date.toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "medium",
+    timeStyle: "short"
+  }) + " IST";
+}
+function sanitizeDocId(input) {
+  return input.replace(/[^A-Za-z0-9._:-]/g, "_").slice(0, 120);
+}
+function renderItemsTableHtml(items) {
+  if (!items || items.length === 0) {
+    return `
+      <tr>
+        <td colspan="4" style="padding:12px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:13px;">
+          STEM Hardware Package (See attached order reference for details)
+        </td>
+      </tr>
+    `;
+  }
+  return items.map((item) => {
+    const qty = Math.max(1, Number(item.quantity) || 1);
+    const unitPrice = Number(item.unitPrice) || 0;
+    const lineTotal = unitPrice * qty;
+    return `
+        <tr>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#0f172a;font-weight:600;">
+            ${escapeHtml(item.name)}
+          </td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#334155;text-align:center;">
+            ${qty}
+          </td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#334155;text-align:right;">
+            ${formatInr(unitPrice)}
+          </td>
+          <td style="padding:10px 8px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#0f172a;font-weight:700;text-align:right;">
+            ${formatInr(lineTotal)}
+          </td>
+        </tr>
+      `;
+  }).join("");
+}
+function renderBalkiEmailLayout(params) {
+  const safeCtaUrl = params.cta ? sanitizeHttpUrl(params.cta.url) : null;
+  const badgeColor = params.badgeColor || "#d97706";
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHtml(params.heading)}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0f172a;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color:#f1f5f9;padding:28px 12px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:640px;background-color:#ffffff;border:1px solid #cbd5e1;border-radius:12px;overflow:hidden;">
+          <!-- Header -->
+          <tr>
+            <td style="background-color:#0f172a;padding:24px 28px;border-bottom:4px solid #d97706;">
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td>
+                    <div style="font-size:20px;font-weight:800;letter-spacing:0.6px;color:#ffffff;">BALKI TECHNOLOGIES</div>
+                    <div style="font-size:12px;color:#fbbf24;margin-top:4px;font-weight:600;">
+                      STEM \xB7 Robotics \xB7 Atal Tinkering Lab Hardware Solutions
+                    </div>
+                  </td>
+                  <td align="right" valign="middle">
+                    <span style="display:inline-block;padding:6px 12px;border-radius:6px;background-color:${badgeColor};color:#ffffff;font-size:11px;font-weight:700;letter-spacing:0.4px;text-transform:uppercase;">
+                      ${escapeHtml(params.badgeLabel)}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Main Body -->
+          <tr>
+            <td style="padding:28px;">
+              <h1 style="margin:0 0 12px 0;font-size:20px;line-height:1.3;color:#0f172a;">
+                ${escapeHtml(params.heading)}
+              </h1>
+              <p style="margin:0 0 12px 0;font-size:14px;line-height:1.6;color:#1e293b;">
+                ${escapeHtml(params.greeting)}
+              </p>
+              <div style="margin:0 0 20px 0;font-size:14px;line-height:1.6;color:#334155;">
+                ${params.introHtml}
+              </div>
+
+              ${params.calloutHtml ? `<div style="margin:0 0 20px 0;padding:14px 16px;border-radius:8px;background-color:#fffbeb;border:1px solid #fcd34d;font-size:13px;line-height:1.5;color:#78350f;">
+                      ${params.calloutHtml}
+                    </div>` : ""}
+
+              ${params.detailsRowsHtml ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 20px 0;background-color:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+                      ${params.detailsRowsHtml}
+                    </table>` : ""}
+
+              ${params.items && params.items.length > 0 ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 18px 0;border-collapse:collapse;border:1px solid #e2e8f0;">
+                      <thead>
+                        <tr style="background-color:#f8fafc;">
+                          <th align="left" style="padding:10px 8px;border-bottom:2px solid #cbd5e1;font-size:12px;color:#475569;text-transform:uppercase;">Product</th>
+                          <th align="center" style="padding:10px 8px;border-bottom:2px solid #cbd5e1;font-size:12px;color:#475569;text-transform:uppercase;">Qty</th>
+                          <th align="right" style="padding:10px 8px;border-bottom:2px solid #cbd5e1;font-size:12px;color:#475569;text-transform:uppercase;">Unit Price</th>
+                          <th align="right" style="padding:10px 8px;border-bottom:2px solid #cbd5e1;font-size:12px;color:#475569;text-transform:uppercase;">Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        ${renderItemsTableHtml(params.items)}
+                      </tbody>
+                    </table>` : ""}
+
+              ${params.pricingRowsHtml ? `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 22px 0;background-color:#f8fafc;border:1px solid #cbd5e1;border-radius:8px;">
+                      ${params.pricingRowsHtml}
+                    </table>` : ""}
+
+              ${safeCtaUrl && params.cta ? `<div style="text-align:center;margin:24px 0 8px 0;">
+                      <a href="${escapeHtml(safeCtaUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 26px;background-color:#d97706;color:#ffffff;font-size:14px;font-weight:700;text-decoration:none;border-radius:8px;">
+                        ${escapeHtml(params.cta.label)}
+                      </a>
+                    </div>` : ""}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#f8fafc;padding:18px 28px;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;line-height:1.5;">
+              <div><strong>BALKI TECHNOLOGIES</strong> \xB7 Corporate &amp; Logistics Hub, Hyderabad, Telangana</div>
+              <div>Support Helpline: +91 9071199139 \xB7 Website: <a href="https://www.balkitechnologies.com" style="color:#d97706;text-decoration:none;">www.balkitechnologies.com</a></div>
+              ${params.footerNote ? `<div style="margin-top:6px;">${escapeHtml(params.footerNote)}</div>` : ""}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+function renderDetailRow(label, value) {
+  return `
+    <tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#475569;width:38%;font-weight:600;vertical-align:top;">
+        ${escapeHtml(label)}
+      </td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:13px;color:#0f172a;vertical-align:top;">
+        ${escapeHtml(value)}
+      </td>
+    </tr>
+  `;
+}
+function renderPricingRow(label, value, highlight = false) {
+  return `
+    <tr>
+      <td style="padding:8px 14px;border-bottom:1px solid #e2e8f0;font-size:${highlight ? "15px" : "13px"};color:${highlight ? "#0f172a" : "#475569"};font-weight:${highlight ? "800" : "600"};">
+        ${escapeHtml(label)}
+      </td>
+      <td align="right" style="padding:8px 14px;border-bottom:1px solid #e2e8f0;font-size:${highlight ? "16px" : "13px"};color:${highlight ? "#b45309" : "#0f172a"};font-weight:${highlight ? "800" : "600"};">
+        ${escapeHtml(value)}
+      </td>
+    </tr>
+  `;
+}
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function isRetryableResendFailure(statusCode, errorMessage) {
+  if (typeof statusCode === "number") {
+    if (statusCode === 429 || statusCode >= 500) return true;
+    if (statusCode >= 400 && statusCode < 500) return false;
+  }
+  const lower = (errorMessage || "").toLowerCase();
+  return lower.includes("timeout") || lower.includes("econnreset") || lower.includes("network") || lower.includes("rate limit") || lower.includes("temporarily unavailable");
+}
+function pushEmailLog(entry) {
+  recentEmailLogs.unshift(entry);
+  if (recentEmailLogs.length > MAX_EMAIL_LOGS) {
+    recentEmailLogs.length = MAX_EMAIL_LOGS;
+  }
+}
+async function dispatchTransactionalEmailOnce(params) {
+  const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+  const docId = sanitizeDocId(params.dedupeKey);
+  if (sentEmailDedupeKeys.has(params.dedupeKey) || inFlightEmailDedupeKeys.has(params.dedupeKey)) {
+    return {
+      sent: false,
+      skippedDuplicate: true,
+      status: "skipped_duplicate",
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      to: String(params.to || ""),
+      subject: params.subject,
+      dedupeKey: params.dedupeKey,
+      attempts: 0,
+      provider: "resend",
+      timestamp: nowIso
+    };
+  }
+  if (await hasEmailAuditBeenSentInFirestore(docId)) {
+    sentEmailDedupeKeys.add(params.dedupeKey);
+    return {
+      sent: false,
+      skippedDuplicate: true,
+      status: "skipped_duplicate",
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      to: String(params.to || ""),
+      subject: params.subject,
+      dedupeKey: params.dedupeKey,
+      attempts: 0,
+      provider: "resend",
+      timestamp: nowIso
+    };
+  }
+  if (params.recipientType === "owner" && (!params.to || !String(params.to).trim())) {
+    const errMsg = "OWNER_EMAIL environment variable is missing or invalid.";
+    console.warn(`[Mailer] ${params.eventType} skipped for ${params.entityId}: ${errMsg}`);
+    pushEmailLog({
+      id: docId,
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      entityId: params.entityId,
+      to: "",
+      subject: params.subject,
+      status: "skipped_missing_owner_email",
+      attempts: 0,
+      error: errMsg,
+      createdAt: nowIso
+    });
+    return {
+      sent: false,
+      status: "skipped_missing_owner_email",
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      to: "",
+      subject: params.subject,
+      dedupeKey: params.dedupeKey,
+      attempts: 0,
+      provider: "audit-only",
+      error: errMsg,
+      timestamp: nowIso
+    };
+  }
+  if (!isValidEmailAddress(params.to)) {
+    const errMsg = "Recipient email address is invalid or empty.";
+    console.warn(`[Mailer] ${params.eventType} skipped for ${params.entityId}: ${errMsg}`);
+    pushEmailLog({
+      id: docId,
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      entityId: params.entityId,
+      to: String(params.to || ""),
+      subject: params.subject,
+      status: "skipped_invalid_email",
+      attempts: 0,
+      error: errMsg,
+      createdAt: nowIso
+    });
+    return {
+      sent: false,
+      status: "skipped_invalid_email",
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      to: String(params.to || ""),
+      subject: params.subject,
+      dedupeKey: params.dedupeKey,
+      attempts: 0,
+      provider: "audit-only",
+      error: errMsg,
+      timestamp: nowIso
+    };
+  }
+  const recipientEmail = extractRawEmail(params.to);
+  const fromEmail = getFromEmail();
+  const apiKey = getResendApiKey();
+  if (!apiKey && !testTransportOverride) {
+    const errMsg = "RESEND_API_KEY is not configured on the server.";
+    console.info(`[Mailer] ${params.eventType} recorded in audit-only mode (${params.entityId}): ${errMsg}`);
+    await recordEmailAuditInFirestore({
+      id: docId,
+      to: recipientEmail,
+      subject: params.subject,
+      orderId: params.entityId,
+      paymentId: params.paymentId,
+      amountInr: params.amountInr,
+      paymentStatus: params.paymentStatus,
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      status: "queued_no_api_key",
+      attempts: 0,
+      error: errMsg,
+      deliveryProvider: "audit-only",
+      delivered: false,
+      html: params.html,
+      createdAt: nowIso
+    });
+    pushEmailLog({
+      id: docId,
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      entityId: params.entityId,
+      to: recipientEmail,
+      subject: params.subject,
+      status: "queued_no_api_key",
+      attempts: 0,
+      error: errMsg,
+      createdAt: nowIso
+    });
+    return {
+      sent: false,
+      status: "queued_no_api_key",
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      to: recipientEmail,
+      subject: params.subject,
+      dedupeKey: params.dedupeKey,
+      attempts: 0,
+      provider: "audit-only",
+      error: errMsg,
+      timestamp: nowIso
+    };
+  }
+  inFlightEmailDedupeKeys.add(params.dedupeKey);
+  const maxAttempts = 3;
+  let attempts = 0;
+  let lastErrorMsg = "";
+  let sentId;
+  let delivered = false;
+  try {
+    const transport = testTransportOverride || (async (payload) => {
+      const resend = new Resend(apiKey);
+      return await resend.emails.send(payload);
+    });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      attempts = attempt;
+      try {
+        const response = await transport({
+          from: fromEmail,
+          to: recipientEmail,
+          subject: params.subject,
+          html: params.html,
+          text: params.text
+        });
+        if (response?.error) {
+          const statusCode = typeof response.error.statusCode === "number" ? response.error.statusCode : void 0;
+          lastErrorMsg = sanitizeErrorForLog(response.error, "Resend API returned an error.");
+          if (attempt < maxAttempts && isRetryableResendFailure(statusCode, lastErrorMsg)) {
+            const delay = testRetryDelayMs ?? attempt * 180;
+            if (delay > 0) await sleep(delay);
+            continue;
+          }
+          break;
+        }
+        sentId = response?.data?.id || void 0;
+        delivered = true;
+        break;
+      } catch (err) {
+        const statusCode = typeof err?.statusCode === "number" ? err.statusCode : void 0;
+        lastErrorMsg = sanitizeErrorForLog(err, "Resend transport failure");
+        if (attempt < maxAttempts && isRetryableResendFailure(statusCode, lastErrorMsg)) {
+          const delay = testRetryDelayMs ?? attempt * 180;
+          if (delay > 0) await sleep(delay);
+          continue;
+        }
+        break;
+      }
+    }
+    const finalStatus = delivered ? "sent" : "failed";
+    if (delivered) {
+      sentEmailDedupeKeys.add(params.dedupeKey);
+      console.info(
+        JSON.stringify({
+          stage: "mailer_sent",
+          eventType: params.eventType,
+          recipientType: params.recipientType,
+          entityId: params.entityId,
+          attempts,
+          resendEmailId: sentId || null
+        })
+      );
+    } else {
+      console.warn(
+        JSON.stringify({
+          stage: "mailer_failed",
+          eventType: params.eventType,
+          recipientType: params.recipientType,
+          entityId: params.entityId,
+          attempts,
+          reason: lastErrorMsg
+        })
+      );
+    }
+    await recordEmailAuditInFirestore({
+      id: docId,
+      to: recipientEmail,
+      subject: params.subject,
+      orderId: params.entityId,
+      paymentId: params.paymentId,
+      amountInr: params.amountInr,
+      paymentStatus: params.paymentStatus,
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      status: finalStatus,
+      attempts,
+      resendEmailId: sentId,
+      error: delivered ? void 0 : lastErrorMsg,
+      deliveryProvider: "resend",
+      delivered,
+      html: params.html,
+      createdAt: nowIso
+    });
+    pushEmailLog({
+      id: docId,
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      entityId: params.entityId,
+      to: recipientEmail,
+      subject: params.subject,
+      status: finalStatus,
+      attempts,
+      resendEmailId: sentId,
+      error: delivered ? void 0 : lastErrorMsg,
+      createdAt: nowIso
+    });
+    return {
+      sent: delivered,
+      status: finalStatus,
+      eventType: params.eventType,
+      recipientType: params.recipientType,
+      to: recipientEmail,
+      subject: params.subject,
+      dedupeKey: params.dedupeKey,
+      attempts,
+      resendEmailId: sentId,
+      provider: "resend",
+      ...delivered ? {} : { error: lastErrorMsg },
+      timestamp: nowIso
+    };
+  } finally {
+    inFlightEmailDedupeKeys.delete(params.dedupeKey);
+  }
+}
+async function sendOwnerLargeOrderAlertOnce(params) {
+  const ownerEmail = getOwnerEmail();
+  const dashboardUrl = `${getAppBaseUrl()}/?tab=dashboard&view=admin_console&requestId=${encodeURIComponent(params.requestId)}`;
+  const subject = `[Action Required] Large Order Approval Request ${params.requestId} \u2014 ${formatInr(params.totalRequestedAmount)}`;
+  const detailsRowsHtml = [
+    renderDetailRow("Request ID", params.requestId),
+    renderDetailRow("Customer Name", params.customerName),
+    renderDetailRow("Customer Email", params.customerEmail),
+    renderDetailRow("Phone Number", params.customerPhone),
+    ...params.schoolName ? [renderDetailRow("Institution / School", params.schoolName)] : [],
+    renderDetailRow("Delivery Address", params.deliveryAddress),
+    renderDetailRow("Request Date", formatDateIst(params.requestDate)),
+    renderDetailRow("Total Requested Amount", formatInr(params.totalRequestedAmount))
+  ].join("");
+  const pricingRowsHtml = [
+    ...typeof params.subtotal === "number" ? [renderPricingRow("Hardware Subtotal", formatInr(params.subtotal))] : [],
+    ...typeof params.taxAmount === "number" ? [renderPricingRow("GST (18%)", formatInr(params.taxAmount))] : [],
+    ...typeof params.shippingCharges === "number" ? [renderPricingRow("Estimated Shipping", params.shippingCharges === 0 ? "Free" : formatInr(params.shippingCharges))] : [],
+    renderPricingRow("Total Requested Amount", formatInr(params.totalRequestedAmount), true)
+  ].join("");
+  const html = renderBalkiEmailLayout({
+    badgeLabel: "Owner Approval Required",
+    badgeColor: "#b45309",
+    heading: `New Large Order Request: ${params.requestId}`,
+    greeting: "Hello Owner / Procurement Desk,",
+    introHtml: "A high-value STEM hardware order request requires your inventory review, final quotation confirmation, and approval before a Razorpay payment link can be generated.",
+    detailsRowsHtml,
+    items: params.items,
+    pricingRowsHtml,
+    cta: {
+      label: "Review & Approve Request in Admin Dashboard",
+      url: dashboardUrl
+    },
+    footerNote: `Admin Request Reference: ${params.requestId}`
   });
-  return { sent: true, skippedDuplicate: false, provider };
+  const text = [
+    `BALKI TECHNOLOGIES - Owner Approval Required`,
+    `Request ID: ${params.requestId}`,
+    `Customer: ${params.customerName} (${params.customerEmail}, ${params.customerPhone})`,
+    `Delivery Address: ${params.deliveryAddress}`,
+    `Request Date: ${formatDateIst(params.requestDate)}`,
+    `Total Requested Amount: ${formatInr(params.totalRequestedAmount)}`,
+    `Admin Dashboard: ${dashboardUrl}`
+  ].join("\n");
+  return dispatchTransactionalEmailOnce({
+    dedupeKey: `owner_alert:${params.requestId}`,
+    eventType: "owner_order_request_alert",
+    recipientType: "owner",
+    entityId: params.requestId,
+    to: ownerEmail,
+    subject,
+    html,
+    text,
+    amountInr: params.totalRequestedAmount,
+    paymentStatus: "APPROVAL_PENDING"
+  });
+}
+async function sendCustomerOrderRequestReceivedOnce(params) {
+  const subject = `Order Request Received (${params.requestId}) \u2014 BALKI TECHNOLOGIES`;
+  const detailsRowsHtml = [
+    renderDetailRow("Request ID", params.requestId),
+    renderDetailRow("Request Date", formatDateIst(params.requestDate)),
+    renderDetailRow("Delivery Address", params.deliveryAddress),
+    renderDetailRow("Review Status", "Pending Procurement & Inventory Verification")
+  ].join("");
+  const pricingRowsHtml = renderPricingRow("Estimated Request Total", formatInr(params.totalRequestedAmount), true);
+  const html = renderBalkiEmailLayout({
+    badgeLabel: "Request Received",
+    badgeColor: "#0284c7",
+    heading: `We Have Received Your Order Request (${params.requestId})`,
+    greeting: `Dear ${params.customerName || "Valued Client"},`,
+    introHtml: "Thank you for submitting your institutional/bulk STEM hardware request with BALKI TECHNOLOGIES. Because orders of \u20B95,000 or more include dedicated technical stock allocation and custom logistics, our team is reviewing your request and will send your final quotation and Razorpay payment link shortly.",
+    detailsRowsHtml,
+    items: params.items,
+    pricingRowsHtml,
+    footerNote: `No payment has been charged yet for ${params.requestId}.`
+  });
+  const text = `Dear ${params.customerName}, your order request ${params.requestId} for ${formatInr(params.totalRequestedAmount)} has been received and is pending owner review.`;
+  return dispatchTransactionalEmailOnce({
+    dedupeKey: `customer_req_received:${params.requestId}`,
+    eventType: "order_request_received",
+    recipientType: "customer",
+    entityId: params.requestId,
+    to: params.customerEmail,
+    subject,
+    html,
+    text,
+    amountInr: params.totalRequestedAmount,
+    paymentStatus: "NOT_STARTED"
+  });
+}
+async function sendCustomerOrderApprovedEmailOnce(params) {
+  const quoteRef = params.quoteReference || `QT-${params.requestId}`;
+  const subject = params.paymentLinkUrl ? `Order Approved & Payment Link Ready (${params.requestId}) \u2014 BALKI TECHNOLOGIES` : `Order Approved & Final Quotation Confirmed (${params.requestId}) \u2014 BALKI TECHNOLOGIES`;
+  const detailsRowsHtml = [
+    renderDetailRow("Order / Request ID", params.requestId),
+    renderDetailRow("Final Quotation Ref", quoteRef),
+    renderDetailRow("Approval Status", "Approved by BALKI TECHNOLOGIES Owner / Procurement Desk"),
+    ...params.paymentLinkId ? [renderDetailRow("Razorpay Payment Link ID", params.paymentLinkId)] : []
+  ].join("");
+  const itemsSubtotal = params.items.reduce(
+    (sum, it) => sum + (Number(it.unitPrice) || 0) * Math.max(1, Number(it.quantity) || 1),
+    0
+  );
+  const pricingRowsHtml = [
+    renderPricingRow("Product Items Estimate", formatInr(itemsSubtotal)),
+    renderPricingRow(
+      "Shipping Charges",
+      params.shippingCharges === 0 ? "\u20B90.00 (Free Shipping)" : formatInr(params.shippingCharges)
+    ),
+    renderPricingRow("Total Payable Amount (Final Quotation)", formatInr(params.totalPayableAmount), true)
+  ].join("");
+  const calloutHtml = params.paymentLinkUrl ? `<strong>Approval Confirmation:</strong> Your final quotation (${escapeHtml(quoteRef)}) for <strong>${escapeHtml(formatInr(params.totalPayableAmount))}</strong> is approved. Please complete payment securely using the Razorpay payment button below.` : `<strong>Approval Confirmation:</strong> Your final quotation (${escapeHtml(quoteRef)}) for <strong>${escapeHtml(formatInr(params.totalPayableAmount))}</strong> is approved. Your Razorpay payment link is being finalized and will be shared separately.`;
+  const html = renderBalkiEmailLayout({
+    badgeLabel: "Approved & Quoted",
+    badgeColor: "#059669",
+    heading: `Order Approved: ${params.requestId}`,
+    greeting: `Dear ${params.customerName || "Valued Client"},`,
+    introHtml: "Great news! Our procurement desk has approved your order request and issued your final quotation below.",
+    calloutHtml,
+    detailsRowsHtml,
+    items: params.items,
+    pricingRowsHtml,
+    ...params.paymentLinkUrl ? {
+      cta: {
+        label: `Pay ${formatInr(params.totalPayableAmount)} Securely via Razorpay`,
+        url: params.paymentLinkUrl
+      }
+    } : {},
+    footerNote: `Quotation Reference: ${quoteRef}`
+  });
+  const text = [
+    `Dear ${params.customerName}, your order ${params.requestId} is APPROVED.`,
+    `Final Quotation: ${quoteRef}`,
+    `Shipping Charges: ${formatInr(params.shippingCharges)}`,
+    `Total Payable Amount: ${formatInr(params.totalPayableAmount)}`,
+    ...params.paymentLinkUrl ? [`Secure Payment Link: ${params.paymentLinkUrl}`] : []
+  ].join("\n");
+  return dispatchTransactionalEmailOnce({
+    dedupeKey: `customer_approved:${params.requestId}:${params.paymentLinkId || params.totalPayableAmount}`,
+    eventType: "order_approved",
+    recipientType: "customer",
+    entityId: params.requestId,
+    to: params.customerEmail,
+    subject,
+    html,
+    text,
+    amountInr: params.totalPayableAmount,
+    paymentStatus: params.paymentLinkUrl ? "LINK_GENERATED" : "APPROVED"
+  });
+}
+async function sendCustomerFinalQuotationEmailOnce(params) {
+  const quoteRef = params.quoteReference || `QT-${params.requestId}`;
+  const subject = `Final Quotation Generated (${quoteRef}) \u2014 BALKI TECHNOLOGIES`;
+  const pricingRowsHtml = [
+    renderPricingRow("Shipping Charges", params.shippingCharges === 0 ? "Free" : formatInr(params.shippingCharges)),
+    renderPricingRow("Final Quoted Total Payable", formatInr(params.totalPayableAmount), true)
+  ].join("");
+  const html = renderBalkiEmailLayout({
+    badgeLabel: "Final Quotation",
+    badgeColor: "#d97706",
+    heading: `Final Quotation Ready: ${quoteRef}`,
+    greeting: `Dear ${params.customerName || "Valued Client"},`,
+    introHtml: `Your official final quotation (${escapeHtml(quoteRef)}) for Request <strong>${escapeHtml(params.requestId)}</strong> has been generated.`,
+    detailsRowsHtml: [
+      renderDetailRow("Request ID", params.requestId),
+      renderDetailRow("Quotation Reference", quoteRef)
+    ].join(""),
+    items: params.items,
+    pricingRowsHtml
+  });
+  const text = `Final quotation ${quoteRef} for request ${params.requestId}: Total Payable ${formatInr(params.totalPayableAmount)}.`;
+  return dispatchTransactionalEmailOnce({
+    dedupeKey: `final_quote:${params.requestId}:${params.totalPayableAmount}`,
+    eventType: "final_quotation_generated",
+    recipientType: "customer",
+    entityId: params.requestId,
+    to: params.customerEmail,
+    subject,
+    html,
+    text,
+    amountInr: params.totalPayableAmount,
+    paymentStatus: "QUOTED"
+  });
+}
+async function sendCustomerPaymentLinkEmailOnce(params) {
+  const subject = `Payment Link Generated for Order ${params.requestId} \u2014 BALKI TECHNOLOGIES`;
+  const html = renderBalkiEmailLayout({
+    badgeLabel: "Payment Link Ready",
+    badgeColor: "#d97706",
+    heading: `Secure Razorpay Payment Link: ${params.requestId}`,
+    greeting: `Dear ${params.customerName || "Valued Client"},`,
+    introHtml: `Your official Razorpay payment link for approved order <strong>${escapeHtml(params.requestId)}</strong> is now active.`,
+    detailsRowsHtml: [
+      renderDetailRow("Order / Request ID", params.requestId),
+      renderDetailRow("Razorpay Payment Link ID", params.paymentLinkId),
+      renderDetailRow("Total Payable Amount", formatInr(params.totalPayableAmount))
+    ].join(""),
+    items: params.items,
+    pricingRowsHtml: renderPricingRow("Total Payable Amount", formatInr(params.totalPayableAmount), true),
+    cta: {
+      label: `Complete Payment (${formatInr(params.totalPayableAmount)})`,
+      url: params.paymentLinkUrl
+    }
+  });
+  const text = `Secure Razorpay payment link for ${params.requestId} (${formatInr(params.totalPayableAmount)}): ${params.paymentLinkUrl}`;
+  return dispatchTransactionalEmailOnce({
+    dedupeKey: `payment_link:${params.requestId}:${params.paymentLinkId}`,
+    eventType: "payment_link_generated",
+    recipientType: "customer",
+    entityId: params.requestId,
+    to: params.customerEmail,
+    subject,
+    html,
+    text,
+    amountInr: params.totalPayableAmount,
+    paymentStatus: "LINK_GENERATED"
+  });
+}
+async function sendCustomerOrderRejectedEmailOnce(params) {
+  const subject = `Order Request Update (${params.requestId}) \u2014 BALKI TECHNOLOGIES`;
+  const html = renderBalkiEmailLayout({
+    badgeLabel: "Request Declined",
+    badgeColor: "#dc2626",
+    heading: `Order Request Not Approved: ${params.requestId}`,
+    greeting: `Dear ${params.customerName || "Valued Client"},`,
+    introHtml: "Thank you for your interest in BALKI TECHNOLOGIES hardware solutions. Unfortunately, your order request could not be approved at this time.",
+    calloutHtml: `<strong>Reason Provided:</strong> ${escapeHtml(params.rejectionReason)}`,
+    detailsRowsHtml: [
+      renderDetailRow("Order / Request ID", params.requestId),
+      renderDetailRow("Status", "Rejected / Closed"),
+      ...typeof params.requestedAmount === "number" ? [renderDetailRow("Requested Amount", formatInr(params.requestedAmount))] : []
+    ].join(""),
+    items: params.items,
+    footerNote: "Please contact our procurement team at +91 9071199139 for revised options."
+  });
+  const text = `Dear ${params.customerName}, your order request ${params.requestId} was not approved. Reason: ${params.rejectionReason}`;
+  return dispatchTransactionalEmailOnce({
+    dedupeKey: `customer_rejected:${params.requestId}`,
+    eventType: "order_rejected",
+    recipientType: "customer",
+    entityId: params.requestId,
+    to: params.customerEmail,
+    subject,
+    html,
+    text,
+    amountInr: params.requestedAmount || 0,
+    paymentStatus: "REJECTED"
+  });
+}
+async function sendOrderConfirmationEmailOnce(params) {
+  if (params.paymentStatus.toLowerCase() !== "paid") {
+    const errMsg = "Refused to send payment confirmation email before paymentStatus is Paid.";
+    return {
+      sent: false,
+      status: "failed",
+      eventType: "payment_received",
+      recipientType: "customer",
+      to: params.customerEmail || "",
+      subject: `Payment Confirmation Blocked \u2014 ${params.orderId}`,
+      dedupeKey: `payment_confirmed:${params.orderId}:${params.razorpayPaymentId || "none"}`,
+      attempts: 0,
+      provider: "audit-only",
+      error: errMsg,
+      timestamp: (/* @__PURE__ */ new Date()).toISOString()
+    };
+  }
+  const subject = `Payment Received & Order Confirmed (${params.orderId}) \u2014 BALKI TECHNOLOGIES`;
+  const detailsRowsHtml = [
+    renderDetailRow("Order Reference", params.orderId),
+    renderDetailRow("Payment Status", "Paid (Cryptographically Verified)"),
+    ...params.razorpayPaymentId ? [renderDetailRow("Razorpay Payment ID", params.razorpayPaymentId)] : [],
+    renderDetailRow("Verified At", formatDateIst())
+  ].join("");
+  const pricingRowsHtml = renderPricingRow("Total Paid", formatInr(params.amountInr), true);
+  const html = renderBalkiEmailLayout({
+    badgeLabel: "Payment Verified",
+    badgeColor: "#059669",
+    heading: `Payment Confirmed: Order ${params.orderId}`,
+    greeting: `Dear ${params.customerName || "Valued Client"},`,
+    introHtml: "Thank you for ordering from BALKI TECHNOLOGIES. Your payment has been cryptographically verified with Razorpay and your hardware consignment is now entering Quality Control & Assembly.",
+    detailsRowsHtml,
+    items: params.items,
+    pricingRowsHtml,
+    footerNote: "Official tax invoice and live shipment tracking updates will follow automatically."
+  });
+  const text = `Payment confirmed for Order ${params.orderId}. Amount Paid: ${formatInr(params.amountInr)}. Payment ID: ${params.razorpayPaymentId || "Verified"}.`;
+  return dispatchTransactionalEmailOnce({
+    dedupeKey: `payment_confirmed:${params.orderId}:${params.razorpayPaymentId || "verified"}`,
+    eventType: "payment_received",
+    recipientType: "customer",
+    entityId: params.orderId,
+    to: params.customerEmail,
+    subject,
+    html,
+    text,
+    amountInr: params.amountInr,
+    paymentStatus: "Paid",
+    paymentId: params.razorpayPaymentId
+  });
+}
+function mapStageToEventAndCopy(stage) {
+  switch (stage) {
+    case "qc_assembly":
+    case "processing":
+      return {
+        eventType: "order_processing",
+        badgeLabel: "Order Processing",
+        badgeColor: "#0284c7",
+        titlePrefix: "Your Order Is Being Processed",
+        description: "Our robotics engineers are performing hardware quality checks, kit calibration, and component verification."
+      };
+    case "packed":
+      return {
+        eventType: "order_packed",
+        badgeLabel: "Order Packed",
+        badgeColor: "#7c3aed",
+        titlePrefix: "Your Order Has Been Packed",
+        description: "All hardware modules and lab documentation have passed QC and are securely sealed for carrier pickup."
+      };
+    case "dispatched":
+    case "shipped":
+    case "in_transit":
+      return {
+        eventType: "order_shipped",
+        badgeLabel: stage === "in_transit" ? "In Transit" : "Order Shipped",
+        badgeColor: "#d97706",
+        titlePrefix: stage === "in_transit" ? "Your Shipment Is In Transit" : "Your Order Has Shipped",
+        description: "Your STEM hardware consignment has been handed over to our logistics partner and is on the way to your delivery address."
+      };
+    case "out_for_delivery":
+      return {
+        eventType: "order_out_for_delivery",
+        badgeLabel: "Out For Delivery",
+        badgeColor: "#ea580c",
+        titlePrefix: "Your Order Is Out For Delivery",
+        description: "Your shipment has reached your local delivery hub and is scheduled for delivery today."
+      };
+    case "delivered":
+      return {
+        eventType: "order_delivered",
+        badgeLabel: "Delivered",
+        badgeColor: "#059669",
+        titlePrefix: "Your Order Has Been Delivered",
+        description: "Your BALKI TECHNOLOGIES shipment has been delivered successfully. Thank you for building STEM excellence with us."
+      };
+    case "cancelled":
+      return {
+        eventType: "order_cancelled",
+        badgeLabel: "Order Cancelled",
+        badgeColor: "#dc2626",
+        titlePrefix: "Your Order Has Been Cancelled",
+        description: "This order has been cancelled and reserved inventory has been released. Any eligible prepaid refund is processed back to your original payment method."
+      };
+  }
+}
+async function sendCustomerOrderStatusEmailOnce(params) {
+  const copy = mapStageToEventAndCopy(params.stage);
+  const subject = `${copy.badgeLabel}: Order ${params.orderId} \u2014 BALKI TECHNOLOGIES`;
+  const detailsRowsHtml = [
+    renderDetailRow("Order ID", params.orderId),
+    renderDetailRow("Current Status", copy.badgeLabel),
+    ...params.courierName ? [renderDetailRow("Courier Partner", params.courierName)] : [],
+    ...params.trackingNumber ? [renderDetailRow("Tracking Number / AWB", params.trackingNumber)] : [],
+    renderDetailRow("Updated At", formatDateIst())
+  ].join("");
+  const html = renderBalkiEmailLayout({
+    badgeLabel: copy.badgeLabel,
+    badgeColor: copy.badgeColor,
+    heading: `${copy.titlePrefix}: ${params.orderId}`,
+    greeting: `Dear ${params.customerName || "Valued Client"},`,
+    introHtml: params.note ? `${escapeHtml(copy.description)}<br/><br/><strong>Update Note:</strong> ${escapeHtml(params.note)}` : escapeHtml(copy.description),
+    detailsRowsHtml,
+    items: params.items,
+    footerNote: params.trackingNumber ? `Track anytime at balkitechnologies.com using ${params.trackingNumber}` : void 0
+  });
+  const text = `${copy.titlePrefix} (${params.orderId}). ${copy.description}${params.trackingNumber ? ` Tracking: ${params.trackingNumber}` : ""}`;
+  return dispatchTransactionalEmailOnce({
+    dedupeKey: `order_status:${params.orderId}:${copy.eventType}`,
+    eventType: copy.eventType,
+    recipientType: "customer",
+    entityId: params.orderId,
+    to: params.customerEmail,
+    subject,
+    html,
+    text,
+    amountInr: params.amountInr || 0,
+    paymentStatus: params.stage.toUpperCase()
+  });
 }
 
 // src/server/createApiApp.ts
-function isPlaceholderValue(val) {
+function isPlaceholderValue2(val) {
   if (!val) return true;
   const trimmed = val.trim();
   if (!trimmed) return true;
   const upper = trimmed.toUpperCase();
   return upper.includes("YOUR_TEST_KEY") || upper.includes("YOUR_RAZORPAY") || upper.includes("CHANGE_THIS") || upper.startsWith("MY_") || trimmed === "undefined" || trimmed === "null";
 }
-function stripWrappingQuotes2(val) {
+function stripWrappingQuotes3(val) {
   if (!val) return "";
   const trimmed = String(val).trim();
   if (trimmed.startsWith('"') && trimmed.endsWith('"') || trimmed.startsWith("'") && trimmed.endsWith("'")) {
@@ -2687,12 +3606,12 @@ function stripWrappingQuotes2(val) {
   return trimmed;
 }
 function getRazorpayConfigStatus() {
-  const rawKeyId = stripWrappingQuotes2(process.env.RAZORPAY_KEY_ID);
-  const rawKeySecret = stripWrappingQuotes2(process.env.RAZORPAY_KEY_SECRET);
-  const rawWebhookSecret = stripWrappingQuotes2(process.env.RAZORPAY_WEBHOOK_SECRET);
-  const hasValidKeyId = !isPlaceholderValue(rawKeyId) && (rawKeyId.startsWith("rzp_test_") || rawKeyId.startsWith("rzp_live_")) && rawKeyId.length >= 14;
-  const hasValidKeySecret = !isPlaceholderValue(rawKeySecret) && rawKeySecret.length >= 12;
-  const webhookConfigured = !isPlaceholderValue(rawWebhookSecret) && rawWebhookSecret.length >= 12;
+  const rawKeyId = stripWrappingQuotes3(process.env.RAZORPAY_KEY_ID);
+  const rawKeySecret = stripWrappingQuotes3(process.env.RAZORPAY_KEY_SECRET);
+  const rawWebhookSecret = stripWrappingQuotes3(process.env.RAZORPAY_WEBHOOK_SECRET);
+  const hasValidKeyId = !isPlaceholderValue2(rawKeyId) && (rawKeyId.startsWith("rzp_test_") || rawKeyId.startsWith("rzp_live_")) && rawKeyId.length >= 14;
+  const hasValidKeySecret = !isPlaceholderValue2(rawKeySecret) && rawKeySecret.length >= 12;
+  const webhookConfigured = !isPlaceholderValue2(rawWebhookSecret) && rawWebhookSecret.length >= 12;
   if (!hasValidKeyId || !hasValidKeySecret) {
     return {
       configured: false,
@@ -2711,11 +3630,11 @@ function getRazorpayConfigStatus() {
 function getRazorpayKeySecret() {
   const status = getRazorpayConfigStatus();
   if (!status.configured) return null;
-  return stripWrappingQuotes2(process.env.RAZORPAY_KEY_SECRET);
+  return stripWrappingQuotes3(process.env.RAZORPAY_KEY_SECRET);
 }
 function getRazorpayWebhookSecret() {
-  const raw = stripWrappingQuotes2(process.env.RAZORPAY_WEBHOOK_SECRET);
-  if (isPlaceholderValue(raw) || raw.length < 12) return null;
+  const raw = stripWrappingQuotes3(process.env.RAZORPAY_WEBHOOK_SECRET);
+  if (isPlaceholderValue2(raw) || raw.length < 12) return null;
   return raw;
 }
 function getRazorpayClient() {
@@ -2738,12 +3657,12 @@ function getApprovalThresholdInr() {
 }
 var EPHEMERAL_FALLBACK_SECRET = crypto.randomBytes(32).toString("hex");
 function getOrderSigningSecret() {
-  const envSecret = stripWrappingQuotes2(process.env.ORDER_SIGNATURE_SECRET);
-  if (!isPlaceholderValue(envSecret) && envSecret.length >= 16) {
+  const envSecret = stripWrappingQuotes3(process.env.ORDER_SIGNATURE_SECRET);
+  if (!isPlaceholderValue2(envSecret) && envSecret.length >= 16) {
     return envSecret;
   }
-  const rzpSecret = stripWrappingQuotes2(process.env.RAZORPAY_KEY_SECRET);
-  if (!isPlaceholderValue(rzpSecret) && rzpSecret.length >= 12) {
+  const rzpSecret = stripWrappingQuotes3(process.env.RAZORPAY_KEY_SECRET);
+  if (!isPlaceholderValue2(rzpSecret) && rzpSecret.length >= 12) {
     return rzpSecret;
   }
   return EPHEMERAL_FALLBACK_SECRET;
@@ -3255,8 +4174,9 @@ function createApiApp() {
         const eventName = String(event.event || "unknown");
         const paymentEntity = event.payload?.payment?.entity;
         const orderEntity = event.payload?.order?.entity;
+        const paymentLinkEntity = event.payload?.payment_link?.entity;
         const headerEventId = typeof req.headers["x-razorpay-event-id"] === "string" ? req.headers["x-razorpay-event-id"].trim() : "";
-        const eventId = headerEventId || `${eventName}:${paymentEntity?.id || orderEntity?.id || "unknown"}`;
+        const eventId = headerEventId || `${eventName}:${paymentEntity?.id || paymentLinkEntity?.id || orderEntity?.id || "unknown"}`;
         if (processedWebhookEvents.has(eventId)) {
           return sendJsonSuccess(res, 200, "Webhook event already processed (idempotent)", {
             eventId,
@@ -3267,18 +4187,69 @@ function createApiApp() {
         const rzpOrderId = String(paymentEntity?.order_id || orderEntity?.id || "").trim();
         const rzpPaymentId = String(paymentEntity?.id || "").trim();
         const paymentMethod = paymentEntity?.method ? String(paymentEntity.method) : "Razorpay";
-        const capturedAmountPaise = typeof paymentEntity?.amount === "number" ? paymentEntity.amount : typeof orderEntity?.amount_paid === "number" ? orderEntity.amount_paid : null;
-        const eventCurrency = paymentEntity?.currency || orderEntity?.currency || "INR";
+        const capturedAmountPaise = typeof paymentEntity?.amount === "number" ? paymentEntity.amount : typeof orderEntity?.amount_paid === "number" ? orderEntity.amount_paid : typeof paymentLinkEntity?.amount_paid === "number" ? paymentLinkEntity.amount_paid : null;
+        const eventCurrency = paymentEntity?.currency || orderEntity?.currency || paymentLinkEntity?.currency || "INR";
         const balkiOrderId = String(
           paymentEntity?.notes?.balkiOrderId || paymentEntity?.notes?.internalOrderId || orderEntity?.notes?.balkiOrderId || orderEntity?.notes?.internalOrderId || orderEntity?.receipt || ""
         ).trim();
-        const supportedEvents = /* @__PURE__ */ new Set(["order.paid", "payment.captured", "payment.failed"]);
+        const balkiRequestId = String(
+          paymentLinkEntity?.notes?.requestId || paymentEntity?.notes?.requestId || orderEntity?.notes?.requestId || ""
+        ).trim();
+        const supportedEvents = /* @__PURE__ */ new Set(["order.paid", "payment.captured", "payment.failed", "payment_link.paid"]);
         if (!supportedEvents.has(eventName)) {
           processedWebhookEvents.add(eventId);
           return sendJsonSuccess(res, 200, `Webhook event "${eventName}" acknowledged`, {
             eventId,
             event: eventName,
             ignored: true
+          });
+        }
+        if (eventName === "payment_link.paid") {
+          const matchingReq = orderRequests.find(
+            (r) => balkiRequestId && (r.requestId === balkiRequestId || r.id === balkiRequestId) || paymentLinkEntity?.id && r.razorpayPaymentLinkId === paymentLinkEntity.id
+          );
+          if (matchingReq) {
+            const approvedAmount = Number(matchingReq.finalQuotedAmount || matchingReq.finalAmount || matchingReq.requestedAmount || 0);
+            const expectedPaise = Math.round(approvedAmount * 100);
+            if (typeof capturedAmountPaise === "number" && expectedPaise > 0 && capturedAmountPaise !== expectedPaise) {
+              processedWebhookEvents.add(eventId);
+              return sendJsonError(
+                res,
+                400,
+                `Webhook payment link amount mismatch (paid ${capturedAmountPaise} paise, expected ${expectedPaise} paise).`,
+                "PAYMENT_AMOUNT_MISMATCH"
+              );
+            }
+            matchingReq.paymentStatus = "Paid";
+            matchingReq.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+            await syncOrderRequestToFirestore(matchingReq);
+            if (rzpPaymentId) {
+              processedPaymentIds.set(rzpPaymentId, matchingReq.requestId);
+            }
+            await sendOrderConfirmationEmailOnce({
+              orderId: matchingReq.requestId,
+              customerName: matchingReq.customerDetails?.name || "Valued Client",
+              customerEmail: matchingReq.customerDetails?.email || "",
+              amountInr: approvedAmount,
+              paymentStatus: "Paid",
+              razorpayPaymentId: rzpPaymentId || paymentLinkEntity?.id || eventId,
+              items: (matchingReq.requestedProducts || []).map((it) => ({
+                name: it.productName,
+                quantity: it.quantity,
+                unitPrice: it.estimatedUnitPrice
+              }))
+            });
+          }
+          processedWebhookEvents.add(eventId);
+          logPaymentDiagnostic("webhook_payment_link_paid", {
+            event: eventName,
+            requestId: matchingReq?.requestId || balkiRequestId || null,
+            matched: Boolean(matchingReq)
+          });
+          return sendJsonSuccess(res, 200, `Webhook event "${eventName}" processed`, {
+            eventId,
+            event: eventName,
+            requestMatched: Boolean(matchingReq)
           });
         }
         if (eventName === "payment.captured" || eventName === "order.paid") {
@@ -3497,6 +4468,7 @@ function createApiApp() {
   app.get(["/api", "/api/index", "/api/health"], (_req, res) => {
     const rzpStatus = getRazorpayConfigStatus();
     const fsStatus = getAdminFirestoreStatus();
+    const emailStatus = getEmailConfigStatus();
     sendJsonSuccess(res, 200, "Balki Technologies API operational", {
       status: "ok",
       service: "Balki Technologies STEM Platform API",
@@ -3506,6 +4478,9 @@ function createApiApp() {
       webhookConfigured: rzpStatus.webhookConfigured,
       firestoreAdminConfigured: fsStatus.configured,
       firestoreAdminReason: fsStatus.reason,
+      emailConfigured: emailStatus.configured,
+      ownerEmailConfigured: emailStatus.ownerEmailConfigured,
+      emailFromDomain: emailStatus.fromDomain,
       approvalThresholdInr: getApprovalThresholdInr(),
       timestamp: (/* @__PURE__ */ new Date()).toISOString()
     });
@@ -4346,6 +5321,7 @@ function createApiApp() {
       request.razorpayPaymentLinkUrl = linkRes.short_url;
       request.paymentStatus = "LINK_GENERATED";
       request.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+      await syncOrderRequestToFirestore(request);
       notifications.unshift({
         notificationId: `notif_${Date.now()}`,
         recipientId: request.customerId,
@@ -4357,12 +5333,26 @@ function createApiApp() {
         read: false,
         createdAt: (/* @__PURE__ */ new Date()).toISOString()
       });
+      const emailResult = await sendCustomerPaymentLinkEmailOnce({
+        requestId: request.requestId,
+        customerName: request.customerDetails?.name || "Institutional Client",
+        customerEmail: request.customerDetails?.email || "",
+        totalPayableAmount: approvedAmount,
+        paymentLinkId: linkRes.id,
+        paymentLinkUrl: linkRes.short_url,
+        items: (request.requestedProducts || []).map((it) => ({
+          name: it.productName,
+          quantity: it.quantity,
+          unitPrice: it.estimatedUnitPrice
+        }))
+      });
       return sendJsonSuccess(res, 200, "Razorpay payment link generated successfully", {
         paymentLinkId: linkRes.id,
         paymentLinkUrl: linkRes.short_url,
         amount: approvedAmount,
         currency: "INR",
-        status: "created"
+        status: "created",
+        emailSent: emailResult.sent
       });
     } catch (err) {
       const msg = extractServerErrorMessage(err, "Error creating Razorpay payment link");
@@ -4497,7 +5487,7 @@ function createApiApp() {
       trackingDetails: order.trackingDetails
     });
   });
-  app.post("/api/orders/:id/track/advance", (req, res) => {
+  app.post("/api/orders/:id/track/advance", async (req, res) => {
     const order = orders.find((o) => o.id === req.params.id || o.trackingNumber === req.params.id);
     if (!order) {
       return sendJsonError(res, 404, "Order not found", "ORDER_NOT_FOUND");
@@ -4526,7 +5516,9 @@ function createApiApp() {
     }
     const nextStatus = stages[currentIdx + 1];
     order.orderStatus = nextStatus;
+    order.deliveryStatus = mapNormalizedDeliveryStatus(nextStatus);
     const nowIso = (/* @__PURE__ */ new Date()).toISOString();
+    order.updatedAt = nowIso;
     order.trackingDetails.checkpoints = order.trackingDetails.checkpoints.map((cp) => {
       const cpIdx = stages.indexOf(cp.status);
       const nextIdx = currentIdx + 1;
@@ -4549,9 +5541,32 @@ function createApiApp() {
     } else if (nextStatus === "delivered") {
       order.trackingDetails.liveCoordinates = { lat: 17.5118, lng: 78.5204 };
     }
-    return sendJsonSuccess(res, 200, `Consignment tracking advanced to ${nextStatus}`, { order });
+    await syncOrderStatusToFirestore(order.id, {
+      orderStatus: order.orderStatus,
+      deliveryStatus: order.deliveryStatus,
+      trackingDetails: order.trackingDetails,
+      updatedAt: nowIso
+    });
+    const emailResult = nextStatus !== "order_placed" ? await sendCustomerOrderStatusEmailOnce({
+      orderId: order.id,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      stage: nextStatus,
+      trackingNumber: order.trackingNumber,
+      courierName: order.courierName,
+      amountInr: Number(order.finalAmount ?? order.totalAmount),
+      items: (order.items || []).map((it) => ({
+        name: it.product.name,
+        quantity: it.quantity,
+        unitPrice: it.product.price
+      }))
+    }) : null;
+    return sendJsonSuccess(res, 200, `Consignment tracking advanced to ${nextStatus}`, {
+      order,
+      emailSent: emailResult?.sent ?? false
+    });
   });
-  app.post("/api/orders/:id/cancel", (req, res) => {
+  app.post("/api/orders/:id/cancel", async (req, res) => {
     const order = orders.find((o) => o.id === req.params.id || o.trackingNumber === req.params.id);
     if (!order) {
       return sendJsonError(res, 404, "Order not found", "ORDER_NOT_FOUND");
@@ -4578,8 +5593,10 @@ function createApiApp() {
         }
       }
     }
+    const nowIso = (/* @__PURE__ */ new Date()).toISOString();
     order.orderStatus = "cancelled";
     order.paymentStatus = order.paymentStatus === "Paid" ? "Refunded" : "Failed";
+    order.updatedAt = nowIso;
     if (order.trackingDetails) {
       order.trackingDetails.checkpoints.push({
         id: `chk-cancel-${Date.now()}`,
@@ -4587,12 +5604,35 @@ function createApiApp() {
         title: "Order Cancelled & Stock Restored",
         description: "Customer requested cancellation before delivery. Reserved inventory restored.",
         location: "Balki Corporate HQ, Hyderabad",
-        timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+        timestamp: nowIso,
         completed: true,
         current: true
       });
     }
-    return sendJsonSuccess(res, 200, "Order cancelled successfully. Inventory restored.", { order });
+    await syncOrderStatusToFirestore(order.id, {
+      orderStatus: order.orderStatus,
+      paymentStatus: order.paymentStatus,
+      trackingDetails: order.trackingDetails,
+      updatedAt: nowIso
+    });
+    const emailResult = await sendCustomerOrderStatusEmailOnce({
+      orderId: order.id,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      stage: "cancelled",
+      trackingNumber: order.trackingNumber,
+      courierName: order.courierName,
+      amountInr: Number(order.finalAmount ?? order.totalAmount),
+      items: (order.items || []).map((it) => ({
+        name: it.product.name,
+        quantity: it.quantity,
+        unitPrice: it.product.price
+      }))
+    });
+    return sendJsonSuccess(res, 200, "Order cancelled successfully. Inventory restored.", {
+      order,
+      emailSent: emailResult.sent
+    });
   });
   app.post("/api/orders/calculate", (req, res) => {
     const { items, couponCode } = req.body || {};
@@ -4968,6 +6008,36 @@ function createApiApp() {
         read: false,
         createdAt: (/* @__PURE__ */ new Date()).toISOString()
       });
+      const emailItems = calc.data.items.map((it) => ({
+        name: it.name,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice
+      }));
+      const [ownerEmailResult, customerEmailResult] = await Promise.all([
+        sendOwnerLargeOrderAlertOnce({
+          requestId,
+          customerName: newRequest.customerDetails.name,
+          customerEmail: newRequest.customerDetails.email,
+          customerPhone: newRequest.customerDetails.phone,
+          schoolName: newRequest.customerDetails.schoolName,
+          deliveryAddress: newRequest.customerDetails.address,
+          requestDate: newRequest.createdAt,
+          totalRequestedAmount: calc.data.finalAmount,
+          subtotal: calc.data.subtotal,
+          taxAmount: calc.data.taxAmount,
+          shippingCharges: calc.data.shippingCharges,
+          items: emailItems
+        }),
+        sendCustomerOrderRequestReceivedOnce({
+          requestId,
+          customerName: newRequest.customerDetails.name,
+          customerEmail: newRequest.customerDetails.email,
+          deliveryAddress: newRequest.customerDetails.address,
+          requestDate: newRequest.createdAt,
+          totalRequestedAmount: calc.data.finalAmount,
+          items: emailItems
+        })
+      ]);
       return sendJsonSuccess(
         res,
         201,
@@ -4976,7 +6046,13 @@ function createApiApp() {
           orderCategory: "LARGE_ORDER",
           requestId,
           firestoreSynced,
-          request: newRequest
+          request: newRequest,
+          emailNotifications: {
+            ownerAlertSent: ownerEmailResult.sent,
+            ownerAlertStatus: ownerEmailResult.status,
+            customerConfirmationSent: customerEmailResult.sent,
+            customerConfirmationStatus: customerEmailResult.status
+          }
         }
       );
     } catch (err) {
@@ -5093,7 +6169,7 @@ function createApiApp() {
     }
     res.json(list);
   });
-  app.post("/api/admin/orders/:id/approve", (req, res) => {
+  app.post("/api/admin/orders/:id/approve", async (req, res) => {
     const access = verifyAdminAccess(req);
     if (!access.authorized) {
       return sendJsonError(res, 403, "Unauthorized. Administrator credentials required.", "ADMIN_UNAUTHORIZED");
@@ -5106,6 +6182,7 @@ function createApiApp() {
     order.approvedAt = (/* @__PURE__ */ new Date()).toISOString();
     order.approvedBy = access.email || "kartikks1205@gmail.com";
     order.orderStatus = "qc_assembly";
+    order.deliveryStatus = mapNormalizedDeliveryStatus("qc_assembly");
     order.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
     if (order.trackingDetails) {
       order.trackingDetails.checkpoints = order.trackingDetails.checkpoints.map((cp) => {
@@ -5115,6 +6192,15 @@ function createApiApp() {
         return cp;
       });
     }
+    await syncOrderStatusToFirestore(order.id, {
+      approvalStatus: order.approvalStatus,
+      approvedAt: order.approvedAt,
+      approvedBy: order.approvedBy,
+      orderStatus: order.orderStatus,
+      deliveryStatus: order.deliveryStatus,
+      trackingDetails: order.trackingDetails,
+      updatedAt: order.updatedAt
+    });
     notifications.unshift({
       notificationId: `notif_${Date.now()}`,
       recipientId: order.customerId || order.userId || "client",
@@ -5126,9 +6212,24 @@ function createApiApp() {
       read: false,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     });
-    return sendJsonSuccess(res, 200, `Order ${order.id} approved successfully`, { order });
+    const emailResult = await sendCustomerOrderApprovedEmailOnce({
+      requestId: order.id,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      items: (order.items || []).map((it) => ({
+        name: it.product.name,
+        quantity: it.quantity,
+        unitPrice: it.product.price
+      })),
+      shippingCharges: Number(order.shippingCharges ?? order.shippingFee ?? 0),
+      totalPayableAmount: Number(order.finalAmount ?? order.totalAmount)
+    });
+    return sendJsonSuccess(res, 200, `Order ${order.id} approved successfully`, {
+      order,
+      emailSent: emailResult.sent
+    });
   });
-  app.post("/api/admin/orders/:id/reject", (req, res) => {
+  app.post("/api/admin/orders/:id/reject", async (req, res) => {
     const access = verifyAdminAccess(req);
     if (!access.authorized) {
       return sendJsonError(res, 403, "Unauthorized. Administrator credentials required.", "ADMIN_UNAUTHORIZED");
@@ -5148,6 +6249,12 @@ function createApiApp() {
         prod.stock += item.quantity;
       }
     }
+    await syncOrderStatusToFirestore(order.id, {
+      approvalStatus: order.approvalStatus,
+      rejectionReason: order.rejectionReason,
+      orderStatus: order.orderStatus,
+      updatedAt: order.updatedAt
+    });
     notifications.unshift({
       notificationId: `notif_${Date.now()}`,
       recipientId: order.customerId || order.userId || "client",
@@ -5159,9 +6266,24 @@ function createApiApp() {
       read: false,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     });
-    return sendJsonSuccess(res, 200, `Order ${order.id} rejected and inventory stock restored`, { order });
+    const emailResult = await sendCustomerOrderRejectedEmailOnce({
+      requestId: order.id,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      rejectionReason: order.rejectionReason,
+      requestedAmount: Number(order.finalAmount ?? order.totalAmount),
+      items: (order.items || []).map((it) => ({
+        name: it.product.name,
+        quantity: it.quantity,
+        unitPrice: it.product.price
+      }))
+    });
+    return sendJsonSuccess(res, 200, `Order ${order.id} rejected and inventory stock restored`, {
+      order,
+      emailSent: emailResult.sent
+    });
   });
-  app.post("/api/admin/orders/:id/status", (req, res) => {
+  app.post("/api/admin/orders/:id/status", async (req, res) => {
     const access = verifyAdminAccess(req);
     if (!access.authorized) {
       return sendJsonError(res, 403, "Unauthorized. Administrator credentials required.", "ADMIN_UNAUTHORIZED");
@@ -5171,33 +6293,92 @@ function createApiApp() {
     if (!order) {
       return sendJsonError(res, 404, "Order not found", "ORDER_NOT_FOUND");
     }
-    if (status) order.orderStatus = status;
+    const rawStatus = typeof status === "string" ? status.trim().toLowerCase() : "";
+    let persistedStatus;
+    let emailStage;
+    if (rawStatus) {
+      if (rawStatus === "processing" || rawStatus === "qc_assembly") {
+        persistedStatus = "qc_assembly";
+        emailStage = "qc_assembly";
+      } else if (rawStatus === "packed") {
+        persistedStatus = "qc_assembly";
+        emailStage = "packed";
+      } else if (rawStatus === "shipped" || rawStatus === "dispatched") {
+        persistedStatus = "dispatched";
+        emailStage = "dispatched";
+      } else if (rawStatus === "in_transit") {
+        persistedStatus = "in_transit";
+        emailStage = "in_transit";
+      } else if (rawStatus === "out_for_delivery") {
+        persistedStatus = "out_for_delivery";
+        emailStage = "out_for_delivery";
+      } else if (rawStatus === "delivered") {
+        persistedStatus = "delivered";
+        emailStage = "delivered";
+      } else if (rawStatus === "cancelled") {
+        persistedStatus = "cancelled";
+        emailStage = "cancelled";
+      } else {
+        persistedStatus = status;
+      }
+      order.orderStatus = persistedStatus;
+      order.deliveryStatus = mapNormalizedDeliveryStatus(persistedStatus);
+    }
     if (courierName) order.courierName = courierName;
     if (trackingNumber) order.trackingNumber = trackingNumber;
     order.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
-    if (order.trackingDetails && status) {
+    if (order.trackingDetails && persistedStatus) {
       const stages = ["order_placed", "qc_assembly", "dispatched", "in_transit", "out_for_delivery", "delivered"];
-      const targetIdx = stages.indexOf(status);
+      const targetIdx = stages.indexOf(persistedStatus);
       if (targetIdx !== -1) {
         order.trackingDetails.checkpoints = order.trackingDetails.checkpoints.map((cp, idx) => ({
           ...cp,
           completed: idx <= targetIdx,
-          current: idx === targetIdx
+          current: idx === targetIdx,
+          ...rawStatus === "packed" && cp.status === "qc_assembly" ? { description: "Hardware packed, calibrated, and sealed for carrier dispatch." } : {}
         }));
       }
     }
+    await syncOrderStatusToFirestore(order.id, {
+      orderStatus: order.orderStatus,
+      deliveryStatus: order.deliveryStatus,
+      courierName: order.courierName,
+      trackingNumber: order.trackingNumber,
+      packingStatus: rawStatus === "packed" ? "packed" : void 0,
+      trackingDetails: order.trackingDetails,
+      updatedAt: order.updatedAt
+    });
     notifications.unshift({
       notificationId: `notif_${Date.now()}`,
       recipientId: order.customerId || order.userId || "client",
       recipientEmail: order.customerEmail,
-      title: `Consignment Update: Order ${order.id} is ${status?.replace("_", " ").toUpperCase()}`,
-      message: note || `Consignment status updated to ${status}. Carrier: ${order.courierName || "Delhivery"}.`,
+      title: `Consignment Update: Order ${order.id} is ${rawStatus.replace("_", " ").toUpperCase()}`,
+      message: note || `Consignment status updated to ${rawStatus}. Carrier: ${order.courierName || "Delhivery"}.`,
       type: "tracking",
       orderId: order.id,
       read: false,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     });
-    return sendJsonSuccess(res, 200, `Order ${order.id} status updated to ${status}`, { order });
+    const emailResult = emailStage ? await sendCustomerOrderStatusEmailOnce({
+      orderId: order.id,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      stage: emailStage,
+      trackingNumber: order.trackingNumber,
+      courierName: order.courierName,
+      note: typeof note === "string" ? note : void 0,
+      amountInr: Number(order.finalAmount ?? order.totalAmount),
+      items: (order.items || []).map((it) => ({
+        name: it.product.name,
+        quantity: it.quantity,
+        unitPrice: it.product.price
+      }))
+    }) : null;
+    return sendJsonSuccess(res, 200, `Order ${order.id} status updated to ${rawStatus || order.orderStatus}`, {
+      order,
+      milestone: rawStatus || order.orderStatus,
+      emailSent: emailResult?.sent ?? false
+    });
   });
   app.get("/api/admin/order-requests", (req, res) => {
     const access = verifyAdminAccess(req);
@@ -5205,6 +6386,41 @@ function createApiApp() {
       return sendJsonError(res, 403, "Unauthorized. Administrator credentials required.", "ADMIN_UNAUTHORIZED");
     }
     res.json(orderRequests);
+  });
+  app.post("/api/admin/order-requests/:id/quotation", async (req, res) => {
+    const access = verifyAdminAccess(req);
+    if (!access.authorized) {
+      return sendJsonError(res, 403, "Unauthorized. Administrator credentials required.", "ADMIN_UNAUTHORIZED");
+    }
+    const { finalQuotedAmount, shippingCharges = 0 } = req.body || {};
+    const request = orderRequests.find((r) => r.requestId === req.params.id);
+    if (!request) {
+      return sendJsonError(res, 404, "Quote request not found", "ORDER_REQUEST_NOT_FOUND");
+    }
+    const quotedInr = Number(finalQuotedAmount) || request.requestedAmount;
+    if (!Number.isFinite(quotedInr) || quotedInr <= 0) {
+      return sendJsonError(res, 400, "Quoted amount must be positive.", "INVALID_QUOTED_AMOUNT");
+    }
+    request.finalQuotedAmount = quotedInr;
+    request.shippingCharges = Number(shippingCharges) || 0;
+    request.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    await syncOrderRequestToFirestore(request);
+    const emailResult = await sendCustomerFinalQuotationEmailOnce({
+      requestId: request.requestId,
+      customerName: request.customerDetails?.name || "Institutional Client",
+      customerEmail: request.customerDetails?.email || "",
+      items: (request.requestedProducts || []).map((it) => ({
+        name: it.productName,
+        quantity: it.quantity,
+        unitPrice: it.estimatedUnitPrice
+      })),
+      shippingCharges: request.shippingCharges || 0,
+      totalPayableAmount: quotedInr
+    });
+    return sendJsonSuccess(res, 200, `Final quotation issued for ${request.requestId}`, {
+      request,
+      emailSent: emailResult.sent
+    });
   });
   app.post("/api/admin/order-requests/:id/approve", async (req, res) => {
     try {
@@ -5260,6 +6476,7 @@ function createApiApp() {
       } else {
         request.paymentStatus = "Pending";
       }
+      await syncOrderRequestToFirestore(request);
       notifications.unshift({
         notificationId: `notif_${Date.now()}`,
         recipientId: request.customerId,
@@ -5271,13 +6488,29 @@ function createApiApp() {
         read: false,
         createdAt: (/* @__PURE__ */ new Date()).toISOString()
       });
+      const emailResult = await sendCustomerOrderApprovedEmailOnce({
+        requestId: request.requestId,
+        customerName: request.customerDetails?.name || "Institutional Client",
+        customerEmail: request.customerDetails?.email || "",
+        items: (request.requestedProducts || []).map((it) => ({
+          name: it.productName,
+          quantity: it.quantity,
+          unitPrice: it.estimatedUnitPrice
+        })),
+        shippingCharges: Number(request.shippingCharges) || 0,
+        totalPayableAmount: quotedInr,
+        paymentLinkUrl: linkUrl || null,
+        paymentLinkId: linkId || null
+      });
       return sendJsonSuccess(
         res,
         200,
         linkUrl ? `Quote request ${request.requestId} approved and Razorpay payment link generated.` : `Quote request ${request.requestId} approved. Razorpay credentials are not yet configured to generate live payment link.`,
         {
           request,
-          paymentLink: linkId && linkUrl ? { paymentLinkId: linkId, paymentLinkUrl: linkUrl, amount: quotedInr } : null
+          paymentLink: linkId && linkUrl ? { paymentLinkId: linkId, paymentLinkUrl: linkUrl, amount: quotedInr } : null,
+          emailSent: emailResult.sent,
+          emailStatus: emailResult.status
         }
       );
     } catch (err) {
@@ -5286,7 +6519,7 @@ function createApiApp() {
       return sendJsonError(res, 500, safeMsg, "ADMIN_APPROVE_ERROR");
     }
   });
-  app.post("/api/admin/order-requests/:id/reject", (req, res) => {
+  app.post("/api/admin/order-requests/:id/reject", async (req, res) => {
     const access = verifyAdminAccess(req);
     if (!access.authorized) {
       return sendJsonError(res, 403, "Unauthorized. Administrator credentials required.", "ADMIN_UNAUTHORIZED");
@@ -5299,6 +6532,7 @@ function createApiApp() {
     request.approvalStatus = "rejected";
     request.rejectionReason = rejectionReason || "Institutional quote guidelines not met.";
     request.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    await syncOrderRequestToFirestore(request);
     notifications.unshift({
       notificationId: `notif_${Date.now()}`,
       recipientId: request.customerId,
@@ -5310,7 +6544,35 @@ function createApiApp() {
       read: false,
       createdAt: (/* @__PURE__ */ new Date()).toISOString()
     });
-    return sendJsonSuccess(res, 200, `Quote request ${request.requestId} rejected`, { request });
+    const emailResult = await sendCustomerOrderRejectedEmailOnce({
+      requestId: request.requestId,
+      customerName: request.customerDetails?.name || "Institutional Client",
+      customerEmail: request.customerDetails?.email || "",
+      rejectionReason: request.rejectionReason,
+      requestedAmount: request.requestedAmount,
+      items: (request.requestedProducts || []).map((it) => ({
+        name: it.productName,
+        quantity: it.quantity,
+        unitPrice: it.estimatedUnitPrice
+      }))
+    });
+    return sendJsonSuccess(res, 200, `Quote request ${request.requestId} rejected`, {
+      request,
+      emailSent: emailResult.sent
+    });
+  });
+  app.get("/api/admin/email-logs", (req, res) => {
+    const access = verifyAdminAccess(req);
+    if (!access.authorized) {
+      return sendJsonError(res, 403, "Unauthorized. Administrator credentials required.", "ADMIN_UNAUTHORIZED");
+    }
+    const emailConfig = getEmailConfigStatus();
+    return sendJsonSuccess(res, 200, "Email logs retrieved", {
+      configured: emailConfig.configured,
+      ownerEmailConfigured: emailConfig.ownerEmailConfigured,
+      fromDomain: emailConfig.fromDomain,
+      logs: getRecentEmailLogs(50)
+    });
   });
   app.get("/api/admin/transactions", (req, res) => {
     const access = verifyAdminAccess(req);

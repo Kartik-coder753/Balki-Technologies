@@ -739,23 +739,73 @@ export async function runAtomicFailureTransaction(
   }
 }
 
+export async function syncOrderStatusToFirestore(
+  orderId: string,
+  updates: Record<string, any>
+): Promise<boolean> {
+  const db = getAdminFirestore();
+  if (!db) return false;
+
+  try {
+    await db.collection('orders').doc(orderId).set(
+      stripUndefinedDeep({
+        ...updates,
+        updatedAt: updates.updatedAt || new Date().toISOString()
+      }),
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.warn('Firestore Admin syncOrderStatus failed:', err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
+export async function hasEmailAuditBeenSentInFirestore(mailDocId: string): Promise<boolean> {
+  const db = getAdminFirestore();
+  if (!db) return false;
+  try {
+    const snap = await db.collection('mail').doc(mailDocId).get();
+    if (!snap.exists) return false;
+    const data = snap.data();
+    return Boolean(data && (data.status === 'sent' || data.delivered === true));
+  } catch (err) {
+    console.warn('Firestore mail dedupe lookup skipped:', err instanceof Error ? err.message : err);
+    return false;
+  }
+}
+
 export async function recordEmailAuditInFirestore(mailDoc: {
   id: string;
   to: string;
   subject: string;
   orderId: string;
   paymentId?: string;
+  razorpayPaymentId?: string;
   amountInr: number;
   paymentStatus: string;
+  eventType?: string;
+  recipientType?: 'owner' | 'customer';
+  status?: string;
+  attempts?: number;
+  resendEmailId?: string;
+  error?: string;
   deliveryProvider: string;
   delivered: boolean;
   html: string;
   createdAt: string;
+  updatedAt?: string;
 }): Promise<void> {
   const db = getAdminFirestore();
   if (!db) return;
   try {
-    await db.collection('mail').doc(mailDoc.id).set(mailDoc, { merge: true });
+    const payload = stripUndefinedDeep({
+      ...mailDoc,
+      status: mailDoc.status || (mailDoc.delivered ? 'sent' : 'failed'),
+      razorpayPaymentId: mailDoc.razorpayPaymentId || mailDoc.paymentId,
+      updatedAt: mailDoc.updatedAt || new Date().toISOString()
+    });
+    await db.collection('mail').doc(mailDoc.id).set(payload, { merge: true });
   } catch (err) {
     console.warn('Firestore mail audit write skipped:', err instanceof Error ? err.message : err);
   }

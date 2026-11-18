@@ -20,11 +20,24 @@ import {
   syncOrderCreatedToFirestore,
   syncRazorpayOrderIdToFirestore,
   syncOrderRequestToFirestore,
+  syncOrderStatusToFirestore,
   findFirestoreOrder,
   runAtomicCaptureTransaction,
   runAtomicFailureTransaction
 } from './firestoreAdmin';
-import { sendOrderConfirmationEmailOnce } from './mailer';
+import {
+  getEmailConfigStatus,
+  getRecentEmailLogs,
+  sendOrderConfirmationEmailOnce,
+  sendOwnerLargeOrderAlertOnce,
+  sendCustomerOrderRequestReceivedOnce,
+  sendCustomerOrderApprovedEmailOnce,
+  sendCustomerFinalQuotationEmailOnce,
+  sendCustomerPaymentLinkEmailOnce,
+  sendCustomerOrderRejectedEmailOnce,
+  sendCustomerOrderStatusEmailOnce,
+  type FulfillmentStage
+} from './mailer';
 import {
   Order,
   OrderStatus,
@@ -843,10 +856,11 @@ export function createApiApp(): express.Express {
         const eventName: string = String(event.event || 'unknown');
         const paymentEntity = event.payload?.payment?.entity;
         const orderEntity = event.payload?.order?.entity;
+        const paymentLinkEntity = event.payload?.payment_link?.entity;
         const headerEventId = typeof req.headers['x-razorpay-event-id'] === 'string'
           ? req.headers['x-razorpay-event-id'].trim()
           : '';
-        const eventId = headerEventId || `${eventName}:${paymentEntity?.id || orderEntity?.id || 'unknown'}`;
+        const eventId = headerEventId || `${eventName}:${paymentEntity?.id || paymentLinkEntity?.id || orderEntity?.id || 'unknown'}`;
 
         if (processedWebhookEvents.has(eventId)) {
           return sendJsonSuccess(res, 200, 'Webhook event already processed (idempotent)', {
@@ -861,8 +875,10 @@ export function createApiApp(): express.Express {
         const paymentMethod = paymentEntity?.method ? String(paymentEntity.method) : 'Razorpay';
         const capturedAmountPaise = typeof paymentEntity?.amount === 'number'
           ? paymentEntity.amount
-          : (typeof orderEntity?.amount_paid === 'number' ? orderEntity.amount_paid : null);
-        const eventCurrency = paymentEntity?.currency || orderEntity?.currency || 'INR';
+          : (typeof orderEntity?.amount_paid === 'number'
+            ? orderEntity.amount_paid
+            : (typeof paymentLinkEntity?.amount_paid === 'number' ? paymentLinkEntity.amount_paid : null));
+        const eventCurrency = paymentEntity?.currency || orderEntity?.currency || paymentLinkEntity?.currency || 'INR';
         const balkiOrderId = String(
           paymentEntity?.notes?.balkiOrderId ||
             paymentEntity?.notes?.internalOrderId ||
@@ -871,14 +887,74 @@ export function createApiApp(): express.Express {
             orderEntity?.receipt ||
             ''
         ).trim();
+        const balkiRequestId = String(
+          paymentLinkEntity?.notes?.requestId ||
+            paymentEntity?.notes?.requestId ||
+            orderEntity?.notes?.requestId ||
+            ''
+        ).trim();
 
-        const supportedEvents = new Set(['order.paid', 'payment.captured', 'payment.failed']);
+        const supportedEvents = new Set(['order.paid', 'payment.captured', 'payment.failed', 'payment_link.paid']);
         if (!supportedEvents.has(eventName)) {
           processedWebhookEvents.add(eventId);
           return sendJsonSuccess(res, 200, `Webhook event "${eventName}" acknowledged`, {
             eventId,
             event: eventName,
             ignored: true
+          });
+        }
+
+        if (eventName === 'payment_link.paid') {
+          const matchingReq = orderRequests.find(
+            r =>
+              (balkiRequestId && (r.requestId === balkiRequestId || r.id === balkiRequestId)) ||
+              (paymentLinkEntity?.id && r.razorpayPaymentLinkId === paymentLinkEntity.id)
+          );
+          if (matchingReq) {
+            const approvedAmount = Number(matchingReq.finalQuotedAmount || matchingReq.finalAmount || matchingReq.requestedAmount || 0);
+            const expectedPaise = Math.round(approvedAmount * 100);
+            if (typeof capturedAmountPaise === 'number' && expectedPaise > 0 && capturedAmountPaise !== expectedPaise) {
+              processedWebhookEvents.add(eventId);
+              return sendJsonError(
+                res,
+                400,
+                `Webhook payment link amount mismatch (paid ${capturedAmountPaise} paise, expected ${expectedPaise} paise).`,
+                'PAYMENT_AMOUNT_MISMATCH'
+              );
+            }
+            matchingReq.paymentStatus = 'Paid';
+            matchingReq.updatedAt = new Date().toISOString();
+            await syncOrderRequestToFirestore(matchingReq);
+
+            if (rzpPaymentId) {
+              processedPaymentIds.set(rzpPaymentId, matchingReq.requestId);
+            }
+
+            await sendOrderConfirmationEmailOnce({
+              orderId: matchingReq.requestId,
+              customerName: matchingReq.customerDetails?.name || 'Valued Client',
+              customerEmail: matchingReq.customerDetails?.email || '',
+              amountInr: approvedAmount,
+              paymentStatus: 'Paid',
+              razorpayPaymentId: rzpPaymentId || paymentLinkEntity?.id || eventId,
+              items: (matchingReq.requestedProducts || []).map((it) => ({
+                name: it.productName,
+                quantity: it.quantity,
+                unitPrice: it.estimatedUnitPrice
+              }))
+            });
+          }
+
+          processedWebhookEvents.add(eventId);
+          logPaymentDiagnostic('webhook_payment_link_paid', {
+            event: eventName,
+            requestId: matchingReq?.requestId || balkiRequestId || null,
+            matched: Boolean(matchingReq)
+          });
+          return sendJsonSuccess(res, 200, `Webhook event "${eventName}" processed`, {
+            eventId,
+            event: eventName,
+            requestMatched: Boolean(matchingReq)
           });
         }
 
@@ -1126,6 +1202,7 @@ export function createApiApp(): express.Express {
   app.get(['/api', '/api/index', '/api/health'], (_req, res) => {
     const rzpStatus = getRazorpayConfigStatus();
     const fsStatus = getAdminFirestoreStatus();
+    const emailStatus = getEmailConfigStatus();
     sendJsonSuccess(res, 200, 'Balki Technologies API operational', {
       status: 'ok',
       service: 'Balki Technologies STEM Platform API',
@@ -1135,6 +1212,9 @@ export function createApiApp(): express.Express {
       webhookConfigured: rzpStatus.webhookConfigured,
       firestoreAdminConfigured: fsStatus.configured,
       firestoreAdminReason: fsStatus.reason,
+      emailConfigured: emailStatus.configured,
+      ownerEmailConfigured: emailStatus.ownerEmailConfigured,
+      emailFromDomain: emailStatus.fromDomain,
       approvalThresholdInr: getApprovalThresholdInr(),
       timestamp: new Date().toISOString()
     });
@@ -2104,6 +2184,7 @@ export function createApiApp(): express.Express {
       request.razorpayPaymentLinkUrl = linkRes.short_url;
       request.paymentStatus = 'LINK_GENERATED';
       request.updatedAt = new Date().toISOString();
+      await syncOrderRequestToFirestore(request);
 
       notifications.unshift({
         notificationId: `notif_${Date.now()}`,
@@ -2117,12 +2198,27 @@ export function createApiApp(): express.Express {
         createdAt: new Date().toISOString()
       });
 
+      const emailResult = await sendCustomerPaymentLinkEmailOnce({
+        requestId: request.requestId,
+        customerName: request.customerDetails?.name || 'Institutional Client',
+        customerEmail: request.customerDetails?.email || '',
+        totalPayableAmount: approvedAmount,
+        paymentLinkId: linkRes.id,
+        paymentLinkUrl: linkRes.short_url,
+        items: (request.requestedProducts || []).map((it) => ({
+          name: it.productName,
+          quantity: it.quantity,
+          unitPrice: it.estimatedUnitPrice
+        }))
+      });
+
       return sendJsonSuccess(res, 200, 'Razorpay payment link generated successfully', {
         paymentLinkId: linkRes.id,
         paymentLinkUrl: linkRes.short_url,
         amount: approvedAmount,
         currency: 'INR',
-        status: 'created'
+        status: 'created',
+        emailSent: emailResult.sent
       });
     } catch (err: any) {
       const msg = extractServerErrorMessage(err, 'Error creating Razorpay payment link');
@@ -2287,7 +2383,7 @@ export function createApiApp(): express.Express {
     });
   });
 
-  app.post('/api/orders/:id/track/advance', (req, res) => {
+  app.post('/api/orders/:id/track/advance', async (req, res) => {
     const order = orders.find(o => o.id === req.params.id || o.trackingNumber === req.params.id);
     if (!order) {
       return sendJsonError(res, 404, 'Order not found', 'ORDER_NOT_FOUND');
@@ -2320,7 +2416,9 @@ export function createApiApp(): express.Express {
 
     const nextStatus = stages[currentIdx + 1];
     order.orderStatus = nextStatus;
+    order.deliveryStatus = mapNormalizedDeliveryStatus(nextStatus);
     const nowIso = new Date().toISOString();
+    order.updatedAt = nowIso;
 
     order.trackingDetails.checkpoints = order.trackingDetails.checkpoints.map(cp => {
       const cpIdx = stages.indexOf(cp.status);
@@ -2346,10 +2444,38 @@ export function createApiApp(): express.Express {
       order.trackingDetails.liveCoordinates = { lat: 17.5118, lng: 78.5204 };
     }
 
-    return sendJsonSuccess(res, 200, `Consignment tracking advanced to ${nextStatus}`, { order });
+    await syncOrderStatusToFirestore(order.id, {
+      orderStatus: order.orderStatus,
+      deliveryStatus: order.deliveryStatus,
+      trackingDetails: order.trackingDetails,
+      updatedAt: nowIso
+    });
+
+    const emailResult =
+      nextStatus !== 'order_placed'
+        ? await sendCustomerOrderStatusEmailOnce({
+            orderId: order.id,
+            customerName: order.customerName,
+            customerEmail: order.customerEmail,
+            stage: nextStatus as FulfillmentStage,
+            trackingNumber: order.trackingNumber,
+            courierName: order.courierName,
+            amountInr: Number(order.finalAmount ?? order.totalAmount),
+            items: (order.items || []).map((it) => ({
+              name: it.product.name,
+              quantity: it.quantity,
+              unitPrice: it.product.price
+            }))
+          })
+        : null;
+
+    return sendJsonSuccess(res, 200, `Consignment tracking advanced to ${nextStatus}`, {
+      order,
+      emailSent: emailResult?.sent ?? false
+    });
   });
 
-  app.post('/api/orders/:id/cancel', (req, res) => {
+  app.post('/api/orders/:id/cancel', async (req, res) => {
     const order = orders.find(o => o.id === req.params.id || o.trackingNumber === req.params.id);
     if (!order) {
       return sendJsonError(res, 404, 'Order not found', 'ORDER_NOT_FOUND');
@@ -2380,8 +2506,10 @@ export function createApiApp(): express.Express {
       }
     }
 
+    const nowIso = new Date().toISOString();
     order.orderStatus = 'cancelled';
     order.paymentStatus = order.paymentStatus === 'Paid' ? 'Refunded' : 'Failed';
+    order.updatedAt = nowIso;
 
     if (order.trackingDetails) {
       order.trackingDetails.checkpoints.push({
@@ -2390,13 +2518,38 @@ export function createApiApp(): express.Express {
         title: 'Order Cancelled & Stock Restored',
         description: 'Customer requested cancellation before delivery. Reserved inventory restored.',
         location: 'Balki Corporate HQ, Hyderabad',
-        timestamp: new Date().toISOString(),
+        timestamp: nowIso,
         completed: true,
         current: true
       });
     }
 
-    return sendJsonSuccess(res, 200, 'Order cancelled successfully. Inventory restored.', { order });
+    await syncOrderStatusToFirestore(order.id, {
+      orderStatus: order.orderStatus,
+      paymentStatus: order.paymentStatus,
+      trackingDetails: order.trackingDetails,
+      updatedAt: nowIso
+    });
+
+    const emailResult = await sendCustomerOrderStatusEmailOnce({
+      orderId: order.id,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      stage: 'cancelled',
+      trackingNumber: order.trackingNumber,
+      courierName: order.courierName,
+      amountInr: Number(order.finalAmount ?? order.totalAmount),
+      items: (order.items || []).map((it) => ({
+        name: it.product.name,
+        quantity: it.quantity,
+        unitPrice: it.product.price
+      }))
+    });
+
+    return sendJsonSuccess(res, 200, 'Order cancelled successfully. Inventory restored.', {
+      order,
+      emailSent: emailResult.sent
+    });
   });
 
   // ==========================================
@@ -2823,6 +2976,38 @@ export function createApiApp(): express.Express {
         createdAt: new Date().toISOString()
       });
 
+      const emailItems = calc.data.items.map((it) => ({
+        name: it.name,
+        quantity: it.quantity,
+        unitPrice: it.unitPrice
+      }));
+
+      const [ownerEmailResult, customerEmailResult] = await Promise.all([
+        sendOwnerLargeOrderAlertOnce({
+          requestId,
+          customerName: newRequest.customerDetails.name,
+          customerEmail: newRequest.customerDetails.email,
+          customerPhone: newRequest.customerDetails.phone,
+          schoolName: newRequest.customerDetails.schoolName,
+          deliveryAddress: newRequest.customerDetails.address,
+          requestDate: newRequest.createdAt,
+          totalRequestedAmount: calc.data.finalAmount,
+          subtotal: calc.data.subtotal,
+          taxAmount: calc.data.taxAmount,
+          shippingCharges: calc.data.shippingCharges,
+          items: emailItems
+        }),
+        sendCustomerOrderRequestReceivedOnce({
+          requestId,
+          customerName: newRequest.customerDetails.name,
+          customerEmail: newRequest.customerDetails.email,
+          deliveryAddress: newRequest.customerDetails.address,
+          requestDate: newRequest.createdAt,
+          totalRequestedAmount: calc.data.finalAmount,
+          items: emailItems
+        })
+      ]);
+
       return sendJsonSuccess(
         res,
         201,
@@ -2831,7 +3016,13 @@ export function createApiApp(): express.Express {
           orderCategory: 'LARGE_ORDER',
           requestId,
           firestoreSynced,
-          request: newRequest
+          request: newRequest,
+          emailNotifications: {
+            ownerAlertSent: ownerEmailResult.sent,
+            ownerAlertStatus: ownerEmailResult.status,
+            customerConfirmationSent: customerEmailResult.sent,
+            customerConfirmationStatus: customerEmailResult.status
+          }
         }
       );
     } catch (err: any) {
@@ -2981,7 +3172,7 @@ export function createApiApp(): express.Express {
     res.json(list);
   });
 
-  app.post('/api/admin/orders/:id/approve', (req, res) => {
+  app.post('/api/admin/orders/:id/approve', async (req, res) => {
     const access = verifyAdminAccess(req);
     if (!access.authorized) {
       return sendJsonError(res, 403, 'Unauthorized. Administrator credentials required.', 'ADMIN_UNAUTHORIZED');
@@ -2996,6 +3187,7 @@ export function createApiApp(): express.Express {
     order.approvedAt = new Date().toISOString();
     order.approvedBy = access.email || 'kartikks1205@gmail.com';
     order.orderStatus = 'qc_assembly';
+    order.deliveryStatus = mapNormalizedDeliveryStatus('qc_assembly');
     order.updatedAt = new Date().toISOString();
 
     if (order.trackingDetails) {
@@ -3006,6 +3198,16 @@ export function createApiApp(): express.Express {
         return cp;
       });
     }
+
+    await syncOrderStatusToFirestore(order.id, {
+      approvalStatus: order.approvalStatus,
+      approvedAt: order.approvedAt,
+      approvedBy: order.approvedBy,
+      orderStatus: order.orderStatus,
+      deliveryStatus: order.deliveryStatus,
+      trackingDetails: order.trackingDetails,
+      updatedAt: order.updatedAt
+    });
 
     notifications.unshift({
       notificationId: `notif_${Date.now()}`,
@@ -3019,10 +3221,26 @@ export function createApiApp(): express.Express {
       createdAt: new Date().toISOString()
     });
 
-    return sendJsonSuccess(res, 200, `Order ${order.id} approved successfully`, { order });
+    const emailResult = await sendCustomerOrderApprovedEmailOnce({
+      requestId: order.id,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      items: (order.items || []).map((it) => ({
+        name: it.product.name,
+        quantity: it.quantity,
+        unitPrice: it.product.price
+      })),
+      shippingCharges: Number(order.shippingCharges ?? order.shippingFee ?? 0),
+      totalPayableAmount: Number(order.finalAmount ?? order.totalAmount)
+    });
+
+    return sendJsonSuccess(res, 200, `Order ${order.id} approved successfully`, {
+      order,
+      emailSent: emailResult.sent
+    });
   });
 
-  app.post('/api/admin/orders/:id/reject', (req, res) => {
+  app.post('/api/admin/orders/:id/reject', async (req, res) => {
     const access = verifyAdminAccess(req);
     if (!access.authorized) {
       return sendJsonError(res, 403, 'Unauthorized. Administrator credentials required.', 'ADMIN_UNAUTHORIZED');
@@ -3046,6 +3264,13 @@ export function createApiApp(): express.Express {
       }
     }
 
+    await syncOrderStatusToFirestore(order.id, {
+      approvalStatus: order.approvalStatus,
+      rejectionReason: order.rejectionReason,
+      orderStatus: order.orderStatus,
+      updatedAt: order.updatedAt
+    });
+
     notifications.unshift({
       notificationId: `notif_${Date.now()}`,
       recipientId: order.customerId || order.userId || 'client',
@@ -3058,10 +3283,26 @@ export function createApiApp(): express.Express {
       createdAt: new Date().toISOString()
     });
 
-    return sendJsonSuccess(res, 200, `Order ${order.id} rejected and inventory stock restored`, { order });
+    const emailResult = await sendCustomerOrderRejectedEmailOnce({
+      requestId: order.id,
+      customerName: order.customerName,
+      customerEmail: order.customerEmail,
+      rejectionReason: order.rejectionReason,
+      requestedAmount: Number(order.finalAmount ?? order.totalAmount),
+      items: (order.items || []).map((it) => ({
+        name: it.product.name,
+        quantity: it.quantity,
+        unitPrice: it.product.price
+      }))
+    });
+
+    return sendJsonSuccess(res, 200, `Order ${order.id} rejected and inventory stock restored`, {
+      order,
+      emailSent: emailResult.sent
+    });
   });
 
-  app.post('/api/admin/orders/:id/status', (req, res) => {
+  app.post('/api/admin/orders/:id/status', async (req, res) => {
     const access = verifyAdminAccess(req);
     if (!access.authorized) {
       return sendJsonError(res, 403, 'Unauthorized. Administrator credentials required.', 'ADMIN_UNAUTHORIZED');
@@ -3073,36 +3314,104 @@ export function createApiApp(): express.Express {
       return sendJsonError(res, 404, 'Order not found', 'ORDER_NOT_FOUND');
     }
 
-    if (status) order.orderStatus = status;
+    const rawStatus = typeof status === 'string' ? status.trim().toLowerCase() : '';
+    let persistedStatus: OrderStatus | undefined;
+    let emailStage: FulfillmentStage | undefined;
+
+    if (rawStatus) {
+      if (rawStatus === 'processing' || rawStatus === 'qc_assembly') {
+        persistedStatus = 'qc_assembly';
+        emailStage = 'qc_assembly';
+      } else if (rawStatus === 'packed') {
+        // Keep firestore.rules orderStatus compatible while tracking packed milestone
+        persistedStatus = 'qc_assembly';
+        emailStage = 'packed';
+      } else if (rawStatus === 'shipped' || rawStatus === 'dispatched') {
+        persistedStatus = 'dispatched';
+        emailStage = 'dispatched';
+      } else if (rawStatus === 'in_transit') {
+        persistedStatus = 'in_transit';
+        emailStage = 'in_transit';
+      } else if (rawStatus === 'out_for_delivery') {
+        persistedStatus = 'out_for_delivery';
+        emailStage = 'out_for_delivery';
+      } else if (rawStatus === 'delivered') {
+        persistedStatus = 'delivered';
+        emailStage = 'delivered';
+      } else if (rawStatus === 'cancelled') {
+        persistedStatus = 'cancelled';
+        emailStage = 'cancelled';
+      } else {
+        persistedStatus = status as OrderStatus;
+      }
+      order.orderStatus = persistedStatus;
+      order.deliveryStatus = mapNormalizedDeliveryStatus(persistedStatus);
+    }
+
     if (courierName) order.courierName = courierName;
     if (trackingNumber) order.trackingNumber = trackingNumber;
     order.updatedAt = new Date().toISOString();
 
-    if (order.trackingDetails && status) {
+    if (order.trackingDetails && persistedStatus) {
       const stages: OrderStatus[] = ['order_placed', 'qc_assembly', 'dispatched', 'in_transit', 'out_for_delivery', 'delivered'];
-      const targetIdx = stages.indexOf(status);
+      const targetIdx = stages.indexOf(persistedStatus);
       if (targetIdx !== -1) {
         order.trackingDetails.checkpoints = order.trackingDetails.checkpoints.map((cp, idx) => ({
           ...cp,
           completed: idx <= targetIdx,
-          current: idx === targetIdx
+          current: idx === targetIdx,
+          ...(rawStatus === 'packed' && cp.status === 'qc_assembly'
+            ? { description: 'Hardware packed, calibrated, and sealed for carrier dispatch.' }
+            : {})
         }));
       }
     }
+
+    await syncOrderStatusToFirestore(order.id, {
+      orderStatus: order.orderStatus,
+      deliveryStatus: order.deliveryStatus,
+      courierName: order.courierName,
+      trackingNumber: order.trackingNumber,
+      packingStatus: rawStatus === 'packed' ? 'packed' : undefined,
+      trackingDetails: order.trackingDetails,
+      updatedAt: order.updatedAt
+    });
 
     notifications.unshift({
       notificationId: `notif_${Date.now()}`,
       recipientId: order.customerId || order.userId || 'client',
       recipientEmail: order.customerEmail,
-      title: `Consignment Update: Order ${order.id} is ${status?.replace('_', ' ').toUpperCase()}`,
-      message: note || `Consignment status updated to ${status}. Carrier: ${order.courierName || 'Delhivery'}.`,
+      title: `Consignment Update: Order ${order.id} is ${rawStatus.replace('_', ' ').toUpperCase()}`,
+      message: note || `Consignment status updated to ${rawStatus}. Carrier: ${order.courierName || 'Delhivery'}.`,
       type: 'tracking',
       orderId: order.id,
       read: false,
       createdAt: new Date().toISOString()
     });
 
-    return sendJsonSuccess(res, 200, `Order ${order.id} status updated to ${status}`, { order });
+    const emailResult = emailStage
+      ? await sendCustomerOrderStatusEmailOnce({
+          orderId: order.id,
+          customerName: order.customerName,
+          customerEmail: order.customerEmail,
+          stage: emailStage,
+          trackingNumber: order.trackingNumber,
+          courierName: order.courierName,
+          note: typeof note === 'string' ? note : undefined,
+          amountInr: Number(order.finalAmount ?? order.totalAmount),
+          items: (order.items || []).map((it) => ({
+            name: it.product.name,
+            quantity: it.quantity,
+            unitPrice: it.product.price
+          }))
+        })
+      : null;
+
+    return sendJsonSuccess(res, 200, `Order ${order.id} status updated to ${rawStatus || order.orderStatus}`, {
+      order,
+      milestone: rawStatus || order.orderStatus,
+      emailSent: emailResult?.sent ?? false
+    });
   });
 
   app.get('/api/admin/order-requests', (req, res) => {
@@ -3111,6 +3420,47 @@ export function createApiApp(): express.Express {
       return sendJsonError(res, 403, 'Unauthorized. Administrator credentials required.', 'ADMIN_UNAUTHORIZED');
     }
     res.json(orderRequests);
+  });
+
+  app.post('/api/admin/order-requests/:id/quotation', async (req, res) => {
+    const access = verifyAdminAccess(req);
+    if (!access.authorized) {
+      return sendJsonError(res, 403, 'Unauthorized. Administrator credentials required.', 'ADMIN_UNAUTHORIZED');
+    }
+
+    const { finalQuotedAmount, shippingCharges = 0 } = req.body || {};
+    const request = orderRequests.find(r => r.requestId === req.params.id);
+    if (!request) {
+      return sendJsonError(res, 404, 'Quote request not found', 'ORDER_REQUEST_NOT_FOUND');
+    }
+
+    const quotedInr = Number(finalQuotedAmount) || request.requestedAmount;
+    if (!Number.isFinite(quotedInr) || quotedInr <= 0) {
+      return sendJsonError(res, 400, 'Quoted amount must be positive.', 'INVALID_QUOTED_AMOUNT');
+    }
+
+    request.finalQuotedAmount = quotedInr;
+    request.shippingCharges = Number(shippingCharges) || 0;
+    request.updatedAt = new Date().toISOString();
+    await syncOrderRequestToFirestore(request);
+
+    const emailResult = await sendCustomerFinalQuotationEmailOnce({
+      requestId: request.requestId,
+      customerName: request.customerDetails?.name || 'Institutional Client',
+      customerEmail: request.customerDetails?.email || '',
+      items: (request.requestedProducts || []).map((it) => ({
+        name: it.productName,
+        quantity: it.quantity,
+        unitPrice: it.estimatedUnitPrice
+      })),
+      shippingCharges: request.shippingCharges || 0,
+      totalPayableAmount: quotedInr
+    });
+
+    return sendJsonSuccess(res, 200, `Final quotation issued for ${request.requestId}`, {
+      request,
+      emailSent: emailResult.sent
+    });
   });
 
   app.post('/api/admin/order-requests/:id/approve', async (req, res) => {
@@ -3173,6 +3523,8 @@ export function createApiApp(): express.Express {
         request.paymentStatus = 'Pending';
       }
 
+      await syncOrderRequestToFirestore(request);
+
       notifications.unshift({
         notificationId: `notif_${Date.now()}`,
         recipientId: request.customerId,
@@ -3187,6 +3539,21 @@ export function createApiApp(): express.Express {
         createdAt: new Date().toISOString()
       });
 
+      const emailResult = await sendCustomerOrderApprovedEmailOnce({
+        requestId: request.requestId,
+        customerName: request.customerDetails?.name || 'Institutional Client',
+        customerEmail: request.customerDetails?.email || '',
+        items: (request.requestedProducts || []).map((it) => ({
+          name: it.productName,
+          quantity: it.quantity,
+          unitPrice: it.estimatedUnitPrice
+        })),
+        shippingCharges: Number(request.shippingCharges) || 0,
+        totalPayableAmount: quotedInr,
+        paymentLinkUrl: linkUrl || null,
+        paymentLinkId: linkId || null
+      });
+
       return sendJsonSuccess(
         res,
         200,
@@ -3195,7 +3562,9 @@ export function createApiApp(): express.Express {
           : `Quote request ${request.requestId} approved. Razorpay credentials are not yet configured to generate live payment link.`,
         {
           request,
-          paymentLink: linkId && linkUrl ? { paymentLinkId: linkId, paymentLinkUrl: linkUrl, amount: quotedInr } : null
+          paymentLink: linkId && linkUrl ? { paymentLinkId: linkId, paymentLinkUrl: linkUrl, amount: quotedInr } : null,
+          emailSent: emailResult.sent,
+          emailStatus: emailResult.status
         }
       );
     } catch (err: any) {
@@ -3205,7 +3574,7 @@ export function createApiApp(): express.Express {
     }
   });
 
-  app.post('/api/admin/order-requests/:id/reject', (req, res) => {
+  app.post('/api/admin/order-requests/:id/reject', async (req, res) => {
     const access = verifyAdminAccess(req);
     if (!access.authorized) {
       return sendJsonError(res, 403, 'Unauthorized. Administrator credentials required.', 'ADMIN_UNAUTHORIZED');
@@ -3220,6 +3589,7 @@ export function createApiApp(): express.Express {
     request.approvalStatus = 'rejected';
     request.rejectionReason = rejectionReason || 'Institutional quote guidelines not met.';
     request.updatedAt = new Date().toISOString();
+    await syncOrderRequestToFirestore(request);
 
     notifications.unshift({
       notificationId: `notif_${Date.now()}`,
@@ -3233,7 +3603,37 @@ export function createApiApp(): express.Express {
       createdAt: new Date().toISOString()
     });
 
-    return sendJsonSuccess(res, 200, `Quote request ${request.requestId} rejected`, { request });
+    const emailResult = await sendCustomerOrderRejectedEmailOnce({
+      requestId: request.requestId,
+      customerName: request.customerDetails?.name || 'Institutional Client',
+      customerEmail: request.customerDetails?.email || '',
+      rejectionReason: request.rejectionReason,
+      requestedAmount: request.requestedAmount,
+      items: (request.requestedProducts || []).map((it) => ({
+        name: it.productName,
+        quantity: it.quantity,
+        unitPrice: it.estimatedUnitPrice
+      }))
+    });
+
+    return sendJsonSuccess(res, 200, `Quote request ${request.requestId} rejected`, {
+      request,
+      emailSent: emailResult.sent
+    });
+  });
+
+  app.get('/api/admin/email-logs', (req, res) => {
+    const access = verifyAdminAccess(req);
+    if (!access.authorized) {
+      return sendJsonError(res, 403, 'Unauthorized. Administrator credentials required.', 'ADMIN_UNAUTHORIZED');
+    }
+    const emailConfig = getEmailConfigStatus();
+    return sendJsonSuccess(res, 200, 'Email logs retrieved', {
+      configured: emailConfig.configured,
+      ownerEmailConfigured: emailConfig.ownerEmailConfigured,
+      fromDomain: emailConfig.fromDomain,
+      logs: getRecentEmailLogs(50)
+    });
   });
 
   app.get('/api/admin/transactions', (req, res) => {
